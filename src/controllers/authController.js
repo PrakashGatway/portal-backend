@@ -48,8 +48,6 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Invalid OTP" });
     }
 
-    await Otp.deleteOne({ email });
-
     let user = await User.findOne({ email });
     let accessToken;
 
@@ -66,12 +64,28 @@ export const verifyOtp = async (req, res) => {
       accessToken = generateAccessToken(user._id);
     }
 
+    // res.cookie("auth_token", accessToken, {
+    //   httpOnly: true,
+    //   secure: false,
+    //   sameSite: "Lax"
+    // });
+
+    res.cookie("auth_token", accessToken, {
+      httpOnly: true,
+      secure: true, // Always true in production
+      sameSite: "None", // Required for cross-subdomain cookies
+      domain: ".gatewayabroadeducations.com", // Works for www.domain
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
+
+
     res.json({
       success: true,
       message: "OTP verified successfully",
       token: accessToken
     });
 
+    await Otp.deleteOne({ email });
   } catch (error) {
     console.error("Error verifying OTP:", error);
     res.status(500).json({ success: false, message: "Failed to verify OTP" });
@@ -227,21 +241,34 @@ export const refreshToken = async (req, res) => {
   }
 };
 
-// @desc    Logout user
-// @route   POST /api/auth/logout
-// @access  Private
 export const logout = async (req, res) => {
   try {
-    const { refreshToken } = req.body;
-    const user = await User.findById(req.user.id);
-
-    if (refreshToken) {
-      user.refreshTokens = user.refreshTokens.filter(token => token !== refreshToken);
-    } else {
-      user.refreshTokens = [];
+    let token;
+    token = req.cookies.auth_token;
+    console.log(token)
+    if (token) {
+      // res.clearCookie("auth_token", {
+      //   httpOnly: true,
+      //   secure: false,
+      //   sameSite: "Lax"
+      // });
+      res.clearCookie("auth_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        domain: ".gatewayabroadeducations.com" // same as when you set it
+      });
     }
 
-    await user.save();
+    // const { refreshToken } = req.body;
+    // const user = await User.findById(req.user.id);
+
+    // if (refreshToken) {
+    //   user.refreshTokens = user.refreshTokens.filter(token => token !== refreshToken);
+    // } else {
+    //   user.refreshTokens = [];
+    // }
+    // await user.save();
 
     res.json({
       success: true,
@@ -255,9 +282,6 @@ export const logout = async (req, res) => {
   }
 };
 
-// @desc    Forgot password
-// @route   POST /api/auth/forgot-password
-// @access  Public
 export const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -292,9 +316,6 @@ export const forgotPassword = async (req, res) => {
   }
 };
 
-// @desc    Reset password
-// @route   POST /api/auth/reset-password/:token
-// @access  Public
 export const resetPassword = async (req, res) => {
   try {
     const { token } = req.params;
@@ -333,14 +354,11 @@ export const resetPassword = async (req, res) => {
   }
 };
 
-// @desc    Get current user
-// @route   GET /api/auth/me
-// @access  Private
 export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .populate('courses.course', 'title thumbnail')
-      .select('-password -refreshTokens');
+      .select('-refreshTokens');
 
     res.json({
       success: true,

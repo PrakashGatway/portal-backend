@@ -19,7 +19,7 @@ router.post('/verify_otp', verifyOtp);
 
 router.post('/register', register);
 router.post('/login', login);
-router.post('/logout', protect, logout);
+router.get('/logout', protect, logout);
 router.post('/refresh', refreshToken);
 router.post('/forgot-password', forgotPassword);
 router.post('/reset-password/:token', resetPassword);

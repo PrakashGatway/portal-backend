@@ -9,30 +9,36 @@
     "dev": "nodemon src/server.js",
     "test": "jest"
   },
-  "keywords": ["study", "platform", "backend", "education"],
+  "keywords": [
+    "study",
+    "platform",
+    "backend",
+    "education"
+  ],
   "author": "Study Platform Team",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.18.2",
-    "mongoose": "^7.6.3",
+    "agenda": "^4.3.0",
     "bcryptjs": "^2.4.3",
-    "jsonwebtoken": "^9.0.2",
+    "cloudinary": "^1.41.0",
+    "compression": "^1.7.4",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "dotenv": "^16.3.1",
-    "multer": "^1.4.5-lts.1",
-    "socket.io": "^4.7.2",
-    "nodemailer": "^6.9.7",
+    "express": "^4.18.2",
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0",
     "joi": "^17.11.0",
-    "cloudinary": "^1.41.0",
-    "stripe": "^13.11.0",
-    "agenda": "^4.3.0",
-    "compression": "^1.7.4"
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.6.3",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemailer": "^6.9.7",
+    "socket.io": "^4.7.2",
+    "stripe": "^13.11.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1",
-    "jest": "^29.7.0"
+    "jest": "^29.7.0",
+    "nodemon": "^3.0.1"
   }
 }

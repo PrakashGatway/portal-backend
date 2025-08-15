@@ -5,20 +5,33 @@ export const protect = async (req, res, next) => {
   try {
     let token;
 
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
-    }
+    token = req.cookies.auth_token;
+
+    // if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+    //   token = req.headers.authorization.split(' ')[1];
+    // }
 
     if (!token) {
-      return res.status(401).json({
+      // res.clearCookie("auth_token", {
+      //   httpOnly: true,
+      //   secure: false,
+      //   sameSite: "Lax"
+      // });
+      res.clearCookie("auth_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        domain: ".gatewayabroadeducations.com" // same as when you set it
+      });
+      return res.status(400).json({
         success: false,
         message: 'Not authorized, no token'
       });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-password -refreshTokens');
-    
+    const user = await User.findById(decoded.id).select('-refreshTokens');
+
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -26,10 +39,8 @@ export const protect = async (req, res, next) => {
       });
     }
 
-    // Update last active
     user.lastActive = new Date();
     await user.save();
-
     req.user = user;
     next();
   } catch (error) {
@@ -59,11 +70,11 @@ export const optionalAuth = async (req, res, next) => {
 
     if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
       token = req.headers.authorization.split(' ')[1];
-      
+
       if (token) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         const user = await User.findById(decoded.id).select('-password -refreshTokens');
-        
+
         if (user) {
           user.lastActive = new Date();
           await user.save();
