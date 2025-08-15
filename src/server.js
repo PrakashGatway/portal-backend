@@ -42,7 +42,7 @@ const server = createServer(app);
 
 app.use(helmet());
 app.use(cors({
-  origin: "http://localhost:3000", // your frontend
+  origin: "https://www.gatewayabroadeducations.com", // your frontend
   credentials: true
 }));
 app.use(cookieParser());
