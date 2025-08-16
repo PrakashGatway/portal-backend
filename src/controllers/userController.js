@@ -1,41 +1,148 @@
 import User from '../models/User.js';
 import Course from '../models/Course.js';
 
-// @desc    Get all users (admin only)
-// @route   GET /api/users
-// @access  Private/Admin
 export const getUsers = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, Math.min(100, parseInt(req.query.limit) || 10));
     const skip = (page - 1) * limit;
 
-    const { role, search, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
+    const { role, search, isActive, isVerified, subscriptionType, sortBy = 'createdAt', sortOrder = 'desc' } = req.query;
 
-    // Build filter
-    const filter = {};
-    if (role) filter.role = role;
+    const allowedSortFields = ['createdAt', 'updatedAt', 'name', 'email', 'role', 'lastActive'];
+    const sortKey = allowedSortFields.includes(sortBy) ? sortBy : 'createdAt';
+    const sortDirection = sortOrder === 'asc' ? 1 : -1;
+
+    const pipeline = [];
+
+    const matchStage = {};
+
+    if (role) matchStage.role = role;
+    // if (isActive !== undefined) matchStage.isActive = isActive === 'true';
+    if (isVerified !== undefined) matchStage.isVerified = isVerified === 'true';
+    if (subscriptionType) matchStage['subscription.type'] = subscriptionType;
+
     if (search) {
-      filter.$or = [
+      matchStage.$or = [
         { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { email: { $regex: search, $options: 'i' } },
+        { 'profile.bio': { $regex: search, $options: 'i' } }
       ];
     }
 
-    // Build sort
-    const sort = {};
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    if (Object.keys(matchStage).length > 0) {
+      pipeline.push({ $match: matchStage });
+    }
 
-    const users = await User.find(filter)
-      .select('-password -refreshTokens')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .populate('courses.course', 'title');
+    pipeline.push({
+      $lookup: {
+        from: "Courses", // Use collection name safely
+        localField: 'courses.course',
+        foreignField: '_id',
+        as: 'courseDetails'
+      }
+    });
 
-    const total = await User.countDocuments(filter);
+    pipeline.push({
+      $project: {
+        refreshTokens: 0,
+        __v: 0
+      }
+    });
 
-    res.json({
+    pipeline.push({
+      $addFields: {
+        courses: {
+          $map: {
+            input: '$courses',
+            as: 'enrollment',
+            in: {
+              course: {
+                $mergeObjects: [
+                  '$$enrollment.course',
+                  {
+                    $arrayElemAt: [
+                      {
+                        $filter: {
+                          input: '$courseDetails',
+                          cond: { $eq: ['$$this._id', '$$enrollment.course'] }
+                        }
+                      },
+                      0
+                    ]
+                  }
+                ]
+              },
+              enrolledAt: '$$enrollment.enrolledAt',
+              progress: '$$enrollment.progress',
+              completedLessons: '$$enrollment.completedLessons'
+            }
+          }
+        }
+      }
+    });
+    pipeline.push({
+      $project: {
+        name: 1,
+        email: 1,
+        role: 1,
+        phoneNumber: 1,
+        address: 1,
+        profile: 1,
+        subscription: 1,
+        achievements: 1,
+        lastActive: 1,
+        isVerified: 1,
+        isActive: 1,
+        createdAt: 1,
+        updatedAt: 1,
+
+        courses: {
+          course: { _id: 1, title: 1 }, // Only include _id and title (expand if needed)
+          enrolledAt: 1,
+          progress: 1,
+          completedLessons: 1
+        },
+
+        enrolledCoursesCount: { $size: '$courses' },
+        fullAddress: {
+          $cond: {
+            if: '$address',
+            then: {
+              $concat: [
+                { $ifNull: ['$address.street', ''] },
+                ' ',
+                { $ifNull: ['$address.city', ''] },
+                ', ',
+                { $ifNull: ['$address.state', ''] },
+                ', ',
+                { $ifNull: ['$address.country', ''] },
+                ' ',
+                { $ifNull: ['$address.zipCode', ''] }
+              ]
+            },
+            else: ''
+          }
+        }
+      }
+    });
+
+    pipeline.push({ $sort: { [sortKey]: sortDirection } });
+
+    const totalCountPipeline = [...pipeline, { $count: 'total' }];
+    const totalCountResult = await User.aggregate(totalCountPipeline).exec();
+    const total = totalCountResult[0]?.total || 0;
+    const pages = Math.ceil(total / limit);
+
+    const finalPipeline = [
+      ...pipeline,
+      { $skip: skip },
+      { $limit: limit }
+    ];
+
+    const users = await User.aggregate(finalPipeline).exec();
+
+    return res.json({
       success: true,
       data: {
         users,
@@ -43,14 +150,18 @@ export const getUsers = async (req, res) => {
           page,
           limit,
           total,
-          pages: Math.ceil(total / limit)
+          pages,
+          hasPrevPage: page > 1,
+          hasNextPage: page < pages
         }
       }
     });
+
   } catch (error) {
-    res.status(500).json({
+    console.error('Error in getUsers:', error);
+    return res.status(500).json({
       success: false,
-      message: error.message
+      message: 'Internal server error'
     });
   }
 };

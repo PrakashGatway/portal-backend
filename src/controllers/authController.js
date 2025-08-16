@@ -30,7 +30,6 @@ export const sendOtp = async (req, res) => {
   }
 };
 
-
 export const verifyOtp = async (req, res) => {
   try {
     const { email, otp } = req.body;
@@ -56,7 +55,7 @@ export const verifyOtp = async (req, res) => {
     } else {
       user = await User.create({
         email,
-        role: "student",
+        role: "user",
         isVerified: true
       });
       await sendWelcomeEmail(user);
@@ -89,110 +88,6 @@ export const verifyOtp = async (req, res) => {
   } catch (error) {
     console.error("Error verifying OTP:", error);
     res.status(500).json({ success: false, message: "Failed to verify OTP" });
-  }
-};
-
-
-
-export const register = async (req, res) => {
-  try {
-    const { name, email, phoneNumber } = req.body;
-
-    const userExists = await User.findOne({ email });
-    if (userExists) {
-      return res.status(400).json({
-        success: false,
-        message: 'User already exists'
-      });
-    }
-    const user = await User.create({
-      name,
-      email,
-      role: role || 'student'
-    });
-
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
-    user.refreshTokens.push(refreshToken);
-    await user.save();
-
-    await sendWelcomeEmail(user);
-
-    res.status(201).json({
-      success: true,
-      message: 'User registered successfully',
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          isVerified: user.isVerified
-        },
-        accessToken,
-        refreshToken
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-export const login = async (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    // Check for user
-    const user = await User.findOne({ email }).select('+password');
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
-
-    // Generate tokens
-    const accessToken = generateAccessToken(user._id);
-    const refreshToken = generateRefreshToken(user._id);
-
-    // Save refresh token
-    user.refreshTokens.push(refreshToken);
-    user.lastActive = new Date();
-    await user.save();
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-          avatar: user.avatar,
-          isVerified: user.isVerified
-        },
-        accessToken,
-        refreshToken
-      }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
   }
 };
 
@@ -245,7 +140,6 @@ export const logout = async (req, res) => {
   try {
     let token;
     token = req.cookies.auth_token;
-    console.log(token)
     if (token) {
       // res.clearCookie("auth_token", {
       //   httpOnly: true,
@@ -369,5 +263,38 @@ export const getMe = async (req, res) => {
       success: false,
       message: error.message
     });
+  }
+};
+
+export const updateUserProfile = async (req, res) => {
+  try {
+    const userId = req.user.id; // from middleware
+    const {
+      name,
+      phoneNumber,
+      address,
+      profile
+    } = req.body;
+
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          ...(name && { name }),
+          ...(phoneNumber && { phoneNumber }),
+          ...(address && { address }),
+          ...(profile && { profile })
+        }
+      },
+      { new: true, runValidators: true }
+    ).select("-password -refreshTokens"); // don't expose sensitive data
+
+    res.json({
+      success: true,
+      message: "Profile updated successfully",
+      data: updatedUser
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Server error", error: error.message });
   }
 };

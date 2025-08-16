@@ -14,23 +14,24 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['student', 'teacher', 'admin', 'super_admin','editor'],
-    default: 'student'
+    enum: ['user', 'teacher', 'admin', 'super_admin', 'editor'],
+    default: 'user'
   },
-  phoneNumber:{
-    type:String,
-    trim:true,
+  phoneNumber: {
+    type: String,
+    trim: true,
+  },
+  address: {
+    street: String,
+    city: String,
+    state: String,
+    country: String,
+    zipCode: String
   },
   profile: {
     dateOfBirth: Date,
-    address: {
-      street: String,
-      city: String,
-      state: String,
-      country: String,
-      zipCode: String
-    },
-    bio: String
+    bio: String,
+    gender: String
   },
   subscription: {
     type: {
@@ -76,28 +77,29 @@ const userSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  isActive: {
+    type: Boolean,
+    default: true
+  },
   refreshTokens: [String]
 }, {
-  timestamps: true
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
 });
 
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 
-userSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  
-  const salt = await bcrypt.genSalt(12);
-  this.password = await bcrypt.hash(this.password, salt);
-  next();
-});
-
-userSchema.methods.comparePassword = async function(candidatePassword) {
-  return await bcrypt.compare(candidatePassword, this.password);
-};
-
-userSchema.virtual('enrolledCoursesCount').get(function() {
+userSchema.virtual('enrolledCoursesCount').get(function () {
   return this.courses.length;
 });
+
+userSchema.virtual('fullAddress').get(function () {
+  if (!this.address) return "";
+  const { street, city, state, country, zipCode } = this.address;
+  return street + " " + city + " ," + state + "," + country + " " + zipCode;
+});
+
 
 export default mongoose.model('User', userSchema);
