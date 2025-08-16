@@ -5,11 +5,15 @@ export const protect = async (req, res, next) => {
   try {
     let token;
 
-    token = req.cookies.auth_token;
+    const cookieToken = req.cookies.auth_token;
 
-    // if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-    //   token = req.headers.authorization.split(' ')[1];
-    // }
+    if (!cookieToken) {
+      if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+        token = req.headers.authorization.split(' ')[1];
+      }
+    } else {
+      token = cookieToken;
+    }
 
     if (!token) {
       // res.clearCookie("auth_token", {
