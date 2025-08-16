@@ -74,7 +74,7 @@ export const verifyOtp = async (req, res) => {
       httpOnly: true,
       secure: true, // Always true in production
       sameSite: "None", // Required for cross-subdomain cookies
-      domain: ".gatewayabroadeducations.com", // Works for www.domain
+      domain: "gatewayabroadeducations.com", // Works for www.domain
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
@@ -256,7 +256,7 @@ export const logout = async (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        domain: ".gatewayabroadeducations.com" // same as when you set it
+        domain: "gatewayabroadeducations.com" // same as when you set it
       });
     }
 

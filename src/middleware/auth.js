@@ -21,7 +21,7 @@ export const protect = async (req, res, next) => {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        domain: ".gatewayabroadeducations.com" // same as when you set it
+        domain: "gatewayabroadeducations.com" // same as when you set it
       });
       return res.status(400).json({
         success: false,
