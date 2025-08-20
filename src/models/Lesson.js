@@ -25,8 +25,8 @@ const lessonSchema = new mongoose.Schema({
     video: {
       url: String,
       publicId: String,
-      duration: Number, // in seconds
-      quality: [String], // ['720p', '1080p']
+      duration: Number, 
+      quality: [String], 
       captions: [{
         language: String,
         url: String

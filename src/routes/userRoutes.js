@@ -5,7 +5,8 @@ import {
   updateUser,
   deleteUser,
   enrollInCourse,
-  getUserCourses
+  getUserCourses,
+  updateUserStatus
 } from '../controllers/userController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -23,5 +24,7 @@ router.route('/:id')
 
 router.post('/:id/enroll', enrollInCourse);
 router.get('/:id/courses', getUserCourses);
+
+router.put('/:id/status', authorize('admin', 'super_admin'), updateUserStatus)
 
 export default router;

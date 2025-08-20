@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -14,7 +13,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'teacher', 'admin', 'super_admin', 'editor'],
+    enum: ['user', 'teacher', 'admin', 'super_admin', 'editor', "manager"],
     default: 'user'
   },
   phoneNumber: {
@@ -31,7 +30,8 @@ const userSchema = new mongoose.Schema({
   profile: {
     dateOfBirth: Date,
     bio: String,
-    gender: String
+    gender: String,
+    profilePicture: String
   },
   subscription: {
     type: {
@@ -41,6 +41,53 @@ const userSchema = new mongoose.Schema({
     },
     startDate: Date,
     endDate: Date,
+  },
+  coursesTeaching: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course'
+  }],
+  preferences: {
+    language: {
+      type: String,
+      default: 'en'
+    },
+    timezone: {
+      type: String,
+      default: 'Asia/Kolkata'
+    }
+  },
+  notifications: {
+    email: {
+      type: Boolean,
+      default: true
+    },
+    push: {
+      type: Boolean,
+      default: true
+    },
+    sms: {
+      type: Boolean,
+      default: false
+    }
+  },
+  education: [{
+    degree: String,
+    institution: String,
+    year: Number,
+    grade: String
+  }],
+  experience: [{
+    title: String,
+    company: String,
+    duration: String,
+    description: String
+  }],
+  skills: [String],
+  socialLinks: {
+    linkedin: String,
+    twitter: String,
+    facebook: String,
+    instagram: String
   },
   courses: [{
     course: {

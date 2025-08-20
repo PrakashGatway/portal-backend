@@ -12,6 +12,15 @@ const liveClassSchema = new mongoose.Schema({
     ref: 'Course',
     required: true
   },
+  batch: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Batch',
+    required: [true, 'Please select a batch']
+  },
+  module: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Module'
+  },
   instructor: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
@@ -60,55 +69,6 @@ const liveClassSchema = new mongoose.Schema({
     url: String,
     publicId: String,
     duration: Number
-  },
-  chat: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    message: {
-      type: String,
-      required: true
-    },
-    timestamp: {
-      type: Date,
-      default: Date.now
-    },
-    type: {
-      type: String,
-      enum: ['text', 'emoji', 'file'],
-      default: 'text'
-    }
-  }],
-  polls: [{
-    question: {
-      type: String,
-      required: true
-    },
-    options: [String],
-    responses: [{
-      user: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      },
-      answer: String,
-      submittedAt: {
-        type: Date,
-        default: Date.now
-      }
-    }],
-    createdAt: {
-      type: Date,
-      default: Date.now
-    },
-    active: {
-      type: Boolean,
-      default: true
-    }
-  }],
-  whiteboard: {
-    data: mongoose.Schema.Types.Mixed, // Store whiteboard state
-    lastUpdated: Date
   },
   settings: {
     allowChat: {

@@ -18,7 +18,7 @@ export const getUsers = async (req, res) => {
     const matchStage = {};
 
     if (role) matchStage.role = role;
-    // if (isActive !== undefined) matchStage.isActive = isActive === 'true';
+    if (isActive) matchStage.isActive = isActive === 'true' ? true : false;
     if (isVerified !== undefined) matchStage.isVerified = isVerified === 'true';
     if (subscriptionType) matchStage['subscription.type'] = subscriptionType;
 
@@ -26,6 +26,7 @@ export const getUsers = async (req, res) => {
       matchStage.$or = [
         { name: { $regex: search, $options: 'i' } },
         { email: { $regex: search, $options: 'i' } },
+        { phoneNumber: { $regex: search, $options: 'i' } },
         { 'profile.bio': { $regex: search, $options: 'i' } }
       ];
     }
@@ -144,16 +145,11 @@ export const getUsers = async (req, res) => {
 
     return res.json({
       success: true,
-      data: {
-        users,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages,
-          hasPrevPage: page > 1,
-          hasNextPage: page < pages
-        }
+      users,
+      pagination: {
+        page,
+        limit,
+        total
       }
     });
 
@@ -166,9 +162,6 @@ export const getUsers = async (req, res) => {
   }
 };
 
-// @desc    Get single user
-// @route   GET /api/users/:id
-// @access  Private
 export const getUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
@@ -182,10 +175,9 @@ export const getUser = async (req, res) => {
       });
     }
 
-    // Check if user can view this profile (self, admin, or teacher for their students)
-    if (req.user.id !== req.params.id && 
-        req.user.role !== 'admin' && 
-        req.user.role !== 'super_admin') {
+    if (req.user.id !== req.params.id &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to view this profile'
@@ -204,17 +196,13 @@ export const getUser = async (req, res) => {
   }
 };
 
-// @desc    Update user profile
-// @route   PUT /api/users/:id
-// @access  Private
 export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Check authorization
-    if (req.user.id !== id && 
-        req.user.role !== 'admin' && 
-        req.user.role !== 'super_admin') {
+    if (req.user.id !== id &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to update this profile'
@@ -222,22 +210,16 @@ export const updateUser = async (req, res) => {
     }
 
     const updateData = { ...req.body };
-    
-    // Remove sensitive fields
-    delete updateData.password;
-    delete updateData.refreshTokens;
-    delete updateData.resetPasswordToken;
-    delete updateData.resetPasswordExpires;
 
-    // Only admins can change roles
+    delete updateData.refreshTokens;
+
     if (updateData.role && req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       delete updateData.role;
     }
-
     const user = await User.findByIdAndUpdate(id, updateData, {
       new: true,
       runValidators: true
-    }).select('-password -refreshTokens');
+    }).select('-refreshTokens');
 
     if (!user) {
       return res.status(404).json({
@@ -259,9 +241,41 @@ export const updateUser = async (req, res) => {
   }
 };
 
-// @desc    Delete user
-// @route   DELETE /api/users/:id
-// @access  Private/Admin
+export const updateUserStatus = async (req, res) => {
+  try {
+    const { id } = req.params;              // User ID from URL
+    const { isActive } = req.body;          // New status from request body
+
+    if (typeof isActive !== "boolean") {
+      return res.status(400).json({
+        success: false,
+        message: "isActive must be true or false",
+      });
+    }
+    const user = await User.findByIdAndUpdate(
+      id,
+      { isActive },
+      { new: true } // return updated user
+    );
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+    res.json({
+      success: true,
+      message: "User status updated successfully",
+      data: user,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+};
+
 export const deleteUser = async (req, res) => {
   try {
     const user = await User.findByIdAndDelete(req.params.id);
@@ -285,18 +299,15 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-// @desc    Enroll user in course
-// @route   POST /api/users/:id/enroll
-// @access  Private
 export const enrollInCourse = async (req, res) => {
   try {
     const { courseId } = req.body;
     const userId = req.params.id;
 
     // Check authorization
-    if (req.user.id !== userId && 
-        req.user.role !== 'admin' && 
-        req.user.role !== 'super_admin') {
+    if (req.user.id !== userId &&
+      req.user.role !== 'admin' &&
+      req.user.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
         message: 'Not authorized'
@@ -358,9 +369,6 @@ export const enrollInCourse = async (req, res) => {
   }
 };
 
-// @desc    Get user's enrolled courses
-// @route   GET /api/users/:id/courses
-// @access  Private
 export const getUserCourses = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)

@@ -23,6 +23,7 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import lessonRoutes from './routes/lessonRoutes.js';
+import pageRoutes from './routes/pagesRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -43,6 +44,7 @@ app.use(helmet());
 
 const allowedOrigins = [
   "https://www.gatewayabroadeducations.com",
+  "https://uat.gatewayabroadeducations.com",
   "https://portal.gatewayabroadeducations.com",
   "https://gatewayabroadeducations.com",
   "http://localhost:3000",
@@ -89,6 +91,8 @@ app.use('/api/v1/submissions', submissionRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
+
+app.use('/api/v1/page', pageRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({

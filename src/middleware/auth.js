@@ -34,7 +34,7 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findById(decoded.id).select('-refreshTokens');
+    const user = await User.findOne({_id:decoded.id,isActive:true}).select('-refreshTokens');
 
     if (!user) {
       return res.status(401).json({
