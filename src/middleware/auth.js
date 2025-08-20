@@ -7,6 +7,8 @@ export const protect = async (req, res, next) => {
 
     const cookieToken = req.cookies.auth_token;
 
+    console.log(cookieToken)
+
     if (!cookieToken) {
       if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
         token = req.headers.authorization.split(' ')[1];
@@ -34,8 +36,7 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({_id:decoded.id,isActive:true}).select('-refreshTokens');
-
+    const user = await User.findOne({_id:decoded.id,isActive:true})
     if (!user) {
       return res.status(401).json({
         success: false,
