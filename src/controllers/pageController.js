@@ -39,8 +39,8 @@ export const getPages = async (req, res) => {
         }
 
         if (pageType) {
-            filter.pageType = Array.isArray(pageType) 
-                ? { $in: pageType } 
+            filter.pageType = Array.isArray(pageType)
+                ? { $in: pageType }
                 : pageType;
         }
 
@@ -132,7 +132,7 @@ export const getPageById = async (req, res) => {
         }
 
         let query = Page.findById(id);
-        
+
         if (populate) {
             // Add any population logic here if needed
             // query = query.populate(populate);
@@ -162,7 +162,7 @@ export const getPageById = async (req, res) => {
 export const getPageBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
-        const page = await Page.findOne({ slug });
+        const page = await Page.findOne({ slug, status: "published" });
 
         if (!page) {
             return res.status(404).json({
@@ -195,11 +195,11 @@ export const updatePage = async (req, res) => {
         }
 
         const page = await Page.findByIdAndUpdate(
-            id, 
-            req.body, 
-            { 
-                new: true, 
-                runValidators: true 
+            id,
+            req.body,
+            {
+                new: true,
+                runValidators: true
             }
         );
 

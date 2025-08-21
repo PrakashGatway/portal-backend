@@ -24,12 +24,16 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 import lessonRoutes from './routes/lessonRoutes.js';
 import pageRoutes from './routes/pagesRoutes.js';
+import uploadRoutes from './routes/uploadRoutes.js';
+import entityRoutes from './routes/entitiesRoutes.js';
+
 
 dotenv.config();
 connectDB();
 
 const app = express();
 const server = createServer(app);
+app.use("/uploads", express.static("uploads"));
 
 // const io = new Server(server, {
 //   cors: {
@@ -83,6 +87,7 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+
 app.use('/api/v1/courses', courseRoutes);
 app.use('/api/v1/classes', classRoutes);
 app.use('/api/v1/tests', testRoutes);
@@ -92,7 +97,9 @@ app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 
+app.use("/api/v1/upload", uploadRoutes);
 app.use('/api/v1/page', pageRoutes);
+app.use('/api/v1/entities', entityRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({
