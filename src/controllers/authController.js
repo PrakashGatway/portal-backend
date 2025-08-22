@@ -7,6 +7,16 @@ import Otp from '../models/Otp.js';
 export const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
+
+    let response = await fetch(`https://portal-backend-tczk.onrender.com/api/v1/send_otp`, { method: 'POST', body: JSON.stringify({ email }), headers: { 'Content-Type': 'application/json' } });
+    const data = await response.json();
+
+    if (data.success) {
+      return res.status(200).json({ success: true, message: "OTP sent successfully" });
+    } else {
+      return res.status(400).json({ success: false, message: "Failed to send OTP" });
+    }
+
     if (!email) {
       return res.status(400).json({ success: false, message: "Email is required" });
     }

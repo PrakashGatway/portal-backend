@@ -5,13 +5,10 @@ dotenv.config();
 
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: "smtp.yandex.com",
-    port: 587,         
-    secure: false,
-    service: 'yandex.com',
+    service: process.env.EMAIL_SERVICE,
     auth: {
-      user: 'jaipur@gatewayabroad.in',
-      pass: "ixwtxrgjfbyemdsp"
+      user: process.env.EMAIL_USER,
+      pass: "wyxn ttai iqvg rfnt"
     }
   });
 };
