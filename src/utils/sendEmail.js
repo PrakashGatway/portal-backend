@@ -5,12 +5,13 @@ dotenv.config();
 
 const createTransporter = () => {
   return nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,         
-    secure: true,            
+    host: "smtp.yandex.com",
+    port: 587,         
+    secure: false,
+    service: 'yandex.com',
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: "wyxn ttai iqvg rfnt"
+      user: 'jaipur@gatewayabroad.in',
+      pass: "ixwtxrgjfbyemdsp"
     }
   });
 };
