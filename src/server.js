@@ -52,7 +52,9 @@ const allowedOrigins = [
   "https://portal.gatewayabroadeducations.com",
   "https://gatewayabroadeducations.com",
   "http://localhost:3000",
-  "http://localhost:5173"
+  "http://localhost:5173",
+  "https://6dtmqkkr-5173.inc1.devtunnels.ms",
+  "https://portal-virid-eta.vercel.app"
 ];
 
 app.use(cors({

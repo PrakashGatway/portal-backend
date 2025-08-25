@@ -106,9 +106,31 @@ export const getPages = async (req, res) => {
                 totalPages,
                 totalItems: total,
                 itemsPerPage: parseInt(limit),
-                hasNextPage: parseInt(page) < totalPages,
-                hasPrevPage: parseInt(page) > 1
             }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+export const getPagesByType = async (req, res) => {
+    try {
+        const { type, featured = true } = req.query;
+
+        const pages = await Page.find({ pageType: type, status: "published", isFeatured: featured }).select('pageType slug title');
+
+        if (!pages || pages.length === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'No pages found'
+            });
+        }
+        res.json({
+            success: true,
+            data: pages
         });
     } catch (error) {
         res.status(500).json({
@@ -162,7 +184,8 @@ export const getPageById = async (req, res) => {
 export const getPageBySlug = async (req, res) => {
     try {
         const { slug } = req.params;
-        const page = await Page.findOne({ slug, status: "published" });
+        const { type } = req.query
+        const page = await Page.findOne({ slug, status: "published", pageType: type });
 
         if (!page) {
             return res.status(404).json({
@@ -170,7 +193,6 @@ export const getPageBySlug = async (req, res) => {
                 message: 'Page not found'
             });
         }
-
         res.json({
             success: true,
             data: page

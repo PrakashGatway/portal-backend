@@ -29,6 +29,9 @@ const entitySchema = new mongoose.Schema(
         logo: {
             type: String,
         },
+        icon: {
+            type: String,
+        },
         duration: {
             type: String,
         },

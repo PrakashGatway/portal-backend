@@ -2,10 +2,10 @@ import express from 'express';
 import {
     createPage,
     getPages,
-    getPageById,
     getPageBySlug,
     updatePage,
     deletePage,
+    getPagesByType,
 } from '../controllers/pageController.js';
 import { protect, authorize } from '../middleware/auth.js';
 
@@ -41,6 +41,7 @@ router.get('/', getPages);
 router.put('/:id', protect, authorize('admin', 'super_admin'), validateObjectId, updatePage);
 router.delete('/:id', protect, authorize('admin', 'super_admin'), validateObjectId, deletePage);
 
+router.get('/list/type', getPagesByType);
 router.get('/:slug', getPageBySlug);
 
 export default router;

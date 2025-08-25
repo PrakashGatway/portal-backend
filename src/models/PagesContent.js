@@ -25,6 +25,10 @@ const basePageSchema = new mongoose.Schema({
     metaDescription: String,
     keywords: [String],
     canonicalUrl: String,
+    isFeatured: {
+        type: Boolean,
+        default: false
+    },
     status: {
         type: String,
         enum: ['draft', 'published'],
