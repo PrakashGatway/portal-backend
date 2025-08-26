@@ -1,326 +1,806 @@
+// controllers/courseController.js
+import mongoose from 'mongoose';
 import Course from '../models/Course.js';
-import User from '../models/User.js';
-import Lesson from '../models/Lesson.js';
+import Category from '../models/Category.js';
+import asyncHandler from '../middleware/async.js';
 
-// @desc    Get all courses
-// @route   GET /api/courses
-// @access  Public
-export const getCourses = async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 12;
-    const skip = (page - 1) * limit;
+const validateCourseInput = (req, res, next) => {
+  const { 
+    title, 
+    code, 
+    description, 
+    category, 
+    instructors, 
+    level, 
+    schedule, 
+    pricing, 
+    mode,
+    schedule_pattern 
+  } = req.body;
+  
+  const errors = [];
 
-    const { 
-      category, 
-      level, 
-      search, 
-      instructor,
-      pricing,
-      featured,
-      sortBy = 'createdAt', 
-      sortOrder = 'desc' 
-    } = req.query;
+  // Validate required fields
+  if (!title || title.trim().length === 0) {
+    errors.push('Course title is required');
+  }
 
-    // Build filter
-    const filter = { status: 'published' };
-    
-    if (category) filter.category = category;
-    if (level) filter.level = level;
-    if (instructor) filter.instructor = instructor;
-    if (pricing) filter['pricing.type'] = pricing;
-    if (featured !== undefined) filter.featured = featured === 'true';
-    
-    if (search) {
-      filter.$text = { $search: search };
+  if (!code || code.trim().length === 0) {
+    errors.push('Course code is required');
+  }
+
+  if (!description || description.trim().length === 0) {
+    errors.push('Course description is required');
+  }
+
+  if (!category) {
+    errors.push('Category is required');
+  } else if (!mongoose.Types.ObjectId.isValid(category)) {
+    errors.push('Invalid category ID');
+  }
+
+  if (!instructors || instructors.length === 0) {
+    errors.push('At least one instructor is required');
+  } else {
+    instructors.forEach(instructor => {
+      if (!mongoose.Types.ObjectId.isValid(instructor)) {
+        errors.push('Invalid instructor ID');
+      }
+    });
+  }
+
+  // Validate schedule
+  if (!schedule) {
+    errors.push('Schedule is required');
+  } else {
+    if (!schedule.startDate) {
+      errors.push('Schedule start date is required');
     }
-
-    // Build sort
-    const sort = {};
-    if (search) {
-      sort.score = { $meta: 'textScore' };
+    if (!schedule.endDate) {
+      errors.push('Schedule end date is required');
     }
-    sort[sortBy] = sortOrder === 'desc' ? -1 : 1;
+    if (schedule.startDate && schedule.endDate && new Date(schedule.startDate) >= new Date(schedule.endDate)) {
+      errors.push('End date must be after start date');
+    }
+  }
 
-    const courses = await Course.find(filter)
-      .populate('instructor', 'name avatar')
-      .sort(sort)
-      .skip(skip)
-      .limit(limit)
-      .select('-reviews -syllabus');
+  // Validate pricing
+  if (!pricing) {
+    errors.push('Pricing is required');
+  } else {
+    if (pricing.amount === undefined || pricing.amount < 0) {
+      errors.push('Pricing amount is required and must be non-negative');
+    }
+  }
 
-    const total = await Course.countDocuments(filter);
+  // Validate level
+  if (level && !['beginner', 'intermediate', 'advanced'].includes(level)) {
+    errors.push('Invalid level. Must be beginner, intermediate, or advanced');
+  }
 
-    res.json({
-      success: true,
-      data: {
-        courses,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
+  // Validate mode
+  if (!mode) {
+    errors.push('Course mode is required');
+  } else if (!['online', 'offline', 'hybrid'].includes(mode)) {
+    errors.push('Invalid mode. Must be online, offline, or hybrid');
+  }
+
+  // Validate schedule pattern
+  if (schedule_pattern) {
+    if (schedule_pattern.frequency && !['daily', 'weekly', 'biweekly', 'monthly', 'custom'].includes(schedule_pattern.frequency)) {
+      errors.push('Invalid schedule frequency');
+    }
+    
+    if (schedule_pattern.days) {
+      const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+      schedule_pattern.days.forEach(day => {
+        if (!validDays.includes(day.toLowerCase())) {
+          errors.push(`Invalid day: ${day}`);
+        }
+      });
+    }
+  }
+
+  if (errors.length > 0) {
+    return next(new ErrorResponse(errors.join(', '), 400));
+  }
+
+  next();
+};
+
+
+const getCourses = asyncHandler(async (req, res, next) => {
+  const match = {};
+  
+  if (req.query.search) {
+    match.$text = { $search: req.query.search };
+  }
+
+  if (req.query.category) {
+    if (mongoose.Types.ObjectId.isValid(req.query.category)) {
+      match.category = mongoose.Types.ObjectId(req.query.category);
+    } else {
+      const category = await Category.findOne({ slug: req.query.category });
+      if (category) {
+        match.category = category._id;
+      }
+    }
+  }
+
+  if (req.query.subcategory) {
+    if (mongoose.Types.ObjectId.isValid(req.query.subcategory)) {
+      match.subcategory = mongoose.Types.ObjectId(req.query.subcategory);
+    }
+  }
+
+  if (req.query.status) {
+    match.status = req.query.status;
+  }
+
+  if (req.query.level) {
+    match.level = req.query.level;
+  }
+
+  if (req.query.mode) {
+    match.mode = req.query.mode;
+  }
+
+  if (req.query.featured !== undefined) {
+    match.featured = req.query.featured === 'true';
+  }
+
+  if (req.query.language) {
+    match.language = req.query.language;
+  }
+
+  if (req.query.startDate || req.query.endDate) {
+    match['schedule.startDate'] = {};
+    if (req.query.startDate) {
+      match['schedule.startDate'].$gte = new Date(req.query.startDate);
+    }
+    if (req.query.endDate) {
+      match['schedule.startDate'].$lte = new Date(req.query.endDate);
+    }
+  }
+
+  if (req.query.minPrice || req.query.maxPrice) {
+    match['pricing.amount'] = {};
+    if (req.query.minPrice) {
+      match['pricing.amount'].$gte = parseFloat(req.query.minPrice);
+    }
+    if (req.query.maxPrice) {
+      match['pricing.amount'].$lte = parseFloat(req.query.maxPrice);
+    }
+  }
+
+  let sort = {};
+  if (req.query.sort) {
+    const sortBy = req.query.sort.split(',');
+    sortBy.forEach(field => {
+      if (field.startsWith('-')) {
+        sort[field.substring(1)] = -1;
+      } else {
+        sort[field] = 1;
+      }
+    });
+  } else {
+    sort = { createdAt: -1 };
+  }
+
+  const pipeline = [
+    { $match: match },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category',
+        foreignField: '_id',
+        as: 'categoryDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'subcategory',
+        foreignField: '_id',
+        as: 'subcategoryDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'instructors',
+        foreignField: '_id',
+        as: 'instructorDetails'
+      }
+    },
+    {
+      $addFields: {
+        categoryInfo: { $arrayElemAt: ['$categoryDetails', 0] },
+        subcategoryInfo: { $arrayElemAt: ['$subcategoryDetails', 0] },
+        instructorNames: {
+          $map: {
+            input: '$instructorDetails',
+            as: 'instructor',
+            in: {
+              _id: '$$instructor._id',
+              name: '$$instructor.name',
+              email: '$$instructor.email'
+            }
+          }
         }
       }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Get single course
-// @route   GET /api/courses/:id
-// @access  Public
-export const getCourse = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id)
-      .populate('instructor', 'name avatar profile.bio')
-      .populate('coInstructors', 'name avatar')
-      .populate({
-        path: 'syllabus.lessons',
-        select: 'title duration type isPreview'
-      });
-
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        message: 'Course not found'
-      });
-    }
-
-    // Check if user is enrolled (if authenticated)
-    let isEnrolled = false;
-    if (req.user) {
-      const user = await User.findById(req.user.id);
-      isEnrolled = user.courses.some(c => c.course.toString() === req.params.id);
-    }
-
-    res.json({
-      success: true,
-      data: {
-        ...course.toObject(),
-        isEnrolled
+    },
+    {
+      $project: {
+        categoryDetails: 0,
+        subcategoryDetails: 0,
+        instructorDetails: 0
       }
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
+    },
+    { $sort: sort }
+  ];
 
-// @desc    Create course
-// @route   POST /api/courses
-// @access  Private/Teacher
-export const createCourse = async (req, res) => {
-  try {
-    const courseData = {
-      ...req.body,
-      instructor: req.user.id
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const startIndex = (page - 1) * limit;
+
+  pipeline.push({ $skip: startIndex });
+  pipeline.push({ $limit: limit });
+
+  const courses = await Course.aggregate(pipeline);
+
+  // Get total count for pagination
+  const totalPipeline = [
+    { $match: match },
+    { $count: 'total' }
+  ];
+  const totalCount = await Course.aggregate(totalPipeline);
+  const total = totalCount.length > 0 ? totalCount[0].total : 0;
+
+  // Pagination info
+  const pagination = {};
+  const endIndex = page * limit;
+  
+  if (endIndex < total) {
+    pagination.next = {
+      page: page + 1,
+      limit
     };
+  }
 
-    const course = await Course.create(courseData);
+  if (startIndex > 0) {
+    pagination.previous = {
+      page: page - 1,
+      limit
+    };
+  }
+
+  res.status(200).json({
+    success: true,
+    count: courses.length,
+    total,
+    pagination,
+    data: courses
+  });
+});
+
+const getCourse = asyncHandler(async (req, res, next) => {
+  const pipeline = [
+    {
+      $match: {
+        $or: [
+          { _id: mongoose.Types.ObjectId.isValid(req.params.id) ? new mongoose.Types.ObjectId(req.params.id) : null },
+          { slug: req.params.id },
+          { code: req.params.id.toUpperCase() }
+        ]
+      }
+    },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category',
+        foreignField: '_id',
+        as: 'categoryDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'subcategory',
+        foreignField: '_id',
+        as: 'subcategoryDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'instructors',
+        foreignField: '_id',
+        as: 'instructorDetails'
+      }
+    },
+    {
+      $addFields: {
+        categoryInfo: { $arrayElemAt: ['$categoryDetails', 0] },
+        subcategoryInfo: { $arrayElemAt: ['$subcategoryDetails', 0] },
+        instructorNames: {
+          $map: {
+            input: '$instructorDetails',
+            as: 'instructor',
+            in: {
+              _id: '$$instructor._id',
+              name: '$$instructor.name',
+              email: '$$instructor.email',
+              avatar: '$$instructor.avatar'
+            }
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        categoryDetails: 0,
+        subcategoryDetails: 0,
+        instructorDetails: 0
+      }
+    }
+  ];
+
+  const courses = await Course.aggregate(pipeline);
+
+  if (!courses || courses.length === 0) {
+    return next(
+      new ErrorResponse(`Course not found with id, slug, or code of ${req.params.id}`, 404)
+    );
+  }
+
+  res.status(200).json({
+    success: true,
+    data: courses[0]
+  });
+});
+
+
+const createCourse = [
+  validateCourseInput,
+  asyncHandler(async (req, res, next) => {
+    const { 
+      title, 
+      code, 
+      description, 
+      shortDescription, 
+      category, 
+      subcategory, 
+      instructors, 
+      level, 
+      language, 
+      thumbnail, 
+      schedule, 
+      pricing, 
+      preview, 
+      mode, 
+      schedule_pattern, 
+      features, 
+      requirements, 
+      objectives, 
+      targetAudience, 
+      tags,
+      slug, 
+      status, 
+      featured, 
+      extraFields 
+    } = req.body;
+
+    const existingCourse = await Course.findOne({ code: code.toUpperCase() });
+    if (existingCourse) {
+      return res.status(400).json({
+        success: false,
+        message: 'Course with this code already exists'
+      });
+    }
+
+    const existingTitleCourse = await Course.findOne({ title: title.trim() });
+    if (existingTitleCourse) {
+      return res.status(400).json({
+        success: false,
+        message: 'Course with this title already exists'
+      });
+    }
+
+    const course = await Course.create({
+      title: title.trim(),
+      code: code.toUpperCase(),
+      description,
+      shortDescription,
+      slug,
+      category,
+      subcategory,
+      instructors,
+      level: level || 'beginner',
+      language: language || 'English',
+      thumbnail,
+      schedule,
+      pricing,
+      preview,
+      mode,
+      schedule_pattern,
+      features,
+      requirements,
+      objectives,
+      targetAudience,
+      tags,
+      status: status || 'upcoming',
+      featured: featured || false,
+      extraFields
+    });
 
     res.status(201).json({
       success: true,
-      message: 'Course created successfully',
       data: course
     });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
+  })
+];
 
-// @desc    Update course
-// @route   PUT /api/courses/:id
-// @access  Private/Teacher/Admin
-export const updateCourse = async (req, res) => {
-  try {
+const updateCourse = [
+  validateCourseInput,
+  asyncHandler(async (req, res, next) => {
     let course = await Course.findById(req.params.id);
 
     if (!course) {
       return res.status(404).json({
         success: false,
-        message: 'Course not found'
+        message: `Course not found with id of ${req.params.id}`
       });
     }
 
-    // Check ownership
-    if (course.instructor.toString() !== req.user.id && 
-        req.user.role !== 'admin' && 
-        req.user.role !== 'super_admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to update this course'
+    const { 
+      title, 
+      code, 
+      description, 
+      shortDescription, 
+      category, 
+      subcategory, 
+      instructors, 
+      level, 
+      language, 
+      thumbnail, 
+      schedule, 
+      pricing, 
+      preview, 
+      mode, 
+      schedule_pattern, 
+      features, 
+      requirements, 
+      objectives, 
+      targetAudience, 
+      tags, 
+      status, 
+      featured, 
+      extraFields 
+    } = req.body;
+
+    // Check if code is being updated and if it already exists
+    if (code && code.toUpperCase() !== course.code) {
+      const existingCourse = await Course.findOne({ 
+        code: code.toUpperCase(),
+        _id: { $ne: course._id }
       });
+      if (existingCourse) {
+        return res.status(400).json({
+          success: false,
+          message: 'Course with this code already exists'
+        });
+      }
     }
 
-    course = await Course.findByIdAndUpdate(req.params.id, req.body, {
-      new: true,
-      runValidators: true
-    });
-
-    res.json({
-      success: true,
-      message: 'Course updated successfully',
-      data: course
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Delete course
-// @route   DELETE /api/courses/:id
-// @access  Private/Teacher/Admin
-export const deleteCourse = async (req, res) => {
-  try {
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        message: 'Course not found'
+    // Check if title is being updated and if it already exists
+    if (title && title.trim() !== course.title) {
+      const existingTitleCourse = await Course.findOne({ 
+        title: title.trim(),
+        _id: { $ne: course._id }
       });
+      if (existingTitleCourse) {
+        return res.status(400).json({
+          success: false,
+          message: 'Course with this title already exists'
+        });
+      }
     }
 
-    // Check ownership
-    if (course.instructor.toString() !== req.user.id && 
-        req.user.role !== 'admin' && 
-        req.user.role !== 'super_admin') {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this course'
-      });
+    // Generate new slug if title is updated
+    let slug = course.slug;
+    if (title && title.trim() !== course.title) {
+      slug = await generateSlug(title, course._id);
     }
 
-    await Course.findByIdAndDelete(req.params.id);
-    
-    // Also delete associated lessons
-    await Lesson.deleteMany({ course: req.params.id });
+    // Update course
+    const updateData = {
+      ...(title && { title: title.trim() }),
+      ...(code && { code: code.toUpperCase() }),
+      ...(description && { description }),
+      ...(shortDescription !== undefined && { shortDescription }),
+      slug,
+      ...(category && { category }),
+      ...(subcategory !== undefined && { subcategory }),
+      ...(instructors && { instructors }),
+      ...(level && { level }),
+      ...(language && { language }),
+      ...(thumbnail && { thumbnail }),
+      ...(schedule && { schedule }),
+      ...(pricing && { pricing }),
+      ...(preview && { preview }),
+      ...(mode && { mode }),
+      ...(schedule_pattern && { schedule_pattern }),
+      ...(features && { features }),
+      ...(requirements && { requirements }),
+      ...(objectives && { objectives }),
+      ...(targetAudience && { targetAudience }),
+      ...(tags && { tags }),
+      ...(status && { status }),
+      ...(featured !== undefined && { featured }),
+      ...(extraFields && { extraFields })
+    };
 
-    res.json({
-      success: true,
-      message: 'Course deleted successfully'
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
-  }
-};
-
-// @desc    Add review to course
-// @route   POST /api/courses/:id/reviews
-// @access  Private
-export const addReview = async (req, res) => {
-  try {
-    const { rating, comment } = req.body;
-    const course = await Course.findById(req.params.id);
-
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        message: 'Course not found'
-      });
-    }
-
-    // Check if user is enrolled
-    const user = await User.findById(req.user.id);
-    const isEnrolled = user.courses.some(c => c.course.toString() === req.params.id);
-    
-    if (!isEnrolled) {
-      return res.status(403).json({
-        success: false,
-        message: 'Must be enrolled to review'
-      });
-    }
-
-    // Check if user already reviewed
-    const existingReview = course.reviews.find(
-      review => review.user.toString() === req.user.id
+    course = await Course.findByIdAndUpdate(
+      req.params.id,
+      updateData,
+      {
+        new: true,
+        runValidators: true
+      }
     );
 
-    if (existingReview) {
-      // Update existing review
-      existingReview.rating = rating;
-      existingReview.comment = comment;
-    } else {
-      // Add new review
-      course.reviews.push({
-        user: req.user.id,
-        rating,
-        comment
-      });
-    }
-
-    // Recalculate average rating
-    course.calculateAverageRating();
-
-    await course.save();
-
-    res.json({
+    res.status(200).json({
       success: true,
-      message: 'Review added successfully'
+      data: course
     });
-  } catch (error) {
-    res.status(500).json({
+  })
+];
+
+
+const deleteCourse = asyncHandler(async (req, res, next) => {
+  const course = await Course.findById(req.params.id);
+
+  if (!course) {
+    return res.status(404).json({
       success: false,
-      message: error.message
+      message: `Course not found with id of ${req.params.id}`
     });
   }
-};
 
-// @desc    Get course lessons
-// @route   GET /api/courses/:id/lessons
-// @access  Private (enrolled users only)
-export const getCourseLessons = async (req, res) => {
-  try {
-    // Check if user is enrolled or is the instructor
-    const course = await Course.findById(req.params.id);
-    
-    if (!course) {
-      return res.status(404).json({
-        success: false,
-        message: 'Course not found'
-      });
-    }
+  await course.remove();
 
-    const user = await User.findById(req.user.id);
-    const isEnrolled = user.courses.some(c => c.course.toString() === req.params.id);
-    const isInstructor = course.instructor.toString() === req.user.id;
-    const isAdmin = ['admin', 'super_admin'].includes(req.user.role);
+  res.status(200).json({
+    success: true,
+    data: {}
+  });
+});
 
-    if (!isEnrolled && !isInstructor && !isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Must be enrolled to access lessons'
-      });
-    }
 
-    const lessons = await Lesson.find({ course: req.params.id })
-      .sort({ order: 1 })
-      .select(isEnrolled || isInstructor || isAdmin ? '' : 'title description type duration isPreview');
+const getCoursesByCategory = asyncHandler(async (req, res, next) => {
+  const match = {};
+  
+  // Find category by ID or slug
+  let category;
+  if (mongoose.Types.ObjectId.isValid(req.params.categoryId)) {
+    category = await Category.findById(req.params.categoryId);
+  } else {
+    category = await Category.findOne({ slug: req.params.categoryId });
+  }
 
-    res.json({
-      success: true,
-      data: lessons
-    });
-  } catch (error) {
-    res.status(500).json({
+  if (!category) {
+    return res.status(404).json({
       success: false,
-      message: error.message
+      message: `Category not found with id or slug of ${req.params.categoryId}`
     });
   }
+
+  match.category = category._id;
+
+  // Add other filters from query params
+  if (req.query.level) match.level = req.query.level;
+  if (req.query.mode) match.mode = req.query.mode;
+  if (req.query.status) match.status = req.query.status;
+  if (req.query.featured !== undefined) match.featured = req.query.featured === 'true';
+
+  const pipeline = [
+    { $match: match },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category',
+        foreignField: '_id',
+        as: 'categoryDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'instructors',
+        foreignField: '_id',
+        as: 'instructorDetails'
+      }
+    },
+    {
+      $addFields: {
+        categoryInfo: { $arrayElemAt: ['$categoryDetails', 0] },
+        instructorNames: {
+          $map: {
+            input: '$instructorDetails',
+            as: 'instructor',
+            in: {
+              _id: '$$instructor._id',
+              name: '$$instructor.name'
+            }
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        categoryDetails: 0,
+        instructorDetails: 0
+      }
+    },
+    { $sort: { createdAt: -1 } }
+  ];
+
+  // Add pagination
+  const page = parseInt(req.query.page, 10) || 1;
+  const limit = parseInt(req.query.limit, 10) || 10;
+  const startIndex = (page - 1) * limit;
+
+  pipeline.push({ $skip: startIndex });
+  pipeline.push({ $limit: limit });
+
+  const courses = await Course.aggregate(pipeline);
+
+  // Get total count
+  const totalPipeline = [
+    { $match: match },
+    { $count: 'total' }
+  ];
+  const totalCount = await Course.aggregate(totalPipeline);
+  const total = totalCount.length > 0 ? totalCount[0].total : 0;
+
+  res.status(200).json({
+    success: true,
+    count: courses.length,
+    total,
+    categoryId: category._id,
+    categoryName: category.name,
+    data: courses
+  });
+});
+
+
+const getFeaturedCourses = asyncHandler(async (req, res, next) => {
+  const pipeline = [
+    { $match: { featured: true, status: { $ne: 'cancelled' } } },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category',
+        foreignField: '_id',
+        as: 'categoryDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'instructors',
+        foreignField: '_id',
+        as: 'instructorDetails'
+      }
+    },
+    {
+      $addFields: {
+        categoryInfo: { $arrayElemAt: ['$categoryDetails', 0] },
+        instructorNames: {
+          $map: {
+            input: '$instructorDetails',
+            as: 'instructor',
+            in: {
+              _id: '$$instructor._id',
+              name: '$$instructor.name'
+            }
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        categoryDetails: 0,
+        instructorDetails: 0
+      }
+    },
+    { $sort: { createdAt: -1 } },
+    { $limit: parseInt(req.query.limit) || 10 }
+  ];
+
+  const courses = await Course.aggregate(pipeline);
+
+  res.status(200).json({
+    success: true,
+    count: courses.length,
+    data: courses
+  });
+});
+
+
+const getUpcomingCourses = asyncHandler(async (req, res, next) => {
+  const today = new Date();
+  
+  const pipeline = [
+    { 
+      $match: { 
+        status: 'upcoming',
+        'schedule.startDate': { $gte: today }
+      } 
+    },
+    {
+      $lookup: {
+        from: 'categories',
+        localField: 'category',
+        foreignField: '_id',
+        as: 'categoryDetails'
+      }
+    },
+    {
+      $lookup: {
+        from: 'users',
+        localField: 'instructors',
+        foreignField: '_id',
+        as: 'instructorDetails'
+      }
+    },
+    {
+      $addFields: {
+        categoryInfo: { $arrayElemAt: ['$categoryDetails', 0] },
+        instructorNames: {
+          $map: {
+            input: '$instructorDetails',
+            as: 'instructor',
+            in: {
+              _id: '$$instructor._id',
+              name: '$$instructor.name'
+            }
+          }
+        },
+        daysUntilStart: {
+          $divide: [
+            { $subtract: ['$schedule.startDate', today] },
+            1000 * 60 * 60 * 24
+          ]
+        }
+      }
+    },
+    {
+      $project: {
+        categoryDetails: 0,
+        instructorDetails: 0
+      }
+    },
+    { $sort: { 'schedule.startDate': 1 } },
+    { $limit: parseInt(req.query.limit) || 10 }
+  ];
+
+  const courses = await Course.aggregate(pipeline);
+
+  res.status(200).json({
+    success: true,
+    count: courses.length,
+    data: courses
+  });
+});
+
+export {
+  getCourses,
+  getCourse,
+  createCourse,
+  updateCourse,
+  deleteCourse,
+  getCoursesByCategory,
+  getFeaturedCourses,
+  getUpcomingCourses
 };

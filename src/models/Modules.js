@@ -26,15 +26,6 @@ const moduleSchema = new mongoose.Schema({
   },
   objectives: [String],
   prerequisites: [String],
-  resources: [{
-    title: String,
-    type: {
-      type: String,
-      enum: ['pdf', 'video', 'link', 'document']
-    },
-    url: String,
-    size: Number
-  }],
   isPublished: {
     type: Boolean,
     default: false
@@ -71,7 +62,7 @@ moduleSchema.virtual('tests', {
 });
 
 // Set published date when isPublished changes to true
-moduleSchema.pre('save', function(next) {
+moduleSchema.pre('save', function (next) {
   if (this.isModified('isPublished') && this.isPublished && !this.publishedAt) {
     this.publishedAt = new Date();
   }

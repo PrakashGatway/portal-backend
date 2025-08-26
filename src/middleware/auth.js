@@ -90,7 +90,6 @@ export const optionalAuth = async (req, res, next) => {
 
     next();
   } catch (error) {
-    // Continue without authentication
     next();
   }
 };

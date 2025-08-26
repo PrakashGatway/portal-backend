@@ -6,6 +6,12 @@ const courseSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  code: {
+    type: String,
+    required: [true, 'Please add a course code'],
+    unique: true,
+    uppercase: true
+  },
   description: {
     type: String,
     required: true
@@ -47,93 +53,88 @@ const courseSchema = new mongoose.Schema({
     url: String,
     publicId: String
   },
+  schedule: {
+    startDate: {
+      type: Date,
+      required: [true, 'Please add batch start date']
+    },
+    endDate: {
+      type: Date,
+      required: [true, 'Please add batch end date']
+    },
+    enrollmentDeadline: Date,
+    timezone: {
+      type: String,
+      default: 'Asia/Kolkata'
+    }
+  },
+  pricing: {
+    amount: {
+      type: Number,
+      required: [true, 'Please add batch price']
+    },
+    currency: {
+      type: String,
+      default: 'INR'
+    },
+    earlyBird: {
+      discount: Number,
+      deadline: Date
+    },
+    discount: Number
+  },
   preview: {
     url: String,
     publicId: String,
     duration: Number
+  },
+  mode: {
+    type: String,
+    enum: ['online', 'offline', 'hybrid', 'recorded'],
+    required: [true, 'Please select batch mode']
+  },
+  schedule_pattern: {
+    frequency: {
+      type: String,
+      enum: ['daily', 'weekly', 'biweekly', 'monthly', 'custom'],
+      default: 'daily'
+    },
+    days: [{
+      type: String,
+      enum: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday']
+    }],
+    time: {
+      start: String, // HH:MM format
+      end: String    // HH:MM format
+    },
+    duration: Number // in minutes
   },
   features: [String],
   requirements: [String],
   objectives: [String],
   targetAudience: [String],
   tags: [String],
-  duration: {
-    type: Number, // total duration in minutes
-    default: 0
-  },
-  studentsCount: {
-    type: Number,
-    default: 0
-  },
-  maxEnrollments: Number,
-  rating: {
-    average: {
-      type: Number,
-      default: 0,
-      min: 0,
-      max: 5
-    },
-    count: {
-      type: Number,
-      default: 0
-    }
-  },
-  reviews: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    rating: {
-      type: Number,
-      required: true,
-      min: 1,
-      max: 5
-    },
-    comment: String,
-    createdAt: {
-      type: Date,
-      default: Date.now
-    }
-  }],
   status: {
     type: String,
-    enum: ['draft', 'published', 'archived'],
-    default: 'draft'
+    enum: ['upcoming', 'ongoing', 'completed', 'cancelled'],
+    default: 'upcoming'
   },
   featured: {
     type: Boolean,
     default: false
   },
-  certificate: {
-    available: {
-      type: Boolean,
-      default: false
-    },
-    template: String
+  extraFields: {
+    type: Map,
+    of: mongoose.Schema.Types.Mixed,
+    default: () => new Map()
   },
-  settings: {
-    allowReviews: {
-      type: Boolean,
-      default: true
-    },
-    allowDiscussions: {
-      type: Boolean,
-      default: true
-    },
-    autoEnroll: {
-      type: Boolean,
-      default: false
-    }
-  }
 }, {
   timestamps: true
 });
 
-courseSchema.index({ instructor: 1 });
 courseSchema.index({ category: 1 });
 courseSchema.index({ status: 1 });
 courseSchema.index({ featured: 1 });
-courseSchema.index({ studentsCount: -1 });
 courseSchema.index({ createdAt: -1 });
 courseSchema.index({ title: 'text', description: 'text', tags: 'text' });
 

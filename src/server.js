@@ -26,7 +26,7 @@ import lessonRoutes from './routes/lessonRoutes.js';
 import pageRoutes from './routes/pagesRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import entityRoutes from './routes/entitiesRoutes.js';
-
+import categoryRoutes from './routes/categoriesRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -89,6 +89,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
+app.use('/api/v1/categories', categoryRoutes);
+
 
 app.use('/api/v1/courses', courseRoutes);
 app.use('/api/v1/classes', classRoutes);

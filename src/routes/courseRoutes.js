@@ -5,23 +5,35 @@ import {
   createCourse,
   updateCourse,
   deleteCourse,
-  addReview,
-  getCourseLessons
+  getCoursesByCategory,
+  getFeaturedCourses,
+  getUpcomingCourses
 } from '../controllers/courseController.js';
-import { protect, authorize, optionalAuth } from '../middleware/auth.js';
+
+import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.route('/')
-  .get(getCourses)
-  .post(protect, authorize('teacher', 'admin', 'super_admin'), createCourse);
+  .get(getCourses);
+
+router.route('/featured')
+  .get(getFeaturedCourses);
+
+router.route('/upcoming')
+  .get(getUpcomingCourses);
+
+router.route('/category/:categoryId')
+  .get(getCoursesByCategory);
 
 router.route('/:id')
-  .get(optionalAuth, getCourse)
-  .put(protect, authorize('teacher', 'admin', 'super_admin'), updateCourse)
-  .delete(protect, authorize('teacher', 'admin', 'super_admin'), deleteCourse);
+  .get(getCourse);
 
-router.post('/:id/reviews', protect, addReview);
-router.get('/:id/lessons', protect, getCourseLessons);
+router.route('/')
+  .post( createCourse);
+
+router.route('/:id')
+  .put(protect, authorize('admin'), updateCourse)
+  .delete(protect, authorize('admin'), deleteCourse);
 
 export default router;
