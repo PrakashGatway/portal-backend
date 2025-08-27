@@ -136,12 +136,12 @@ const recordedClassSchema = new mongoose.Schema({
   access: {
     type: {
       type: String,
-      enum: ['free', 'premium', 'batch-specific'],
+      enum: ['free', 'premium', 'course-specific'],
       default: 'premium'
     },
-    batches: [{
+    courses: [{
       type: mongoose.Schema.ObjectId,
-      ref: 'Batch'
+      ref: 'Course'
     }],
     availableFrom: Date,
     availableUntil: Date
@@ -159,19 +159,9 @@ const recordedClassSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
-    engagement: {
-      likes: {
-        type: Number,
-        default: 0
-      },
-      bookmarks: {
-        type: Number,
-        default: 0
-      },
-      shares: {
-        type: Number,
-        default: 0
-      }
+    likes: {
+      type: Number,
+      default: 0
     }
   },
   status: {
@@ -187,9 +177,9 @@ const recordedClassSchema = new mongoose.Schema({
 });
 
 // Virtual for formatted duration
-recordedClassSchema.virtual('formattedDuration').get(function() {
+recordedClassSchema.virtual('formattedDuration').get(function () {
   if (!this.video.duration) return '0:00';
-  
+
   const minutes = Math.floor(this.video.duration / 60);
   const seconds = this.video.duration % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -205,7 +195,7 @@ recordedClassSchema.virtual('watchProgress', {
 });
 
 // Set published date when status changes to published
-recordedClassSchema.pre('save', function(next) {
+recordedClassSchema.pre('save', function (next) {
   if (this.isModified('status') && this.status === 'published' && !this.publishedAt) {
     this.publishedAt = new Date();
   }

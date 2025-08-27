@@ -1,0 +1,56 @@
+// routes/content.js
+import express from 'express';
+import {
+    getAllContent,
+    getContentByType,
+    getContent,
+    createLiveClass,
+    createRecordedClass,
+    createTest,
+    createStudyMaterial,
+    updateContent,
+    deleteContent,
+    getContentStats,
+    getUpcomingLiveClasses,
+    getCourseContentStructure
+} from '../controllers/contentController.js';
+
+import { protect, authorize } from '../middleware/auth.js';
+
+const router = express.Router();
+
+router.route('/')
+    .get(getAllContent);
+
+router.route('/stats')
+    .get(getContentStats);
+
+router.route('/type/:type')
+    .get(getContentByType);
+
+router.route('/liveclass/upcoming')
+    .get(getUpcomingLiveClasses);
+
+router.route('/course/:courseId/structure')
+    .get(getCourseContentStructure);
+
+router.route('/:id')
+    .get(getContent);
+
+router.route('/liveclass')
+    .post(protect, authorize('teacher', 'admin'), createLiveClass);
+
+router.route('/recordedclass')
+    .post(protect, authorize('teacher', 'admin'), createRecordedClass);
+
+router.route('/test')
+    .post(protect, authorize('teacher', 'admin'), createTest);
+
+router.route('/studymaterial')
+    .post(protect, authorize('teacher', 'admin'), createStudyMaterial);
+
+router.route('/:id')
+    .put(protect, authorize('teacher', 'admin'), updateContent)
+    .delete(protect, authorize('admin'), deleteContent);
+
+export default router;

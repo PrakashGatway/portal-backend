@@ -1,23 +1,22 @@
-// controllers/courseController.js
 import mongoose from 'mongoose';
 import Course from '../models/Course.js';
 import Category from '../models/Category.js';
 import asyncHandler from '../middleware/async.js';
 
 const validateCourseInput = (req, res, next) => {
-  const { 
-    title, 
-    code, 
-    description, 
-    category, 
-    instructors, 
-    level, 
-    schedule, 
-    pricing, 
+  const {
+    title,
+    code,
+    description,
+    category,
+    instructors,
+    level,
+    schedule,
+    pricing,
     mode,
-    schedule_pattern 
+    schedule_pattern
   } = req.body;
-  
+
   const errors = [];
 
   // Validate required fields
@@ -90,7 +89,7 @@ const validateCourseInput = (req, res, next) => {
     if (schedule_pattern.frequency && !['daily', 'weekly', 'biweekly', 'monthly', 'custom'].includes(schedule_pattern.frequency)) {
       errors.push('Invalid schedule frequency');
     }
-    
+
     if (schedule_pattern.days) {
       const validDays = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
       schedule_pattern.days.forEach(day => {
@@ -111,7 +110,7 @@ const validateCourseInput = (req, res, next) => {
 
 const getCourses = asyncHandler(async (req, res, next) => {
   const match = {};
-  
+
   if (req.query.search) {
     match.$text = { $search: req.query.search };
   }
@@ -257,29 +256,10 @@ const getCourses = asyncHandler(async (req, res, next) => {
   const totalCount = await Course.aggregate(totalPipeline);
   const total = totalCount.length > 0 ? totalCount[0].total : 0;
 
-  // Pagination info
-  const pagination = {};
-  const endIndex = page * limit;
-  
-  if (endIndex < total) {
-    pagination.next = {
-      page: page + 1,
-      limit
-    };
-  }
-
-  if (startIndex > 0) {
-    pagination.previous = {
-      page: page - 1,
-      limit
-    };
-  }
-
   res.status(200).json({
     success: true,
     count: courses.length,
     total,
-    pagination,
     data: courses
   });
 });
@@ -364,31 +344,31 @@ const getCourse = asyncHandler(async (req, res, next) => {
 const createCourse = [
   validateCourseInput,
   asyncHandler(async (req, res, next) => {
-    const { 
-      title, 
-      code, 
-      description, 
-      shortDescription, 
-      category, 
-      subcategory, 
-      instructors, 
-      level, 
-      language, 
-      thumbnail, 
-      schedule, 
-      pricing, 
-      preview, 
-      mode, 
-      schedule_pattern, 
-      features, 
-      requirements, 
-      objectives, 
-      targetAudience, 
+    const {
+      title,
+      code,
+      description,
+      shortDescription,
+      category,
+      subcategory,
+      instructors,
+      level,
+      language,
+      thumbnail,
+      schedule,
+      pricing,
+      preview,
+      mode,
+      schedule_pattern,
+      features,
+      requirements,
+      objectives,
+      targetAudience,
       tags,
-      slug, 
-      status, 
-      featured, 
-      extraFields 
+      slug,
+      status,
+      featured,
+      extraFields
     } = req.body;
 
     const existingCourse = await Course.findOne({ code: code.toUpperCase() });
@@ -453,35 +433,35 @@ const updateCourse = [
       });
     }
 
-    const { 
-      title, 
-      code, 
-      description, 
-      shortDescription, 
-      category, 
-      subcategory, 
-      instructors, 
-      level, 
-      language, 
-      thumbnail, 
-      schedule, 
-      pricing, 
-      preview, 
-      mode, 
-      schedule_pattern, 
-      features, 
-      requirements, 
-      objectives, 
-      targetAudience, 
-      tags, 
-      status, 
-      featured, 
-      extraFields 
+    const {
+      title,
+      code,
+      description,
+      shortDescription,
+      category,
+      subcategory,
+      instructors,
+      level,
+      language,
+      thumbnail,
+      schedule,
+      pricing,
+      preview,
+      mode,
+      schedule_pattern,
+      features,
+      requirements,
+      objectives,
+      targetAudience,
+      tags,
+      status,
+      featured,
+      extraFields,
+      slug
     } = req.body;
 
-    // Check if code is being updated and if it already exists
     if (code && code.toUpperCase() !== course.code) {
-      const existingCourse = await Course.findOne({ 
+      const existingCourse = await Course.findOne({
         code: code.toUpperCase(),
         _id: { $ne: course._id }
       });
@@ -493,9 +473,8 @@ const updateCourse = [
       }
     }
 
-    // Check if title is being updated and if it already exists
     if (title && title.trim() !== course.title) {
-      const existingTitleCourse = await Course.findOne({ 
+      const existingTitleCourse = await Course.findOne({
         title: title.trim(),
         _id: { $ne: course._id }
       });
@@ -506,14 +485,10 @@ const updateCourse = [
         });
       }
     }
-
-    // Generate new slug if title is updated
-    let slug = course.slug;
-    if (title && title.trim() !== course.title) {
-      slug = await generateSlug(title, course._id);
+    if (slug && slug !== course.slug) {
+      course.slug = slug.toLowerCase();
     }
 
-    // Update course
     const updateData = {
       ...(title && { title: title.trim() }),
       ...(code && { code: code.toUpperCase() }),
@@ -579,7 +554,7 @@ const deleteCourse = asyncHandler(async (req, res, next) => {
 
 const getCoursesByCategory = asyncHandler(async (req, res, next) => {
   const match = {};
-  
+
   // Find category by ID or slug
   let category;
   if (mongoose.Types.ObjectId.isValid(req.params.categoryId)) {
@@ -730,13 +705,13 @@ const getFeaturedCourses = asyncHandler(async (req, res, next) => {
 
 const getUpcomingCourses = asyncHandler(async (req, res, next) => {
   const today = new Date();
-  
+
   const pipeline = [
-    { 
-      $match: { 
+    {
+      $match: {
         status: 'upcoming',
-        'schedule.startDate': { $gte: today }
-      } 
+        // 'schedule.startDate': { $gte: today }
+      }
     },
     {
       $lookup: {

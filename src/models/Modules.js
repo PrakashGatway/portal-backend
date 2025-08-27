@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from "mongoose";
 
 const moduleSchema = new mongoose.Schema({
   title: {
@@ -37,31 +37,27 @@ const moduleSchema = new mongoose.Schema({
   toObject: { virtuals: true }
 });
 
-// Virtual for live classes
 moduleSchema.virtual('liveClasses', {
-  ref: 'LiveClass',
+  ref: 'LiveClasses',
   localField: '_id',
   foreignField: 'module',
   justOne: false
 });
 
-// Virtual for recorded classes
 moduleSchema.virtual('recordedClasses', {
-  ref: 'RecordedClass',
+  ref: 'RecordedClasses',
   localField: '_id',
   foreignField: 'module',
   justOne: false
 });
 
-// Virtual for tests
 moduleSchema.virtual('tests', {
-  ref: 'Test',
+  ref: 'Tests',
   localField: '_id',
   foreignField: 'module',
   justOne: false
 });
 
-// Set published date when isPublished changes to true
 moduleSchema.pre('save', function (next) {
   if (this.isModified('isPublished') && this.isPublished && !this.publishedAt) {
     this.publishedAt = new Date();
@@ -69,4 +65,4 @@ moduleSchema.pre('save', function (next) {
   next();
 });
 
-module.exports = mongoose.model('Module', moduleSchema);
+export default mongoose.model('Module', moduleSchema);

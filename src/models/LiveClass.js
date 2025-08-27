@@ -12,11 +12,6 @@ const liveClassSchema = new mongoose.Schema({
     ref: 'Course',
     required: true
   },
-  batch: {
-    type: mongoose.Schema.ObjectId,
-    ref: 'Batch',
-    required: [true, 'Please select a batch']
-  },
   module: {
     type: mongoose.Schema.ObjectId,
     ref: 'Module'
@@ -25,6 +20,10 @@ const liveClassSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  isFree:{
+    type: Boolean,
+    default: false
   },
   scheduledStart: {
     type: Date,
@@ -48,19 +47,6 @@ const liveClassSchema = new mongoose.Schema({
     type: Number,
     default: 100
   },
-  participants: [{
-    user: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
-    },
-    joinedAt: Date,
-    leftAt: Date,
-    attendance: {
-      type: String,
-      enum: ['present', 'absent', 'late'],
-      default: 'present'
-    }
-  }],
   recording: {
     available: {
       type: Boolean,

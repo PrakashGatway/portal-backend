@@ -16,17 +16,22 @@ import { socketAuth } from './middleware/socketMiddleware.js';
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
-import classRoutes from './routes/classRoutes.js';
-import testRoutes from './routes/testRoutes.js';
-import submissionRoutes from './routes/submissionRoutes.js';
-import notificationRoutes from './routes/notificationRoutes.js';
-import paymentRoutes from './routes/paymentRoutes.js';
-import analyticsRoutes from './routes/analyticsRoutes.js';
-import lessonRoutes from './routes/lessonRoutes.js';
 import pageRoutes from './routes/pagesRoutes.js';
 import uploadRoutes from './routes/uploadRoutes.js';
 import entityRoutes from './routes/entitiesRoutes.js';
 import categoryRoutes from './routes/categoriesRoutes.js';
+import moduleRoutes from './routes/modulesRoutes.js';
+import contentRoutes from './routes/contentRoutes.js';
+
+
+// import classRoutes from './routes/classRoutes.js';
+// import testRoutes from './routes/testRoutes.js';
+import submissionRoutes from './routes/submissionRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js';
+import paymentRoutes from './routes/paymentRoutes.js';
+import analyticsRoutes from './routes/analyticsRoutes.js';
+// import lessonRoutes from './routes/lessonRoutes.js';
+
 
 dotenv.config();
 connectDB();
@@ -51,6 +56,7 @@ const allowedOrigins = [
   "https://uat.gatewayabroadeducations.com",
   "https://portal.gatewayabroadeducations.com",
   "https://gatewayabroadeducations.com",
+  "https://dashbarod.gatewayabroadeducations.com",
   "http://localhost:3000",
   "http://localhost:5173",
   "https://6dtmqkkr-5173.inc1.devtunnels.ms",
@@ -90,20 +96,20 @@ app.use((req, res, next) => {
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/categories', categoryRoutes);
-
-
 app.use('/api/v1/courses', courseRoutes);
-app.use('/api/v1/classes', classRoutes);
-app.use('/api/v1/tests', testRoutes);
-app.use('/api/v1/lessons', lessonRoutes);
+app.use("/api/v1/upload", uploadRoutes);
+app.use('/api/v1/page', pageRoutes);
+app.use('/api/v1/entities', entityRoutes);
+app.use('/api/v1/content', contentRoutes);
+app.use('/api/v1/modules', moduleRoutes);
+
+// app.use('/api/v1/classes', classRoutes);
+// app.use('/api/v1/tests', testRoutes);
+// app.use('/api/v1/lessons', lessonRoutes);
 app.use('/api/v1/submissions', submissionRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
-
-app.use("/api/v1/upload", uploadRoutes);
-app.use('/api/v1/page', pageRoutes);
-app.use('/api/v1/entities', entityRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({

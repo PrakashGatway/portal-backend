@@ -30,7 +30,7 @@ router.route('/:id')
   .get(getCourse);
 
 router.route('/')
-  .post( createCourse);
+  .post(protect, authorize('admin'), createCourse);
 
 router.route('/:id')
   .put(protect, authorize('admin'), updateCourse)
