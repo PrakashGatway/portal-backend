@@ -620,9 +620,7 @@ const createRecordedClass = [
   })
 ];
 
-// @desc    Create Test with advanced validation
-// @route   POST /api/v1/content/test
-// @access  Private/Instructor
+
 const createTest = [
   validateContentInput,
   asyncHandler(async (req, res, next) => {
@@ -632,7 +630,6 @@ const createTest = [
       return next(new ErrorResponse('At least one question is required', 400));
     }
 
-    // Validate questions
     for (let i = 0; i < questions.length; i++) {
       const question = questions[i];
       if (!question.question || !question.type) {
@@ -643,13 +640,11 @@ const createTest = [
         return next(new ErrorResponse(`Multiple choice question ${i + 1} must have at least 2 options`, 400));
       }
     }
-
     const test = await Test.create({
       ...req.body,
-      __t: 'Test'
+      __t: 'Tests'
     });
 
-    // Populate related data for response
     const populatedTest = await Test.findById(test._id)
       .populate('course', 'title code')
       .populate('instructor', 'name email')
@@ -662,9 +657,6 @@ const createTest = [
   })
 ];
 
-// @desc    Create Study Material with advanced validation
-// @route   POST /api/v1/content/studymaterial
-// @access  Private/Instructor
 const createStudyMaterial = [
   validateContentInput,
   asyncHandler(async (req, res, next) => {
@@ -680,7 +672,7 @@ const createStudyMaterial = [
 
     const studyMaterial = await StudyMaterial.create({
       ...req.body,
-      __t: 'StudyMaterial'
+      __t: 'StudyMaterials'
     });
 
     // Populate related data for response
@@ -696,9 +688,6 @@ const createStudyMaterial = [
   })
 ];
 
-// @desc    Update any content with advanced validation
-// @route   PUT /api/v1/content/:id
-// @access  Private/Instructor
 const updateContent = [
   validateContentInput,
   asyncHandler(async (req, res, next) => {
@@ -708,13 +697,12 @@ const updateContent = [
       return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
     }
 
-    // Type-specific validation
-    if (content.__t === 'LiveClass') {
+    if (content.__t === 'LiveClasses') {
       const { scheduledStart, scheduledEnd } = req.body;
       if (scheduledStart && scheduledEnd && new Date(scheduledStart) >= new Date(scheduledEnd)) {
         return next(new ErrorResponse('End time must be after start time', 400));
       }
-    } else if (content.__t === 'Test') {
+    } else if (content.__t === 'Tests') {
       const { questions } = req.body;
       if (questions) {
         for (let i = 0; i < questions.length; i++) {
@@ -734,8 +722,6 @@ const updateContent = [
         runValidators: true
       }
     );
-
-    // Populate related data
     const populatedContent = await Content.findById(content._id)
       .populate('course', 'title code')
       .populate('instructor', 'name email')
@@ -748,9 +734,6 @@ const updateContent = [
   })
 ];
 
-// @desc    Delete content
-// @route   DELETE /api/v1/content/:id
-// @access  Private/Admin
 const deleteContent = asyncHandler(async (req, res, next) => {
   const content = await Content.findById(req.params.id);
 
@@ -766,9 +749,6 @@ const deleteContent = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get dashboard statistics with aggregation
-// @route   GET /api/v1/content/stats
-// @access  Public
 const getContentStats = asyncHandler(async (req, res, next) => {
   const match = {};
 
@@ -803,7 +783,6 @@ const getContentStats = asyncHandler(async (req, res, next) => {
 
   const stats = await Content.aggregate(statsPipeline);
 
-  // Get status distribution
   const statusPipeline = [
     { $match: match },
     {
@@ -832,9 +811,7 @@ const getContentStats = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get upcoming live classes with detailed info
-// @route   GET /api/v1/content/liveclass/upcoming
-// @access  Public
+
 const getUpcomingLiveClasses = asyncHandler(async (req, res, next) => {
   const now = new Date();
   const match = {
@@ -918,9 +895,7 @@ const getUpcomingLiveClasses = asyncHandler(async (req, res, next) => {
   });
 });
 
-// @desc    Get course content structure
-// @route   GET /api/v1/content/course/:courseId/structure
-// @access  Public
+
 const getCourseContentStructure = asyncHandler(async (req, res, next) => {
   const courseId = req.params.courseId;
 
@@ -931,7 +906,7 @@ const getCourseContentStructure = asyncHandler(async (req, res, next) => {
   const pipeline = [
     {
       $match: {
-        course: mongoose.Types.ObjectId(courseId),
+        course: new mongoose.Types.ObjectId(courseId),
         status: 'published'
       }
     },
@@ -946,7 +921,7 @@ const getCourseContentStructure = asyncHandler(async (req, res, next) => {
     {
       $addFields: {
         moduleInfo: { $arrayElemAt: ['$moduleDetails', 0] },
-        moduleName: { $ifNull: [{ $arrayElemAt: ['$moduleDetails.name', 0] }, 'No Module'] },
+        moduleName: { $ifNull: [{ $arrayElemAt: ['$moduleDetails.title', 0] }, 'No Module'] },
         moduleId: { $ifNull: ['$module', null] }
       }
     },

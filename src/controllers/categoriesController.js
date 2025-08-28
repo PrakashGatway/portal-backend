@@ -3,7 +3,7 @@ import Category from '../models/Category.js';
 import asyncHandler from '../middleware/async.js';
 
 const getCategories = asyncHandler(async (req, res, next) => {
-    const match = { isActive: true };
+    const match = {};
     if (req.query.search) {
         match.$or = [
             { name: { $regex: req.query.search, $options: 'i' } },
@@ -17,7 +17,7 @@ const getCategories = asyncHandler(async (req, res, next) => {
             match.parent = req.query.parent;
         }
     }
-    if (req.query.isActive !== undefined) {
+    if (req.query.isActive) {
         match.isActive = req.query.isActive === 'true';
     }
 
@@ -141,7 +141,7 @@ const getCategory = asyncHandler(async (req, res, next) => {
 });
 
 const createCategory = asyncHandler(async (req, res, next) => {
-    const { name, description, parent, icon, color, order, isActive, slug } = req.body;
+    const { name, description, parent, icon, order, color, isActive, slug } = req.body;
 
     const existingCategory = await Category.findOne({ name: name.trim() });
     if (existingCategory) {
@@ -151,20 +151,26 @@ const createCategory = asyncHandler(async (req, res, next) => {
         });
     }
 
+    let orderNumber = order;
+    
+    if (!order) {
+        const lastCategory = await Category.findOne({}, {}, { sort: { order: -1 } });
+        orderNumber = lastCategory ? lastCategory.order + 1 : 1;
+    }
+
     const category = await Category.create({
         name: name.trim(),
         description,
         slug,
-        parent,
+        parent: parent ? new mongoose.Types.ObjectId(parent) : null,
         icon,
         color,
-        order,
+        order: orderNumber,
         isActive
     });
 
     res.status(201).json({
-        success: true,
-        data: category
+        success: true
     });
 });
 
@@ -179,7 +185,7 @@ const updateCategory = asyncHandler(async (req, res, next) => {
         });
     }
 
-    const { name, description, parent, icon, color, order, slug:newSlug, isActive } = req.body;
+    const { name, description, parent, icon, color, order, slug: newSlug, isActive } = req.body;
 
     if (name && name !== category.name) {
         const existingCategory = await Category.findOne({
@@ -201,7 +207,7 @@ const updateCategory = asyncHandler(async (req, res, next) => {
         ...(name && { name: name.trim() }),
         ...(description !== undefined && { description }),
         slug,
-        ...(parent !== undefined && { parent }),
+        ...(parent !== undefined && { parent: parent ? new mongoose.Types.ObjectId(parent) : null }),
         ...(icon !== undefined && { icon }),
         ...(color !== undefined && { color }),
         ...(order !== undefined && { order }),
@@ -242,11 +248,10 @@ const deleteCategory = asyncHandler(async (req, res, next) => {
         });
     }
 
-    await category.remove();
+    await category.deleteOne();
 
     res.status(200).json({
-        success: true,
-        data: {}
+        success: true
     });
 });
 

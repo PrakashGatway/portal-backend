@@ -75,7 +75,7 @@ const getModules = asyncHandler(async (req, res, next) => {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'LiveClass'] }
+              cond: { $eq: ['$$this.__t', 'LiveClasses'] }
             }
           }
         },
@@ -83,7 +83,7 @@ const getModules = asyncHandler(async (req, res, next) => {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'RecordedClass'] }
+              cond: { $eq: ['$$this.__t', 'RecordedClasses'] }
             }
           }
         },
@@ -91,7 +91,7 @@ const getModules = asyncHandler(async (req, res, next) => {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'Test'] }
+              cond: { $eq: ['$$this.__t', 'Tests'] }
             }
           }
         },
