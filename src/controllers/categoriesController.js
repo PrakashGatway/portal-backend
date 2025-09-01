@@ -152,7 +152,7 @@ const createCategory = asyncHandler(async (req, res, next) => {
     }
 
     let orderNumber = order;
-    
+
     if (!order) {
         const lastCategory = await Category.findOne({}, {}, { sort: { order: -1 } });
         orderNumber = lastCategory ? lastCategory.order + 1 : 1;
@@ -312,11 +312,13 @@ const getSubcategories = asyncHandler(async (req, res, next) => {
 
 const getRootCategories = asyncHandler(async (req, res, next) => {
     const match = {
-        parent: { $exists: false },
+        $or: [
+            { parent: { $exists: false } },
+            { parent: null }
+        ],
         isActive: true
     };
 
-    // Add search filter
     if (req.query.search) {
         match.$or = [
             { name: { $regex: req.query.search, $options: 'i' } },
@@ -357,7 +359,6 @@ const getRootCategories = asyncHandler(async (req, res, next) => {
         { $sort: { order: 1, createdAt: -1 } }
     ];
 
-    // Add pagination
     const page = parseInt(req.query.page, 10) || 1;
     const limit = parseInt(req.query.limit, 10) || 20;
     const startIndex = (page - 1) * limit;
@@ -367,7 +368,6 @@ const getRootCategories = asyncHandler(async (req, res, next) => {
 
     const categories = await Category.aggregate(pipeline);
 
-    // Get total count
     const totalPipeline = [
         { $match: match },
         { $count: 'total' }

@@ -9,11 +9,11 @@ const getModules = asyncHandler(async (req, res, next) => {
   
   if (req.query.course) {
     if (mongoose.Types.ObjectId.isValid(req.query.course)) {
-      match.course = mongoose.Types.ObjectId(req.query.course);
+      match.course = new mongoose.Types.ObjectId(req.query.course);
     }
   }
   
-  if (req.query.isPublished !== undefined) {
+  if (req.query.isPublished) {
     match.isPublished = req.query.isPublished === 'true';
   }
   
@@ -99,7 +99,7 @@ const getModules = asyncHandler(async (req, res, next) => {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'StudyMaterial'] }
+              cond: { $eq: ['$$this.__t', 'StudyMaterials'] }
             }
           }
         }
@@ -174,32 +174,32 @@ const getModule = asyncHandler(async (req, res, next) => {
         liveClasses: {
           $filter: {
             input: '$contentDetails',
-            cond: { $eq: ['$$this.__t', 'LiveClass'] }
+            cond: { $eq: ['$$this.__t', 'LiveClasses'] }
           }
         },
         recordedClasses: {
           $filter: {
             input: '$contentDetails',
-            cond: { $eq: ['$$this.__t', 'RecordedClass'] }
+            cond: { $eq: ['$$this.__t', 'RecordedClasses'] }
           }
         },
         tests: {
           $filter: {
             input: '$contentDetails',
-            cond: { $eq: ['$$this.__t', 'Test'] }
+            cond: { $eq: ['$$this.__t', 'Tests'] }
           }
         },
         studyMaterials: {
           $filter: {
             input: '$contentDetails',
-            cond: { $eq: ['$$this.__t', 'StudyMaterial'] }
+            cond: { $eq: ['$$this.__t', 'StudyMaterials'] }
           }
         },
         liveClassesCount: {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'LiveClass'] }
+              cond: { $eq: ['$$this.__t', 'LiveClasses'] }
             }
           }
         },
@@ -207,7 +207,7 @@ const getModule = asyncHandler(async (req, res, next) => {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'RecordedClass'] }
+              cond: { $eq: ['$$this.__t', 'RecordedClasses'] }
             }
           }
         },
@@ -215,7 +215,7 @@ const getModule = asyncHandler(async (req, res, next) => {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'Test'] }
+              cond: { $eq: ['$$this.__t', 'Tests'] }
             }
           }
         },
@@ -223,7 +223,7 @@ const getModule = asyncHandler(async (req, res, next) => {
           $size: {
             $filter: {
               input: '$contentDetails',
-              cond: { $eq: ['$$this.__t', 'StudyMaterial'] }
+              cond: { $eq: ['$$this.__t', 'StudyMaterials'] }
             }
           }
         }
@@ -342,7 +342,7 @@ const deleteModule = asyncHandler(async (req, res, next) => {
   const contentCountPipeline = [
     {
       $match: {
-        module: mongoose.Types.ObjectId(req.params.id)
+        module: new mongoose.Types.ObjectId(req.params.id)
       }
     },
     {
@@ -352,16 +352,17 @@ const deleteModule = asyncHandler(async (req, res, next) => {
   
   const contentCountResult = await mongoose.connection.collection('contents').aggregate(contentCountPipeline).toArray();
   const contentCount = contentCountResult.length > 0 ? contentCountResult[0].total : 0;
+
+  console.log(contentCountResult)
   
   if (contentCount > 0) {
     return next(new ErrorResponse(`Cannot delete module with ${contentCount} associated content items. Delete content first.`, 400));
   }
 
-  await module.remove();
+  await module.deleteOne();
 
   res.status(200).json({
-    success: true,
-    data: {}
+    success: true
   });
 });
 

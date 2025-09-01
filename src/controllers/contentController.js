@@ -45,7 +45,7 @@ const getAllContent = asyncHandler(async (req, res, next) => {
   }
 
   if (req.query.status) match.status = req.query.status;
-  if (req.query.type) match.__t = req.query.type;
+  if (req.query.contentType) match.__t = req.query.contentType;
   if (req.query.isFree !== undefined) match.isFree = req.query.isFree === 'true';
 
   if (req.query.publishedFrom || req.query.publishedTo) {
@@ -722,14 +722,13 @@ const updateContent = [
         runValidators: true
       }
     );
-    const populatedContent = await Content.findById(content._id)
-      .populate('course', 'title code')
-      .populate('instructor', 'name email')
-      .populate('module', 'title');
+    // const populatedContent = await Content.findById(content._id)
+    //   .populate('course', 'title code')
+    //   .populate('instructor', 'name email')
+    //   .populate('module', 'title');
 
     res.status(200).json({
-      success: true,
-      data: populatedContent
+      success: true
     });
   })
 ];
@@ -741,7 +740,7 @@ const deleteContent = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
   }
 
-  await content.remove();
+  await content.deleteOne();
 
   res.status(200).json({
     success: true,

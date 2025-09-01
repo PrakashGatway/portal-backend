@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import Course from '../models/Course.js';
 import Category from '../models/Category.js';
 import asyncHandler from '../middleware/async.js';
+import ErrorResponse from '../utils/errorResponse.js';
 
 const validateCourseInput = (req, res, next) => {
   const {
@@ -543,7 +544,7 @@ const deleteCourse = asyncHandler(async (req, res, next) => {
     });
   }
 
-  await course.remove();
+  await course.deleteOne();
 
   res.status(200).json({
     success: true,
