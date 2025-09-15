@@ -1,0 +1,116 @@
+server {
+    listen 80;
+    listen [::]:80;
+    server_name uat.gatewayabroadeducations.com;
+
+    return 301 https://uat.gatewayabroadeducations.com$request_uri;
+}
+
+# HTTPS for UAT Subdomain
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name uat.gatewayabroadeducations.com;
+    root /var/www/html/build1;
+
+    ssl_certificate /etc/letsencrypt/live/uat.gatewayabroadeducations.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/uat.gatewayabroadeducations.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # All other requests go to your main app (localhost:3001)
+    location / {
+      try_files $uri $uri/ /index.html;
+      add_header Cache-Control "no-cache, no-store, must-revalidate";
+      add_header Pragma "no-cache";
+      add_header Expires 0;
+    }
+
+    # Caching for assets
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";  # Cache for one year
+    }
+    location /static/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";  # Cache for one year
+    }
+
+    location /api {
+        proxy_pass http://localhost:5000;
+    }
+
+     location /uploads {
+        proxy_pass http://localhost:5000/uploads;
+    }
+}
+
+# HTTPS for API Subdomain
+server {
+    listen 80;
+    listen [::]:80;
+    server_name api.spiral.fashion;
+
+    location / {
+        proxy_pass http://localhost:5007;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+
+    location /uploads {
+        proxy_pass http://localhost:5007/uploads;
+    }
+}
+
+# Redirect non-www to www and HTTP to HTTPS
+server {
+    listen 80;
+    listen [::]:80;
+    server_name gatewayabroadeducations.com www.gatewayabroadeducations.com;
+
+    # Redirect all HTTP requests to HTTPS
+    return 301 https://www.gatewayabroadeducations.com$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    server_name gatewayabroadeducations.com www.gatewayabroadeducations.com;
+
+    ssl_certificate /etc/letsencrypt/live/gatewayabroadeducations.com/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/gatewayabroadeducations.com/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # Redirect non-www to www on HTTPS
+    if ($host = gatewayabroadeducations.com) {
+        return 301 https://www.gatewayabroadeducations.com$request_uri;
+    }
+    
+    location  / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+    # Main site configuration for www.gatewayabroadeducations.com
+
+    # Caching for assets
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";  # Cache for one year
+    }
+    location /static/ {
+        add_header Cache-Control "public, max-age=31536000, immutable";  # Cache for one year
+    }
+
+    location /api {
+        proxy_pass http://localhost:3001;
+    }
+
+    location /uploads {
+        proxy_pass http://localhost:3001/uploads;
+    }
+}

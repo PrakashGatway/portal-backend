@@ -395,7 +395,7 @@ const createCourse = [
       shortDescription,
       slug,
       category,
-      subcategory,
+      subcategory: subcategory ? subcategory : null,
       instructors,
       level: level || 'beginner',
       language: language || 'English',

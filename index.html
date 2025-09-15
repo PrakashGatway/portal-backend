@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Custom YouTube Player</title>
+    <link href="https://vjs.zencdn.net/8.5.2/video-js.css" rel="stylesheet">
+    <link href="https://unpkg.com/@videojs/themes@1.0.0/dist/forest/index.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a2a6c, #b21f1f, #fdbb2d);
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+            backdrop-filter: blur(10px);
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            color: #ddd;
+            margin-bottom: 20px;
+        }
+        
+        .player-container {
+            border-radius: 10px;
+            overflow: hidden;
+            margin-bottom: 25px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+        }
+        
+        .video-js {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .custom-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 20px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+        
+        .control-group {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .control-group h3 {
+            margin-bottom: 10px;
+            color: #4CAF50;
+            font-size: 1.1rem;
+        }
+        
+        .btn-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 10px 15px;
+            background: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-weight: 500;
+        }
+        
+        button:hover {
+            background: #45a049;
+        }
+        
+        select {
+            padding: 8px 12px;
+            border-radius: 5px;
+            border: 1px solid #444;
+            background: #333;
+            color: white;
+            width: 100%;
+        }
+        
+        .slider-container {
+            margin-top: 10px;
+        }
+        
+        .slider-container label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 5px;
+            -webkit-appearance: none;
+            background: #444;
+            border-radius: 5px;
+            outline: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+        }
+        
+        .info-panel {
+            margin-top: 25px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+        }
+        
+        .info-panel h2 {
+            margin-bottom: 15px;
+            color: #4CAF50;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+        }
+        
+        .feature {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 15px;
+            border-radius: 8px;
+        }
+        
+        .feature h3 {
+            color: #4CAF50;
+            margin-bottom: 8px;
+        }
+        
+        footer {
+            margin-top: 30px;
+            text-align: center;
+            color: #ddd;
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .custom-controls {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Custom YouTube Player</h1>
+            <p class="subtitle">No YouTube branding - Full control over playback experience</p>
+        </header>
+        
+        <div class="player-container">
+            <video
+                id="my-video"
+                class="video-js vjs-theme-forest"
+                controls
+                preload="auto"
+                width="100%"
+                height="450"
+                poster="https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg"
+                data-setup='{}'>
+                <source src="https://www.youtube.com/watch?v=eSgJ8PfSUSk" type="video/youtube">
+                <p class="vjs-no-js">
+                    To view this video please enable JavaScript, and consider upgrading to a
+                    web browser that
+                    <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                </p>
+            </video>
+        </div>
+        
+        <div class="custom-controls">
+            <div class="control-group">
+                <h3>Playback Controls</h3>
+                <div class="btn-group">
+                    <button id="play-toggle">Play/Pause</button>
+                    <button id="mute-toggle">Mute/Unmute</button>
+                    <button id="pip-toggle">Picture-in-Picture</button>
+                </div>
+                
+                <div class="slider-container">
+                    <label for="volume-slider">Volume</label>
+                    <input type="range" id="volume-slider" min="0" max="1" step="0.1" value="0.8">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>Quality & Speed</h3>
+                <select id="quality-selector">
+                    <option value="auto">Auto Quality</option>
+                    <option value="hd1080">1080p</option>
+                    <option value="hd720">720p</option>
+                    <option value="large">480p</option>
+                    <option value="medium">360p</option>
+                    <option value="small">240p</option>
+                </select>
+                
+                <select id="speed-selector">
+                    <option value="0.5">0.5x Speed</option>
+                    <option value="0.75">0.75x Speed</option>
+                    <option value="1" selected>Normal Speed</option>
+                    <option value="1.25">1.25x Speed</option>
+                    <option value="1.5">1.5x Speed</option>
+                    <option value="2">2x Speed</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="info-panel">
+            <h2>Player Features</h2>
+            <div class="features">
+                <div class="feature">
+                    <h3>No YouTube Branding</h3>
+                    <p>Completely white-label experience with no YouTube logos or branding elements.</p>
+                </div>
+                <div class="feature">
+                    <h3>Quality Control</h3>
+                    <p>Manually select video quality or let the player automatically adjust.</p>
+                </div>
+                <div class="feature">
+                    <h3>Playback Speed</h3>
+                    <p>Adjust playback speed from 0.5x to 2x for faster or slower viewing.</p>
+                </div>
+                <div class="feature">
+                    <h3>Picture-in-Picture</h3>
+                    <p>Watch videos in a floating window while using other applications.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p>Custom YouTube Player &copy; 2023 | Built with Video.js</p>
+    </footer>
+
+    <script src="https://vjs.zencdn.net/8.5.2/video.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/videojs-youtube@2.6.1/dist/Youtube.min.js"></script>
+    <script>
+        // Initialize the player
+        const player = videojs('my-video');
+        
+        // Wait for player to be ready
+        player.ready(function() {
+            console.log('Player is ready');
+            
+            // Set initial volume
+            player.volume(0.8);
+            
+            // Set up event listeners for custom controls
+            document.getElementById('play-toggle').addEventListener('click', function() {
+                if (player.paused()) {
+                    player.play();
+                } else {
+                    player.pause();
+                }
+            });
+            
+            document.getElementById('mute-toggle').addEventListener('click', function() {
+                player.muted(!player.muted());
+            });
+            
+            document.getElementById('pip-toggle').addEventListener('click', function() {
+                if (document.pictureInPictureElement) {
+                    document.exitPictureInPicture();
+                } else if (document.pictureInPictureEnabled) {
+                    player.requestPictureInPicture();
+                }
+            });
+            
+            document.getElementById('volume-slider').addEventListener('input', function() {
+                player.volume(parseFloat(this.value));
+            });
+            
+            document.getElementById('quality-selector').addEventListener('change', function() {
+                // Note: YouTube quality selection requires special handling
+                // This is a simplified implementation
+                if (this.value !== 'auto') {
+                    alert('Quality selection would be fully implemented with a backend service');
+                }
+            });
+            
+            document.getElementById('speed-selector').addEventListener('change', function() {
+                player.playbackRate(parseFloat(this.value));
+            });
+            
+            // Update volume slider when volume changes
+            player.on('volumechange', function() {
+                document.getElementById('volume-slider').value = player.volume();
+            });
+        });
+        
+        // Handle errors
+        player.on('error', function() {
+            console.error('Player error', player.error());
+        });
+    </script>
+</body>
+</html>

@@ -18,7 +18,10 @@
   "author": "Study Platform Team",
   "license": "MIT",
   "dependencies": {
+    "@vimeo/vimeo": "^3.0.3",
     "agenda": "^4.3.0",
+    "agora-access-token": "^2.0.4",
+    "axios": "^1.11.0",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^1.41.0",
     "compression": "^1.7.4",
@@ -35,7 +38,8 @@
     "multer": "^1.4.5-lts.1",
     "nodemailer": "^6.9.7",
     "socket.io": "^4.7.2",
-    "stripe": "^13.11.0"
+    "stripe": "^13.11.0",
+    "vimeo": "^2.3.1"
   },
   "devDependencies": {
     "jest": "^29.7.0",

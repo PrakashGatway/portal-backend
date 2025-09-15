@@ -6,24 +6,24 @@ import ErrorResponse from '../utils/errorResponse.js';
 
 const getModules = asyncHandler(async (req, res, next) => {
   const match = {};
-  
+
   if (req.query.course) {
     if (mongoose.Types.ObjectId.isValid(req.query.course)) {
       match.course = new mongoose.Types.ObjectId(req.query.course);
     }
   }
-  
+
   if (req.query.isPublished) {
     match.isPublished = req.query.isPublished === 'true';
   }
-  
+
   if (req.query.search) {
     match.$or = [
       { title: { $regex: req.query.search, $options: 'i' } },
       { description: { $regex: req.query.search, $options: 'i' } }
     ];
   }
-  
+
   // Date range filters
   if (req.query.publishedFrom || req.query.publishedTo) {
     match.publishedAt = {};
@@ -249,25 +249,214 @@ const getModule = asyncHandler(async (req, res, next) => {
   });
 });
 
+const getModuleDetails = asyncHandler(async (req, res, next) => {
+  if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
+    return next(new ErrorResponse(`Invalid module ID format: ${req.params.id}`, 400));
+  }
+
+  const moduleId = new mongoose.Types.ObjectId(req.params.id);
+
+  const pipeline = [
+    {
+      $match: {
+        _id: moduleId,
+        isPublished: true,
+        course: new mongoose.Types.ObjectId(req.query.course)
+      }
+    },
+    {
+      $lookup: {
+        from: 'courses',
+        localField: 'course',
+        foreignField: '_id',
+        as: 'courseDetails'
+      }
+    },
+    {
+      $lookup: { 
+        from: 'contents',
+        localField: '_id',
+        foreignField: 'module',
+        as: 'contentDetails'
+      }
+    },
+    {
+      $addFields: {
+        courseInfo: { $arrayElemAt: ['$courseDetails', 0] },
+        liveClasses: {
+          $filter: {
+            input: '$contentDetails',
+            as: 'content',
+            cond: {
+              $and: [
+                { $eq: ['$$content.__t', 'LiveClasses'] },
+                {
+                  $in: ['$$content.status', ['published', 'scheduled']] // Include published and scheduled
+                }
+              ]
+            }
+          }
+        },
+        recordedClasses: {
+          $filter: {
+            input: '$contentDetails',
+            as: 'content',
+            cond: {
+              $and: [
+                { $eq: ['$$content.__t', 'RecordedClasses'] },
+                { $eq: ['$$content.status', 'published'] } // Only published recorded classes
+              ]
+            }
+          }
+        },
+        tests: {
+          $filter: {
+            input: '$contentDetails',
+            as: 'content',
+            cond: {
+              $and: [
+                { $eq: ['$$content.__t', 'Tests'] },
+                { $eq: ['$$content.status', 'published'] } // Only published tests
+              ]
+            }
+          }
+        },
+        studyMaterials: {
+          $filter: {
+            input: '$contentDetails',
+            as: 'content',
+            cond: {
+              $and: [
+                { $eq: ['$$content.__t', 'StudyMaterials'] },
+                { $eq: ['$$content.status', 'published'] } // Only published study materials
+              ]
+            }
+          }
+        }
+      }
+    },
+    {
+      $project: {
+        title: 1,
+        description: 1,
+        icon: 1,
+        isPublished: 1,
+        order: 1,
+        duration: 1,
+        publishedAt: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        courseInfo: {
+          title: 1,
+          description: 1,
+          thumbnail: 1,
+        },
+        liveClasses: {
+          $map: {
+            input: '$liveClasses',
+            as: 'liveClass',
+            in: {
+              _id: '$$liveClass._id',
+              title: '$$liveClass.title',
+              description: '$$liveClass.description',
+              isFree: '$$liveClass.isFree',
+              duration: '$$liveClass.duration',
+              status: '$$liveClass.status', // This will be 'published' or 'scheduled'
+              scheduledStart: '$$liveClass.scheduledStart',
+              scheduledEnd: '$$liveClass.scheduledEnd',
+              thumbnailPic: '$$liveClass.thumbnailPic' // Include thumbnail if available
+            }
+          }
+        },
+        recordedClasses: {
+          $map: {
+            input: '$recordedClasses',
+            as: 'recordedClass',
+            in: {
+              _id: '$$recordedClass._id',
+              title: '$$recordedClass.title',
+              description: '$$recordedClass.description',
+              status: '$$recordedClass.status', // This will be 'published'
+              thumbnailPic: '$$recordedClass.thumbnailPic', // Include thumbnail
+              duration: '$$recordedClass.duration', // Include duration if available
+              video: { // Include basic video info if needed
+                duration: '$$recordedClass.video.duration'
+              }
+            }
+          }
+        },
+        // Simplified Tests
+        // tests: {
+        //   $map: {
+        //     input: '$tests',
+        //     as: 'test',
+        //     in: {
+        //       _id: '$$test._id',
+        //       title: '$$test.title',
+        //       description: '$$test.description',
+        //       status: '$$test.status', // This will be 'published'
+        //       testType: '$$test.testType',
+        //       // Add other relevant test fields if needed
+        //     }
+        //   }
+        // },
+        // Simplified Study Materials
+        // studyMaterials: {
+        //   $map: {
+        //     input: '$studyMaterials',
+        //     as: 'material',
+        //     in: {
+        //       _id: '$$material._id',
+        //       title: '$$material.title',
+        //       description: '$$material.description',
+        //       status: '$$material.status', // This will be 'published'
+        //       materialType: '$$material.materialType',
+        //       thumbnailPic: '$$material.thumbnailPic', // Include thumbnail if available
+        //       file: { // Include basic file info if needed
+        //         mimeType: '$$material.file.mimeType'
+        //       }
+        //     }
+        //   }
+        // },
+        liveClassesCount: { $size: '$liveClasses' },
+        recordedClassesCount: { $size: '$recordedClasses' },
+        testsCount: { $size: '$tests' },
+        studyMaterialsCount: { $size: '$studyMaterials' },
+      }
+    }
+  ];
+
+  const modules = await Module.aggregate(pipeline);
+
+  if (!modules || modules.length === 0) {
+    return next(new ErrorResponse(`Published module not found with id ${req.params.id}`, 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    data: modules[0] // Return the first (and should be only) module
+  });
+});
+
 const createModule = asyncHandler(async (req, res, next) => {
   const { title, course, order } = req.body;
-  
+
   const errors = [];
-  
+
   if (!title || title.trim().length === 0) {
     errors.push('Module title is required');
   }
-  
+
   if (!course) {
     errors.push('Course is required');
   } else if (!mongoose.Types.ObjectId.isValid(course)) {
     errors.push('Invalid course ID');
   }
-  
+
   if (order === undefined || typeof order !== 'number' || order < 0) {
     errors.push('Order must be a positive number');
   }
-  
+
   if (errors.length > 0) {
     return next(new ErrorResponse(errors.join(', '), 400));
   }
@@ -284,7 +473,7 @@ const createModule = asyncHandler(async (req, res, next) => {
 
   res.status(201).json({
     success: true,
-     populatedModule
+    populatedModule
   });
 });
 
@@ -297,22 +486,22 @@ const updateModule = asyncHandler(async (req, res, next) => {
   }
 
   const { title, course, order } = req.body;
-  
+
   // Validation
   const errors = [];
-  
+
   if (title && title.trim().length === 0) {
     errors.push('Module title cannot be empty');
   }
-  
+
   if (course && !mongoose.Types.ObjectId.isValid(course)) {
     errors.push('Invalid course ID');
   }
-  
+
   if (order !== undefined && (typeof order !== 'number' || order < 0)) {
     errors.push('Order must be a positive number');
   }
-  
+
   if (errors.length > 0) {
     return next(new ErrorResponse(errors.join(', '), 400));
   }
@@ -327,7 +516,7 @@ const updateModule = asyncHandler(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
-     populatedModule
+    populatedModule
   });
 });
 
@@ -349,12 +538,12 @@ const deleteModule = asyncHandler(async (req, res, next) => {
       $count: 'total'
     }
   ];
-  
+
   const contentCountResult = await mongoose.connection.collection('contents').aggregate(contentCountPipeline).toArray();
   const contentCount = contentCountResult.length > 0 ? contentCountResult[0].total : 0;
 
   console.log(contentCountResult)
-  
+
   if (contentCount > 0) {
     return next(new ErrorResponse(`Cannot delete module with ${contentCount} associated content items. Delete content first.`, 400));
   }
@@ -369,7 +558,7 @@ const deleteModule = asyncHandler(async (req, res, next) => {
 
 const getModuleStats = asyncHandler(async (req, res, next) => {
   const match = {};
-  
+
   if (req.query.course) {
     match.course = mongoose.Types.ObjectId(req.query.course);
   }
@@ -414,7 +603,7 @@ const getModuleStats = asyncHandler(async (req, res, next) => {
 
 const getModulesByCourse = asyncHandler(async (req, res, next) => {
   const courseId = req.params.courseId;
-  
+
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
     return next(new ErrorResponse('Invalid course ID', 400));
   }
@@ -422,7 +611,7 @@ const getModulesByCourse = asyncHandler(async (req, res, next) => {
   const pipeline = [
     {
       $match: {
-        course:new mongoose.Types.ObjectId(courseId),
+        course: new mongoose.Types.ObjectId(courseId),
         ...(req.query.isPublished === 'true' && { isPublished: true })
       }
     },
@@ -491,7 +680,7 @@ const getModulesByCourse = asyncHandler(async (req, res, next) => {
 
 const getModuleContentStructure = asyncHandler(async (req, res, next) => {
   const moduleId = req.params.id;
-  
+
   if (!mongoose.Types.ObjectId.isValid(moduleId)) {
     return next(new ErrorResponse('Invalid module ID', 400));
   }
@@ -504,7 +693,7 @@ const getModuleContentStructure = asyncHandler(async (req, res, next) => {
   const pipeline = [
     {
       $match: {
-        module:new mongoose.Types.ObjectId(moduleId)
+        module: new mongoose.Types.ObjectId(moduleId)
       }
     },
     {
@@ -552,6 +741,7 @@ const getModuleContentStructure = asyncHandler(async (req, res, next) => {
 export {
   getModules,
   getModule,
+  getModuleDetails,
   createModule,
   updateModule,
   deleteModule,

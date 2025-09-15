@@ -14,6 +14,13 @@ const validateContentInput = (req, res, next) => {
     errors.push('Title is required');
   }
 
+  req.body.slug = title
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, '') // remove special chars
+    .replace(/\s+/g, '-')     // replace spaces with -
+    .replace(/-+/g, '-');     // remove duplicate -
+
   if (!course) {
     errors.push('Course is required');
   }
@@ -365,7 +372,9 @@ const getContent = asyncHandler(async (req, res, next) => {
     {
       $match: {
         $or: [
-          { _id: mongoose.Types.ObjectId.isValid(req.params.id) ? mongoose.Types.ObjectId(req.params.id) : null }
+          mongoose.Types.ObjectId.isValid(req.params.id)
+            ? { _id: new mongoose.Types.ObjectId(req.params.id) }
+            : { slug: req.params.id }
         ]
       }
     },
@@ -379,7 +388,7 @@ const getContent = asyncHandler(async (req, res, next) => {
     },
     {
       $lookup: {
-        from: 'users',
+        from: 'users', // Assuming your user collection is 'users'
         localField: 'instructor',
         foreignField: '_id',
         as: 'instructorDetails'
@@ -399,6 +408,53 @@ const getContent = asyncHandler(async (req, res, next) => {
         instructorInfo: { $arrayElemAt: ['$instructorDetails', 0] },
         moduleInfo: { $arrayElemAt: ['$moduleDetails', 0] },
         contentType: '$__t'
+      }
+    },
+    {
+      $project: {
+        // Content basic details (common fields)
+        title: 1,
+        description: 1,
+        status: 1,
+        isFree: 1,
+        order: 1,
+        duration: 1,
+        thumbnailPic: 1, // Include thumbnail if it exists on the base content model
+        slug: 1,
+        tags: 1,
+        createdAt: 1,
+        updatedAt: 1,
+        publishedAt: 1,
+        contentType: 1, // From $addFields
+        scheduledStart: 1,
+        scheduledEnd: 1,
+        meetingUrl: 1,
+        maxParticipants: 1,
+        liveStatus: 1,
+        video: 1, // This will include url, duration, publicId
+        testType: 1,
+        materialType: 1,
+        file: 1, // This will include url, publicId, size, mimeType
+
+        courseInfo: {
+          _id: 1,
+          title: 1,
+          description: 1,
+          thumbnail: 1, // Include course thumbnail
+          slug: 1
+        },
+        instructorInfo: {
+          _id: 1,
+          name: 1,
+          email: 1,
+        },
+        moduleInfo: {
+          _id: 1,
+          title: 1,
+          description: 1,
+          icon: 1, // Include module icon
+          isPublished: 1
+        },
       }
     }
   ];
@@ -511,111 +567,37 @@ const createRecordedClass = [
   validateContentInput,
   asyncHandler(async (req, res, next) => {
     const { video, course, module, order } = req.body;
-
-    if (!video || !video.url || video.duration === undefined || video.duration === null) {
-      return next(new ErrorResponse('Video URL and duration are required', 400));
-    }
-
-    if (typeof video.duration !== 'number' || video.duration <= 0) {
-      return next(new ErrorResponse('Video duration must be a positive number', 400));
-    }
-
     if (!course || !mongoose.Types.ObjectId.isValid(course)) {
       return next(new ErrorResponse('Valid course ID is required', 400));
     }
-
     if (!module || !mongoose.Types.ObjectId.isValid(module)) {
       return next(new ErrorResponse('Valid module ID is required', 400));
     }
-
     const moduleDoc = await Modules.findById(module);
     if (!moduleDoc) {
       return next(new ErrorResponse('Module not found', 404));
     }
-
     if (moduleDoc.course.toString() !== course) {
       return next(new ErrorResponse('Module does not belong to the specified course', 400));
     }
-
     let finalOrder = typeof order === 'number' ? order : 0;
-    
     if (finalOrder <= 0) {
       const maxOrderContent = await Content.findOne({ module })
         .sort({ order: -1 })
         .select('order');
-      
-      finalOrder = maxOrderContent && maxOrderContent.order > 0 
-        ? maxOrderContent.order + 1 
+      finalOrder = maxOrderContent && maxOrderContent.order > 0
+        ? maxOrderContent.order + 1
         : 1;
     }
-
     const recordedClass = await RecordedClass.create({
       ...req.body,
       __t: 'RecordedClasses', // Fixed: was 'RecordedClasses'
       order: finalOrder,
-      duration: video.duration // Set duration from video
     });
-
-    const pipeline = [
-      {
-        $match: { _id: recordedClass._id }
-      },
-      {
-        $lookup: {
-          from: 'courses',
-          localField: 'course',
-          foreignField: '_id',
-          as: 'courseDetails'
-        }
-      },
-      {
-        $lookup: {
-          from: 'users',
-          localField: 'instructor',
-          foreignField: '_id',
-          as: 'instructorDetails'
-        }
-      },
-      {
-        $lookup: {
-          from: 'modules',
-          localField: 'module',
-          foreignField: '_id',
-          as: 'moduleDetails'
-        }
-      },
-      {
-        $addFields: {
-          courseInfo: { $arrayElemAt: ['$courseDetails', 0] },
-          instructorInfo: { $arrayElemAt: ['$instructorDetails', 0] },
-          moduleInfo: { $arrayElemAt: ['$moduleDetails', 0] }
-        }
-      },
-      {
-        $project: {
-          courseDetails: 0,
-          instructorDetails: 0,
-          moduleDetails: 0
-        }
-      }
-    ];
-
-    const populatedResult = await RecordedClass.aggregate(pipeline);
-    
-    let finalResult = recordedClass;
-    if (populatedResult && populatedResult.length > 0) {
-      finalResult = populatedResult[0];
-    } else {
-      finalResult = await RecordedClass.findById(recordedClass._id)
-        .populate('course', 'title code')
-        .populate('instructor', 'name email')
-        .populate('module', 'title');
-    }
 
     res.status(201).json({
       success: true,
       message: 'Recorded class created successfully',
-      data: finalResult
     });
   })
 ];
@@ -697,13 +679,13 @@ const updateContent = [
       return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
     }
 
+
     if (content.__t === 'LiveClasses') {
       const { scheduledStart, scheduledEnd } = req.body;
       if (scheduledStart && scheduledEnd && new Date(scheduledStart) >= new Date(scheduledEnd)) {
         return next(new ErrorResponse('End time must be after start time', 400));
       }
     } else if (content.__t === 'Tests') {
-      const { questions } = req.body;
       if (questions) {
         for (let i = 0; i < questions.length; i++) {
           const question = questions[i];
@@ -713,15 +695,27 @@ const updateContent = [
         }
       }
     }
+    if (content.__t === 'LiveClasses') {
+      await LiveClass.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        {
+          new: true,
+          runValidators: true
+        }
+      );
+    }
+    if (content.__t === 'RecordedClasses') {
+      await RecordedClass.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        {
+          new: true,
+          runValidators: true
+        }
+      )
+    };
 
-    content = await Content.findByIdAndUpdate(
-      req.params.id,
-      req.body,
-      {
-        new: true,
-        runValidators: true
-      }
-    );
     // const populatedContent = await Content.findById(content._id)
     //   .populate('course', 'title code')
     //   .populate('instructor', 'name email')

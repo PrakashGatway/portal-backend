@@ -7,6 +7,16 @@ const contentSchema = new mongoose.Schema({
     trim: true,
     maxlength: [200, 'Title cannot be more than 200 characters']
   },
+  thumbnailPic: {
+    type: String
+  },
+  slug: {
+    type: String,
+    required: [true, 'Please add a slug'],
+    unique: true,
+    lowercase: true,
+    trim: true
+  },
   description: {
     type: String,
     maxlength: [2000, 'Description cannot be more than 2000 characters']
@@ -30,11 +40,6 @@ const contentSchema = new mongoose.Schema({
     default: 0
   },
   access: {
-    type: {
-      type: String,
-      enum: ['free', 'premium', 'course-specific'],
-      default: 'premium'
-    },
     courses: [{
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Course'
@@ -54,7 +59,7 @@ const contentSchema = new mongoose.Schema({
   },
   tags: [String],
   duration: {
-    type: Number // in seconds
+    type: Number
   }
 }, {
   timestamps: true,
@@ -101,10 +106,6 @@ const liveClassSchema = new mongoose.Schema({
   meetingId: String,
   meetingUrl: String,
   meetingPassword: String,
-  maxParticipants: {
-    type: Number,
-    default: 100
-  },
   recording: {
     available: {
       type: Boolean,
@@ -113,24 +114,6 @@ const liveClassSchema = new mongoose.Schema({
     url: String,
     publicId: String,
     duration: Number
-  },
-  settings: {
-    allowChat: {
-      type: Boolean,
-      default: true
-    },
-    allowScreenShare: {
-      type: Boolean,
-      default: false
-    },
-    allowRecording: {
-      type: Boolean,
-      default: true
-    },
-    waitingRoom: {
-      type: Boolean,
-      default: false
-    }
   }
 });
 
@@ -138,26 +121,11 @@ const recordedClassSchema = new mongoose.Schema({
   video: {
     url: {
       type: String,
-      required: [true, 'Please add video URL']
     },
     publicId: String,
     duration: {
       type: Number, // in seconds
-      required: [true, 'Please add video duration']
-    },
-    quality: [{
-      resolution: String,
-      url: String,
-      size: Number
-    }],
-    thumbnail: {
-      url: String,
-      timestamps: [String]
-    },
-    captions: [{
-      language: String,
-      url: String
-    }]
+    }
   },
   content: {
     objectives: [String],
@@ -178,67 +146,6 @@ const recordedClassSchema = new mongoose.Schema({
       default: true
     }
   }],
-  quiz: {
-    questions: [{
-      question: String,
-      options: [String],
-      correctAnswer: mongoose.Schema.Types.Mixed,
-      explanation: String,
-      timestamp: Number
-    }],
-    passingScore: {
-      type: Number,
-      default: 70
-    }
-  },
-  notes: {
-    isEnabled: {
-      type: Boolean,
-      default: true
-    },
-    studentNotes: [{
-      student: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User'
-      },
-      timestamp: Number,
-      note: String,
-      createdAt: {
-        type: Date,
-        default: Date.now
-      }
-    }],
-    instructorNotes: [{
-      timestamp: Number,
-      note: String,
-      isPublic: {
-        type: Boolean,
-        default: false
-      }
-    }]
-  },
-  settings: {
-    allowDownload: {
-      type: Boolean,
-      default: false
-    },
-    allowSpeedControl: {
-      type: Boolean,
-      default: true
-    },
-    allowSkip: {
-      type: Boolean,
-      default: true
-    },
-    trackProgress: {
-      type: Boolean,
-      default: true
-    },
-    requireCompletion: {
-      type: Boolean,
-      default: false
-    }
-  },
   analytics: {
     views: {
       type: Number,
@@ -248,22 +155,11 @@ const recordedClassSchema = new mongoose.Schema({
       type: Number,
       default: 0
     },
-    completionRate: {
-      type: Number,
-      default: 0
-    },
     likes: {
       type: Number,
       default: 0
     }
   }
-});
-
-recordedClassSchema.virtual('formattedDuration').get(function () {
-  if (!this.video.duration) return '0:00';
-  const minutes = Math.floor(this.video.duration / 60);
-  const seconds = this.video.duration % 60;
-  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 });
 
 const testSchema = new mongoose.Schema({

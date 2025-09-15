@@ -8,6 +8,7 @@ import {
   deleteModule,
   getModuleStats,
   getModulesByCourse,
+  getModuleDetails,
   getModuleContentStructure
 } from '../controllers/modulesController.js';
 
@@ -26,6 +27,9 @@ router.route('/course/:courseId')
 
 router.route('/:id')
   .get(getModule);
+
+router.route('/overview/:id')
+  .get(getModuleDetails);
 
 router.route('/:id/content')
   .get(getModuleContentStructure);

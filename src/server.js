@@ -22,16 +22,18 @@ import entityRoutes from './routes/entitiesRoutes.js';
 import categoryRoutes from './routes/categoriesRoutes.js';
 import moduleRoutes from './routes/modulesRoutes.js';
 import contentRoutes from './routes/contentRoutes.js';
+import tokenRoutes from './routes/tokenRoutes.js'
+import vimeoRoutes from './routes/vimeoRoutes.js';
 
 
-// import classRoutes from './routes/classRoutes.js';
-// import testRoutes from './routes/testRoutes.js';
 import submissionRoutes from './routes/submissionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
-// import lessonRoutes from './routes/lessonRoutes.js';
 
+// import lessonRoutes from './routes/lessonRoutes.js';
+// TkzTQIDkPlGcxM3zT5zHWdButSOpzoXtBvmy6E3s3yY   secret key
+// accessky DO009PW6TG7GCDBUX3YX
 
 dotenv.config();
 connectDB();
@@ -91,7 +93,18 @@ app.use((req, res, next) => {
   // req.io = io;
   next();
 });
-
+app.get('/api/:videoId', (req, res) => {
+  const videoId = req.params.videoId;
+  
+  // Set headers to prevent caching and hide source
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  
+  // Redirect to YouTube embed with branding disabled
+  res.redirect(302, `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`);
+});
 // Routes
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
@@ -102,10 +115,9 @@ app.use('/api/v1/page', pageRoutes);
 app.use('/api/v1/entities', entityRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/modules', moduleRoutes);
+app.use('/api/v1/tokens', tokenRoutes);
+app.use('/api/v1/live', vimeoRoutes); // For live class auth tokens
 
-// app.use('/api/v1/classes', classRoutes);
-// app.use('/api/v1/tests', testRoutes);
-// app.use('/api/v1/lessons', lessonRoutes);
 app.use('/api/v1/submissions', submissionRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
 app.use('/api/v1/payments', paymentRoutes);
@@ -174,6 +186,7 @@ app.get('/api/health', (req, res) => {
 // });
 
 // Error handling middleware
+
 app.use(notFound);
 app.use(errorHandler);
 

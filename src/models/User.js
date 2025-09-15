@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
+  category:{
+    type:String,
+    
+  },
   address: {
     street: String,
     city: String,
