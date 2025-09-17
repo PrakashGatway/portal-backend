@@ -433,6 +433,7 @@ const getContent = asyncHandler(async (req, res, next) => {
         liveStatus: 1,
         video: 1, // This will include url, duration, publicId
         testType: 1,
+        meetingId:1,
         materialType: 1,
         file: 1, // This will include url, publicId, size, mimeType
 

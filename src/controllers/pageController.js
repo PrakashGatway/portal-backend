@@ -57,31 +57,6 @@ export const getPages = async (req, res) => {
             { $match: filter },
         ];
 
-        const sortObj = {};
-        if (sort) {
-            const sortFields = sort.split(',');
-            sortFields.forEach(field => {
-                if (field.startsWith('-')) {
-                    sortObj[field.substring(1)] = -1;
-                } else {
-                    sortObj[field] = 1;
-                }
-            });
-        }
-        pipeline.push({ $sort: sortObj });
-
-        if (fields) {
-            const selectFields = {};
-            fields.split(',').forEach(field => {
-                if (field.startsWith('-')) {
-                    selectFields[field.substring(1)] = 0;
-                } else {
-                    selectFields[field] = 1;
-                }
-            });
-            pipeline.push({ $project: selectFields });
-        }
-
         const skip = (parseInt(page) - 1) * parseInt(limit);
         pipeline.push({ $skip: skip });
         pipeline.push({ $limit: parseInt(limit) });

@@ -13,6 +13,8 @@ import connectDB from './config/database.js';
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 import { socketAuth } from './middleware/socketMiddleware.js';
 
+import chatController from "./controllers/chatController.js"
+
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
@@ -31,10 +33,6 @@ import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import analyticsRoutes from './routes/analyticsRoutes.js';
 
-// import lessonRoutes from './routes/lessonRoutes.js';
-// TkzTQIDkPlGcxM3zT5zHWdButSOpzoXtBvmy6E3s3yY   secret key
-// accessky DO009PW6TG7GCDBUX3YX
-
 dotenv.config();
 connectDB();
 
@@ -42,14 +40,15 @@ const app = express();
 const server = createServer(app);
 app.use("/uploads", express.static("uploads"));
 
-// const io = new Server(server, {
-//   cors: {
-//     origin: process.env.FRONTEND_URL || "http://localhost:3000",
-//     methods: ["GET", "POST"]
-//   }
-// });
+const io = new Server(server, {
+  cors: {
+    origin: "http://localhost:3000",
+    methods: ["GET", "POST"]
+  },
+  credentials: true
+});
 
-// io.use(socketAuth);
+io.use(socketAuth);
 
 app.use(helmet());
 
@@ -82,30 +81,18 @@ app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 100,
-  message: 'Too many requests from this IP, please try again later.'
-});
+// const limiter = rateLimit({
+//   windowMs: 15 * 60 * 1000,
+//   max: 100,
+//   message: 'Too many requests from this IP, please try again later.'
+// });
 // app.use('/api/', limiter);
 
 app.use((req, res, next) => {
-  // req.io = io;
+  req.io = io;
   next();
 });
-app.get('/api/:videoId', (req, res) => {
-  const videoId = req.params.videoId;
-  
-  // Set headers to prevent caching and hide source
-  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
-  res.setHeader('Pragma', 'no-cache');
-  res.setHeader('Expires', '0');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  
-  // Redirect to YouTube embed with branding disabled
-  res.redirect(302, `https://www.youtube.com/embed/${videoId}?autoplay=0&controls=0&modestbranding=1&rel=0&showinfo=0&iv_load_policy=3`);
-});
-// Routes
+
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/categories', categoryRoutes);
@@ -131,61 +118,22 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// io.on('connection', (socket) => {
-//   console.log(`User connected: ${socket.user.id}`);
 
-//   // Join user to their personal room
-//   socket.join(`user_${socket.user.id}`);
 
-//   // Handle joining live classes
-//   socket.on('join_class', (classId) => {
-//     socket.join(`class_${classId}`);
-//     socket.to(`class_${classId}`).emit('user_joined', {
-//       userId: socket.user.id,
-//       username: socket.user.name
-//     });
-//   });
+io.on('connection', (socket) => {
+  socket.on('joinClass', (joinData) => {
+    chatController.handleJoinClass(socket, io, joinData);
+  });
 
-//   // Handle leaving live classes
-//   socket.on('leave_class', (classId) => {
-//     socket.leave(`class_${classId}`);
-//     socket.to(`class_${classId}`).emit('user_left', {
-//       userId: socket.user.id,
-//       username: socket.user.name
-//     });
-//   });
+  socket.on('message', chatController.handleMessage(socket, io));
 
-//   // Handle chat messages in live classes
-//   socket.on('class_message', (data) => {
-//     const { classId, message } = data;
-//     socket.to(`class_${classId}`).emit('class_message', {
-//       userId: socket.user.id,
-//       username: socket.user.name,
-//       message,
-//       timestamp: new Date()
-//     });
-//   });
+  socket.on('typing', chatController.handleTyping(socket));
 
-//   // Handle screen sharing
-//   socket.on('start_screen_share', (classId) => {
-//     socket.to(`class_${classId}`).emit('screen_share_started', {
-//       userId: socket.user.id,
-//       username: socket.user.name
-//     });
-//   });
+  socket.on('adminAction', chatController.handleAdminAction(socket, io));
 
-//   socket.on('stop_screen_share', (classId) => {
-//     socket.to(`class_${classId}`).emit('screen_share_stopped', {
-//       userId: socket.user.id
-//     });
-//   });
+  socket.on('disconnect', chatController.handleDisconnect(socket, io));
+});
 
-//   socket.on('disconnect', () => {
-//     console.log(`User disconnected: ${socket.user.id}`);
-//   });
-// });
-
-// Error handling middleware
 
 app.use(notFound);
 app.use(errorHandler);

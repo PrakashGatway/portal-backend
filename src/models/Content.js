@@ -106,15 +106,6 @@ const liveClassSchema = new mongoose.Schema({
   meetingId: String,
   meetingUrl: String,
   meetingPassword: String,
-  recording: {
-    available: {
-      type: Boolean,
-      default: false
-    },
-    url: String,
-    publicId: String,
-    duration: Number
-  }
 });
 
 const recordedClassSchema = new mongoose.Schema({
