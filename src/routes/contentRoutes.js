@@ -12,7 +12,8 @@ import {
     deleteContent,
     getContentStats,
     getUpcomingLiveClasses,
-    getCourseContentStructure
+    getCourseContentStructure,
+    updateContentStatus
 } from '../controllers/contentController.js';
 
 import { protect, authorize } from '../middleware/auth.js';
@@ -52,5 +53,9 @@ router.route('/studymaterial')
 router.route('/:id')
     .put(protect, authorize('teacher', 'admin'), updateContent)
     .delete(protect, authorize('admin'), deleteContent);
+
+router.route("/status/:id")
+    .put(protect, authorize('teacher', 'admin'), updateContentStatus)
+
 
 export default router;

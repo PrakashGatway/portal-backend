@@ -188,15 +188,12 @@ export const forgotPassword = async (req, res) => {
         message: 'User not found'
       });
     }
-
-    // Generate reset token
     const resetToken = crypto.randomBytes(32).toString('hex');
     user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await user.save();
 
-    // Send reset email
     await sendPasswordResetEmail(user, resetToken);
 
     res.json({
@@ -229,11 +226,10 @@ export const resetPassword = async (req, res) => {
         message: 'Invalid or expired token'
       });
     }
-
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
-    user.refreshTokens = []; // Clear all refresh tokens
+    user.refreshTokens = []; 
 
     await user.save();
 
@@ -253,6 +249,8 @@ export const getMe = async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
       .populate('courses.course', 'title thumbnail')
+      .populate("category" , 'name icon')
+      .populate("subCategory" , 'name icon')
       .select('-refreshTokens');
 
     res.json({
@@ -274,21 +272,33 @@ export const updateUserProfile = async (req, res) => {
       name,
       phoneNumber,
       address,
-      profile
+      profile,
+      education,     // Teacher-specific
+      experience,    // Teacher-specific
+      skills,        // Teacher-specific
+      socialLinks    // Teacher-specific
     } = req.body;
+
+    const updateFields = {
+      ...(name && { name }),
+      ...(phoneNumber && { phoneNumber }),
+      ...(address && { address }),
+      ...(profile && { profile })
+    };
+
+    const user = await User.findById(userId);
+    if (user && user.role === 'teacher') {
+      if (education !== undefined) updateFields.education = education;
+      if (experience !== undefined) updateFields.experience = experience;
+      if (skills !== undefined) updateFields.skills = skills;
+      if (socialLinks !== undefined) updateFields.socialLinks = socialLinks;
+    }
 
     const updatedUser = await User.findByIdAndUpdate(
       userId,
-      {
-        $set: {
-          ...(name && { name }),
-          ...(phoneNumber && { phoneNumber }),
-          ...(address && { address }),
-          ...(profile && { profile })
-        }
-      },
+      { $set: updateFields },
       { new: true, runValidators: true }
-    ).select("-password -refreshTokens"); // don't expose sensitive data
+    ).select("-password -refreshTokens");
 
     res.json({
       success: true,
@@ -296,6 +306,56 @@ export const updateUserProfile = async (req, res) => {
       data: updatedUser
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server error", error: error.message });
+    res.status(500).json({
+      success: false,
+      message: "Server error",
+      error: error.message
+    });
+  }
+};
+
+export const updateUserCategory = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { category, subCategory } = req.body;
+
+    if (!category) {
+      return res.status(400).json({
+        success: false,
+        message: "At least one field (category) is required"
+      });
+    }
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        $set: {
+          ...(category !== undefined && { category }),
+          ...(subCategory !== undefined && { subCategory })
+        }
+      },
+      {
+        new: true,
+        runValidators: true,
+        context: 'query'
+      }
+    )
+
+    if (!updatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found"
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Category updated successfully",
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Server error updating category",
+    });
   }
 };

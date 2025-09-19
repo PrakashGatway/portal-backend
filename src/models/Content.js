@@ -49,7 +49,7 @@ const contentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['draft', 'published', 'archived', 'scheduled'],
+    enum: ['draft', 'published', 'archived', 'scheduled','live'],
     default: 'draft'
   },
   publishedAt: Date,
@@ -98,11 +98,6 @@ const liveClassSchema = new mongoose.Schema({
   },
   actualStart: Date,
   actualEnd: Date,
-  liveStatus: {
-    type: String,
-    enum: ['scheduled', 'live', 'ended', 'cancelled'],
-    default: 'scheduled'
-  },
   meetingId: String,
   meetingUrl: String,
   meetingPassword: String,

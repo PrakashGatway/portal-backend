@@ -1,3 +1,6 @@
+import User from "../models/User.js";
+import cloudinary from "../utils/cloudnary.js";
+
 export const uploadSingleImage = (req, res) => {
   try {
     if (!req.file) {
@@ -39,5 +42,34 @@ export const uploadMultipleImages = (req, res) => {
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const uploadImage = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+    const dataUri = `data:${req.file.mimetype};base64,${req.file.buffer.toString("base64")}`;
+    const result = await cloudinary.uploader.upload(dataUri, {
+      folder: "profile",
+      resource_type: "auto",
+    });
+
+    await User.findByIdAndUpdate(
+      req.user._id,
+      { profilePic: result.public_id },
+      { new: true, runValidators: true }
+    );
+
+    res.status(200).json({
+      message: "File uploaded successfully",
+      url: result.secure_url,
+      public_id: result.public_id,
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Cloudinary upload failed" });
   }
 };

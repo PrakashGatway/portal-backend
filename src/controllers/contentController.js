@@ -433,7 +433,7 @@ const getContent = asyncHandler(async (req, res, next) => {
         liveStatus: 1,
         video: 1, // This will include url, duration, publicId
         testType: 1,
-        meetingId:1,
+        meetingId: 1,
         materialType: 1,
         file: 1, // This will include url, publicId, size, mimeType
 
@@ -952,6 +952,47 @@ const getCourseContentStructure = asyncHandler(async (req, res, next) => {
     data: structure
   });
 });
+
+export const updateContentStatus = [
+  asyncHandler(async (req, res, next) => {
+    const { status } = req.body;
+
+    if (!status) {
+      return next(new ErrorResponse("Status is required", 400));
+    }
+
+    let content = await Content.findById(req.params.id);
+    if (!content) {
+      return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
+    }
+    if (content.__t === "LiveClasses") {
+      await LiveClass.findByIdAndUpdate(
+        req.params.id,
+        { status },
+        { new: true, runValidators: true }
+      );
+    } else if (content.__t === "RecordedClasses") {
+      await RecordedClass.findByIdAndUpdate(
+        req.params.id,
+        { status },
+        { new: true, runValidators: true }
+      );
+    } else {
+      await Content.findByIdAndUpdate(
+        req.params.id,
+        { status },
+        { new: true, runValidators: true }
+      );
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Status updated successfully",
+    });
+  }),
+];
+
+
 
 export {
   getAllContent,

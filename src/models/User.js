@@ -20,9 +20,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
-  category:{
-    type:String,
-    
+  category: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Category'
+  },
+  subCategory: {
+    type: mongoose.Schema.ObjectId,
+    ref: 'Category'
   },
   address: {
     street: String,
@@ -34,8 +38,10 @@ const userSchema = new mongoose.Schema({
   profile: {
     dateOfBirth: Date,
     bio: String,
-    gender: String,
-    profilePicture: String
+    gender: String
+  },
+  profilePic: {
+    type: String
   },
   subscription: {
     type: {
@@ -105,11 +111,7 @@ const userSchema = new mongoose.Schema({
     progress: {
       type: Number,
       default: 0
-    },
-    completedLessons: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Lesson'
-    }]
+    }
   }],
   achievements: [{
     title: String,

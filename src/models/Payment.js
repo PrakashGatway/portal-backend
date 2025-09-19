@@ -1,73 +1,62 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const paymentSchema = new mongoose.Schema({
-  user: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: true
-  },
-  course: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Course'
-  },
-  type: {
-    type: String,
-    enum: ['course_purchase', 'subscription', 'certification', 'donation'],
-    required: true
-  },
-  amount: {
-    type: Number,
-    required: true
-  },
-  currency: {
-    type: String,
-    default: 'USD'
-  },
-  status: {
-    type: String,
-    enum: ['pending', 'completed', 'failed', 'cancelled', 'refunded'],
-    default: 'pending'
-  },
-  paymentMethod: {
-    type: String,
-    enum: ['stripe', 'paypal', 'razorpay', 'bank_transfer'],
-    required: true
-  },
-  stripePaymentIntentId: String,
-  stripeCustomerId: String,
-  paypalOrderId: String,
-  transactionId: String,
-  invoice: {
-    number: String,
-    url: String,
-    downloadUrl: String
-  },
-  refund: {
-    amount: Number,
-    reason: String,
-    refundedAt: Date,
-    stripeRefundId: String
-  },
-  metadata: {
-    discount: {
-      code: String,
-      percentage: Number,
-      amount: Number
+const { Schema } = mongoose;
+
+const TransactionSchema = new Schema(
+  {
+    user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    course: { type: Schema.Types.ObjectId, ref: "Course" },
+    type: {
+      type: String,
+      enum: [
+        "purchase",
+        "subscription",
+        "refund",
+        "discount",
+        "admin_adjust",
+      ],
+      required: true,
     },
-    tax: {
-      amount: Number,
-      rate: Number,
-      country: String
-    }
-  }
-}, {
-  timestamps: true
-});
+    amount: { type: Number, required: true },
+    currency: { type: String, default: "INR" },
+    breakdown: {
+      baseAmount: { type: Number },   // Before tax/discount
+      tax: { type: Number, default: 0 },
+      discount: { type: Number, default: 0 },
+      platformFee: { type: Number, default: 0 }
+    },
+    paymentMethod: {
+      type: String,
+      enum: ["card", "upi", "netbanking", "paypal", "wallet", "cod"],
+      required: true,
+    },
+    transactionId: { type: String, required: true, unique: true },
+    orderId: { type: String },
+    invoiceNumber: { type: String },
+    receiptUrl: { type: String },
+    status: {
+      type: String,
+      enum: ["pending", "success", "failed", "refunded", "cancelled"],
+      default: "pending",
+    },
+    reason: {
+      type: String
+    },
+    refund: {
+      isRefunded: { type: Boolean, default: false },
+      refundId: { type: String },
+      refundAmount: { type: Number },
+      refundDate: { type: Date },
+      reason: { type: String },
+    },
+    coupon: {
+      code: { type: String },
+      discountType: { type: String, enum: ["percentage", "fixed"] },
+      discountValue: { type: Number },
+    },
+    meta: { type: Schema.Types.Mixed }, // Gateway raw response, logs, etc.
+  },
+  { timestamps: true }
+);
 
-// Indexes
-paymentSchema.index({ user: 1 });
-paymentSchema.index({ course: 1 });
-paymentSchema.index({ status: 1 });
-paymentSchema.index({ createdAt: -1 });
-
-export default mongoose.model('Payment', paymentSchema);
+export default mongoose.model("Transaction", TransactionSchema);

@@ -4,7 +4,8 @@ import {
   getMe,
   sendOtp,
   verifyOtp,
-  updateUserProfile
+  updateUserProfile,
+  updateUserCategory
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -17,5 +18,6 @@ router.get('/logout', protect, logout);
 // router.post('/refresh', refreshToken);
 router.get('/me', protect, getMe);
 router.post('/profile', protect, updateUserProfile)
+router.put('/categories', protect, updateUserCategory)
 
 export default router;

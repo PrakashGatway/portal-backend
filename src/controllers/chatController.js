@@ -102,7 +102,7 @@ const handleMessage = (socket, io) => {
 
         const message = {
             text: messageData.text,
-            userId: user.userId,
+            userId: user?.userId,
             username: user.username,
             classId: classId,
             timestamp: new Date(),
@@ -272,6 +272,19 @@ const handleAdminAction = (socket, io) => {
                 io.to(classId).emit('message', broadcastMessage);
                 socket.emit('actionSuccess', {
                     message: 'Broadcast message sent successfully'
+                }); 
+                break;
+
+            case 'endClass':
+                console.log('classendedkfkdklfjd')
+                io.to(classId).emit('classEnded', {
+                    by: user.username,
+                    timestamp: new Date(),
+                    message: 'Class has been ended by the admin'
+                });
+                connectedUsers.delete(classId);
+                socket.emit('actionSuccess', {
+                    message: `Class ${classId} has been ended`
                 });
                 break;
         }
