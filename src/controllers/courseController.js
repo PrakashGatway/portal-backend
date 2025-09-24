@@ -113,7 +113,14 @@ const getCourses = asyncHandler(async (req, res, next) => {
   const match = {};
 
   if (req.query.search) {
-    match.$text = { $search: req.query.search };
+    match.$or = [
+      { title: { $regex: req.query.search, $options: 'i' } },
+      { subtitle: { $regex: req.query.search, $options: 'i' } },
+      { code: { $regex: req.query.search, $options: 'i' } },
+      { description: { $regex: req.query.search, $options: 'i' } },
+      { shortDescription: { $regex: req.query.search, $options: 'i' } },
+      { tags: { $in: [new RegExp(req.query.search, 'i')] } }
+    ];
   }
 
   if (req.query.category) {
@@ -249,7 +256,6 @@ const getCourses = asyncHandler(async (req, res, next) => {
 
   const courses = await Course.aggregate(pipeline);
 
-  // Get total count for pagination
   const totalPipeline = [
     { $match: match },
     { $count: 'total' }

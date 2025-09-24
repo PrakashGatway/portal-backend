@@ -13,21 +13,24 @@ const TransactionSchema = new Schema(
         "subscription",
         "refund",
         "discount",
-        "admin_adjust",
+        "referral_bonus",
+        "purchase_bonus",  
+        "course_purchase",
       ],
       required: true,
     },
     amount: { type: Number, required: true },
-    currency: { type: String, default: "INR" },
     breakdown: {
-      baseAmount: { type: Number },   // Before tax/discount
+      baseAmount: { type: Number }, 
       tax: { type: Number, default: 0 },
       discount: { type: Number, default: 0 },
-      platformFee: { type: Number, default: 0 }
+      platformFee: { type: Number, default: 0 },
+      creditsUsed: { type: Number, default: 0 },
+      creditsEarned: { type: Number, default: 0 }
     },
     paymentMethod: {
       type: String,
-      enum: ["card", "upi", "netbanking", "paypal", "wallet", "cod"],
+      enum: ["wallet", "bank"],
       required: true,
     },
     transactionId: { type: String, required: true, unique: true },
@@ -54,9 +57,13 @@ const TransactionSchema = new Schema(
       discountType: { type: String, enum: ["percentage", "fixed"] },
       discountValue: { type: Number },
     },
-    meta: { type: Schema.Types.Mixed }, // Gateway raw response, logs, etc.
+    meta: { type: Schema.Types.Mixed },
   },
   { timestamps: true }
 );
+
+TransactionSchema.index({ user: 1 });
+TransactionSchema.index({ type: 1 });
+TransactionSchema.index({ transactionId: 1 });
 
 export default mongoose.model("Transaction", TransactionSchema);

@@ -90,7 +90,7 @@ const courseSchema = new mongoose.Schema({
   },
   mode: {
     type: String,
-    enum: ['online', 'offline', 'hybrid', 'recorded'],
+    enum: ['online', 'offline', 'hybrid', 'recorded',"free"],
     required: [true, 'Please select batch mode']
   },
   schedule_pattern: {

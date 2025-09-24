@@ -144,9 +144,6 @@ const userSchema = new mongoose.Schema({
 userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 
-userSchema.virtual('enrolledCoursesCount').get(function () {
-  return this.courses.length;
-});
 
 userSchema.virtual('fullAddress').get(function () {
   if (!this.address) return "";
