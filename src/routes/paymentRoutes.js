@@ -1,23 +1,30 @@
 import express from 'express';
 import {
-  createPaymentIntent,
-  confirmPayment,
-  getPayments,
-  refundPayment,
-  webhookHandler
+  getUserTransactions,
+  getTransaction,
+  updateTransactionStatus,
+  processRefund,
+  getTransactionStats, createPayment,
+  getAdminTransactions
 } from '../controllers/paymentController.js';
-import { protect, authorize } from '../middleware/auth.js';
+import { authorize, protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
-// Webhook route (no auth required)
-router.post('/webhook', webhookHandler);
-
 router.use(protect);
 
-router.post('/create-intent', createPaymentIntent);
-router.post('/confirm', confirmPayment);
-router.get('/', getPayments);
-router.post('/:id/refund', authorize('admin', 'super_admin'), refundPayment);
+router.get('/', getUserTransactions);
+
+router.post('/create', createPayment)
+
+router.get('/all',authorize('admin'), getAdminTransactions)
+
+router.get('/:id', getTransaction);
+
+router.put('/:id/status', updateTransactionStatus);
+
+router.post('/:id/refund', processRefund);
+
+router.get('/stats', getTransactionStats);
 
 export default router;

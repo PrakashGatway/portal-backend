@@ -3,15 +3,29 @@ import User from '../models/User.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/generateToken.js';
 import { sendWelcomeEmail, sendPasswordResetEmail, sendEmail } from '../utils/sendEmail.js';
 import Otp from '../models/Otp.js';
+import { Wallet } from "../models/Wallet.js";
+
+
+function generateReferralCodeFromUserId(userId) {
+  const idStr = userId.toString();
+  const hash = crypto.createHash("sha256").update(idStr).digest("base64");
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let referral = "";
+  for (let i = 0; i < 8; i++) {
+    const index = hash.charCodeAt(i) % chars.length;
+    referral += chars[index];
+  }
+  return referral;
+}
+
+
 
 export const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
-
     if (!email) {
       return res.status(400).json({ success: false, message: "Email is required" });
     }
-
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
     await Otp.deleteMany({ email });
@@ -33,7 +47,7 @@ export const sendOtp = async (req, res) => {
 
 export const verifyOtp = async (req, res) => {
   try {
-    const { email, otp } = req.body;
+    const { email, otp, referCode } = req.body;
 
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: "Email and OTP are required" });
@@ -54,11 +68,36 @@ export const verifyOtp = async (req, res) => {
     if (user) {
       accessToken = generateAccessToken(user._id);
     } else {
+      let referredBy = null;
+      if (referCode) {
+        const referrerWallet = await Wallet.findOne({ referralCode: referCode }).populate('user');
+        if (referrerWallet) {
+          referredBy = referrerWallet.user._id;
+        }
+      }
+
+      if (referredBy) {
+        await Wallet.findOneAndUpdate(
+          { user: referredBy },
+          {
+            $inc: {
+              balance: 50,
+              totalEarned: 50,
+              referralEarnings: 50,
+              totalReferrals: 1
+            }
+          },
+          { new: true }
+        );
+      }
       user = await User.create({
         email,
         role: "user",
         isVerified: true
       });
+
+      await Wallet.create({ user: user._id, referredBy: referredBy || null, referralCode: generateReferralCodeFromUserId(user._id) });
+
       await sendWelcomeEmail(user);
 
       accessToken = generateAccessToken(user._id);
@@ -229,7 +268,7 @@ export const resetPassword = async (req, res) => {
     user.password = password;
     user.resetPasswordToken = undefined;
     user.resetPasswordExpires = undefined;
-    user.refreshTokens = []; 
+    user.refreshTokens = [];
 
     await user.save();
 
@@ -247,17 +286,32 @@ export const resetPassword = async (req, res) => {
 
 export const getMe = async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
+    const userPromise = User.findById(req.user.id)
       .populate('courses.course', 'title thumbnail')
-      .populate("category" , 'name icon')
-      .populate("subCategory" , 'name icon')
+      .populate('category', 'name icon')
+      .populate('subCategory', 'name icon')
       .select('-refreshTokens');
 
+    const walletPromise = Wallet.findOne({ user: req.user.id }).select('-__v');
+
+    const [user, wallet] = await Promise.all([userPromise, walletPromise]);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+    if (!wallet) {
+      console.warn(`Wallet missing for user: ${req.user.id}`);
+    }
     res.json({
       success: true,
-      data: user
+      data: user,
+      wallet
     });
   } catch (error) {
+    console.error('Error in getMe:', error);
     res.status(500).json({
       success: false,
       message: error.message

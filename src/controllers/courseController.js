@@ -3,6 +3,7 @@ import Course from '../models/Course.js';
 import Category from '../models/Category.js';
 import asyncHandler from '../middleware/async.js';
 import ErrorResponse from '../utils/errorResponse.js';
+import Modules from '../models/Modules.js';
 
 const validateCourseInput = (req, res, next) => {
   const {
@@ -107,7 +108,6 @@ const validateCourseInput = (req, res, next) => {
 
   next();
 };
-
 
 const getCourses = asyncHandler(async (req, res, next) => {
   const match = {};
@@ -318,7 +318,9 @@ const getCourse = asyncHandler(async (req, res, next) => {
               _id: '$$instructor._id',
               name: '$$instructor.name',
               email: '$$instructor.email',
-              avatar: '$$instructor.avatar'
+              profilePic: '$$instructor.profilePic',
+              profile:'$$instructor.profile',
+              experience:'$$instructor.experience',
             }
           }
         }
@@ -562,7 +564,6 @@ const deleteCourse = asyncHandler(async (req, res, next) => {
 const getCoursesByCategory = asyncHandler(async (req, res, next) => {
   const match = {};
 
-  // Find category by ID or slug
   let category;
   if (mongoose.Types.ObjectId.isValid(req.params.categoryId)) {
     category = await Category.findById(req.params.categoryId);
@@ -776,6 +777,129 @@ const getUpcomingCourses = asyncHandler(async (req, res, next) => {
   });
 });
 
+const getCourseCurriculum = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?._id;
+    const hasPurchased = req.hasPurchasedCourse || false;
+
+    const curriculum = await Modules.aggregate([
+      { $match: { course: new mongoose.Types.ObjectId(courseId) } },
+      { $sort: { order: 1 } },
+      {
+        $lookup: {
+          from: 'contents', 
+          localField: '_id',
+          foreignField: 'module',
+          as: 'items',
+          pipeline: [
+            { $sort: { order: 1 } },
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                __t: 1,
+                isFree: 1,
+                duration: 1,
+                questions: 1,
+                'content.pages': 1,
+                testType: 1
+              }
+            }
+          ]
+        }
+      },
+      {
+        $addFields: {
+          items: {
+            $map: {
+              input: '$items',
+              as: 'item',
+              in: {
+                _id: '$$item._id',
+                title: '$$item.title',
+                type: {
+                  $switch: {
+                    branches: [
+                      { case: { $in: ['$$item.__t', ['LiveClasses', 'RecordedClasses']] }, then: 'video' },
+                      { case: { $eq: ['$$item.__t', 'StudyMaterials'] }, then: 'document' },
+                      { case: { $eq: ['$$item.__t', 'Tests'] }, then: { $cond: { if: { $eq: ['$$item.testType', 'assignment'] }, then: 'assignment', else: 'quiz' } } }
+                    ],
+                    default: 'document'
+                  }
+                },
+                duration: {
+                  $switch: {
+                    branches: [
+                      {
+                        case: { $in: ['$$item.__t', ['LiveClasses', 'RecordedClasses']] },
+                        then: {
+                          $concat: [
+                            { $toString: { $ceil: { $divide: [{ $ifNull: ['$$item.duration', 0] }, 60] } } },
+                            ' min'
+                          ]
+                        }
+                      },
+                      {
+                        case: { $eq: ['$$item.__t', 'Tests'] },
+                        then: {
+                          $concat: [
+                            { $toString: { $size: { $ifNull: ['$$item.questions', []] } } },
+                            ' ',
+                            { $cond: {
+                                if: { $eq: [{ $size: { $ifNull: ['$$item.questions', []] } }, 1] },
+                                then: 'question',
+                                else: 'questions'
+                              }
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        case: { $eq: ['$$item.__t', 'StudyMaterials'] },
+                        then: {
+                          $let: {
+                            vars: { pages: { $ifNull: ['$$item.content.pages', 0] } },
+                            in: {
+                              $cond: {
+                                if: { $gt: ['$$pages', 0] },
+                                then: { $concat: [{ $toString: '$$pages' }, ' ', { $cond: { if: { $eq: ['$$pages', 1] }, then: 'page', else: 'pages' } }] },
+                                else: 'Document'
+                              }
+                            }
+                          }
+                        }
+                      }
+                    ],
+                    default: '—'
+                  }
+                },
+                isPreview: '$$item.isFree',
+                isLocked: {
+                  $and: [
+                    { $ne: ['$$item.isFree', true] },
+                    { $not: [hasPurchased] }
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 1,
+          title: 1,
+          items: 1
+        }
+      }
+    ]);
+    res.json({ curriculum });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to load curriculum' });
+  }
+};
+
 export {
   getCourses,
   getCourse,
@@ -784,5 +908,6 @@ export {
   deleteCourse,
   getCoursesByCategory,
   getFeaturedCourses,
-  getUpcomingCourses
+  getUpcomingCourses,
+  getCourseCurriculum
 };

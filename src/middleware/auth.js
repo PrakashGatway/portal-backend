@@ -91,3 +91,24 @@ export const optionalAuth = async (req, res, next) => {
     next();
   }
 };
+
+export const ensureCoursePurchase = async (req, res, next) => {
+  try {
+    const { courseId } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const user = await User.findById(userId).select('purchasedCourses');
+    const hasPurchased = user.purchasedCourses.some(id => id.toString() === courseId);
+
+    req.hasPurchasedCourse = hasPurchased;
+
+    next();
+  } catch (error) {
+    console.error('Purchase check error:', error);
+    res.status(500).json({ message: 'Server error during purchase verification' });
+  }
+};

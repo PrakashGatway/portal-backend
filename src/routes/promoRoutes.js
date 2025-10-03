@@ -12,17 +12,16 @@ import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-
 router.route('/')
-    .get(protect, authorize('admin', 'super_admin'), getAllPromoCodes)
+    .get(protect, getAllPromoCodes)
     .post(protect, authorize('admin', 'super_admin'), createPromoCode);
 
 router.route('/:id')
-    .get(protect, authorize('admin', 'super_admin'), getPromoCodeById)
+    .get(protect, getPromoCodeById)
     .put(protect, authorize('admin', 'super_admin'), updatePromoCode)
     .delete(protect, authorize('admin', 'super_admin'), deletePromoCode);
 
-router.post('/validate', validatePromoCode);
+router.post('/validate',protect, validatePromoCode);
 router.post('/apply', applyPromoCode);
 
 export default router;

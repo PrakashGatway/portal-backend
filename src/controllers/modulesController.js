@@ -3,7 +3,6 @@ import Module from '../models/Modules.js';
 import asyncHandler from '../middleware/async.js';
 import ErrorResponse from '../utils/errorResponse.js';
 
-
 const getModules = asyncHandler(async (req, res, next) => {
   const match = {};
 
@@ -141,7 +140,6 @@ const getModules = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 const getModule = asyncHandler(async (req, res, next) => {
   const pipeline = [
     {
@@ -273,7 +271,7 @@ const getModuleDetails = asyncHandler(async (req, res, next) => {
       }
     },
     {
-      $lookup: { 
+      $lookup: {
         from: 'contents',
         localField: '_id',
         foreignField: 'module',
@@ -477,7 +475,6 @@ const createModule = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 const updateModule = asyncHandler(async (req, res, next) => {
   let module = await Module.findById(req.params.id);
 
@@ -520,7 +517,6 @@ const updateModule = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 const deleteModule = asyncHandler(async (req, res, next) => {
   const module = await Module.findById(req.params.id);
 
@@ -554,7 +550,6 @@ const deleteModule = asyncHandler(async (req, res, next) => {
     success: true
   });
 });
-
 
 const getModuleStats = asyncHandler(async (req, res, next) => {
   const match = {};
@@ -599,7 +594,6 @@ const getModuleStats = asyncHandler(async (req, res, next) => {
     data: stats.length > 0 ? stats[0] : {}
   });
 });
-
 
 const getModulesByCourse = asyncHandler(async (req, res, next) => {
   const courseId = req.params.courseId;
@@ -677,7 +671,6 @@ const getModulesByCourse = asyncHandler(async (req, res, next) => {
   });
 });
 
-
 const getModuleContentStructure = asyncHandler(async (req, res, next) => {
   const moduleId = req.params.id;
 
@@ -747,5 +740,5 @@ export {
   deleteModule,
   getModuleStats,
   getModulesByCourse,
-  getModuleContentStructure
+  getModuleContentStructure,
 };

@@ -151,5 +151,4 @@ userSchema.virtual('fullAddress').get(function () {
   return street + " " + city + " ," + state + "," + country + " " + zipCode;
 });
 
-
 export default mongoose.model('User', userSchema);

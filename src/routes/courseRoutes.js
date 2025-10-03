@@ -7,7 +7,8 @@ import {
   deleteCourse,
   getCoursesByCategory,
   getFeaturedCourses,
-  getUpcomingCourses
+  getUpcomingCourses,
+  getCourseCurriculum
 } from '../controllers/courseController.js';
 
 import { protect, authorize } from '../middleware/auth.js';
@@ -28,6 +29,9 @@ router.route('/category/:categoryId')
 
 router.route('/:id')
   .get(getCourse);
+
+router.route('/curriculum/:courseId')
+  .get(getCourseCurriculum);
 
 router.route('/')
   .post(protect, authorize('admin'), createCourse);

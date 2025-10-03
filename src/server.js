@@ -24,10 +24,10 @@ import entityRoutes from './routes/entitiesRoutes.js';
 import categoryRoutes from './routes/categoriesRoutes.js';
 import moduleRoutes from './routes/modulesRoutes.js';
 import contentRoutes from './routes/contentRoutes.js';
-import tokenRoutes from './routes/tokenRoutes.js'
+// import tokenRoutes from './routes/tokenRoutes.js'
 import vimeoRoutes from './routes/vimeoRoutes.js';
 import promoRoutes from './routes/promoRoutes.js';
-
+import walletRoutes from './routes/walletRoutes.js';
 
 import submissionRoutes from './routes/submissionRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js';
@@ -104,13 +104,14 @@ app.use('/api/v1/entities', entityRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/modules', moduleRoutes);
 app.use('/api/v1/promo-codes',promoRoutes);
+app.use('/api/v1/wallet',walletRoutes);
+app.use('/api/v1/payments', paymentRoutes);
 
-app.use('/api/v1/tokens', tokenRoutes);
-app.use('/api/v1/live', vimeoRoutes); // For live class auth tokens
 
+// app.use('/api/v1/tokens', tokenRoutes);
+app.use('/api/v1/live', vimeoRoutes); 
 app.use('/api/v1/submissions', submissionRoutes);
 app.use('/api/v1/notifications', notificationRoutes);
-app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 
 app.get('/api/health', (req, res) => {

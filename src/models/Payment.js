@@ -14,14 +14,14 @@ const TransactionSchema = new Schema(
         "refund",
         "discount",
         "referral_bonus",
-        "purchase_bonus",  
+        "purchase_bonus",
         "course_purchase",
       ],
       required: true,
     },
     amount: { type: Number, required: true },
     breakdown: {
-      baseAmount: { type: Number }, 
+      baseAmount: { type: Number },
       tax: { type: Number, default: 0 },
       discount: { type: Number, default: 0 },
       platformFee: { type: Number, default: 0 },
@@ -34,7 +34,7 @@ const TransactionSchema = new Schema(
       required: true,
     },
     transactionId: { type: String, required: true, unique: true },
-    orderId: { type: String },
+    orderId: { type: String, unique: true },
     invoiceNumber: { type: String },
     receiptUrl: { type: String },
     status: {
@@ -65,5 +65,28 @@ const TransactionSchema = new Schema(
 TransactionSchema.index({ user: 1 });
 TransactionSchema.index({ type: 1 });
 TransactionSchema.index({ transactionId: 1 });
+
+TransactionSchema.pre("save", async function (next) {
+  if (!this.orderId) {
+    try {
+      const lastTransaction = await mongoose
+        .model("Transaction")
+        .findOne({})
+        .sort({ createdAt: -1 })
+        .select("orderId");
+
+      let nextOrderNumber = 1000;
+      if (lastTransaction && lastTransaction.orderId) {
+        const lastNumber = parseInt(lastTransaction.orderId.replace("ORD-", ""), 10);
+        nextOrderNumber = lastNumber + 1;
+      }
+
+      this.orderId = `ORD-${nextOrderNumber}`;
+    } catch (err) {
+      return next(err);
+    }
+  }
+  next();
+});
 
 export default mongoose.model("Transaction", TransactionSchema);

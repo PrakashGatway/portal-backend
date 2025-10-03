@@ -1,377 +1,710 @@
-import Stripe from 'stripe';
-import Payment from '../models/Payment.js';
+import mongoose from 'mongoose';
+import Transaction from '../models/Payment.js';
 import User from '../models/User.js';
 import Course from '../models/Course.js';
-import Notification from '../models/Notification.js';
+import PromoCode from '../models/PromoCode.js';
+import { Wallet } from '../models/Wallet.js';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+export const createPayment = async (req, res) => {
+  let session = null;
 
-// @desc    Create payment intent
-// @route   POST /api/payments/create-intent
-// @access  Private
-export const createPaymentIntent = async (req, res) => {
   try {
-    const { courseId, amount, currency = 'USD' } = req.body;
+    session = await mongoose.startSession();
+    session.startTransaction();
 
-    // Validate course if provided
-    let course = null;
-    if (courseId) {
-      course = await Course.findById(courseId);
-      if (!course) {
-        return res.status(404).json({
-          success: false,
-          message: 'Course not found'
-        });
-      }
+    const {
+      courseId,
+      promoCode,
+      useWallet = false
+    } = req.body;
 
-      // Check if user is already enrolled
-      const user = await User.findById(req.user.id);
-      const isEnrolled = user.courses.some(c => c.course.toString() === courseId);
-      
-      if (isEnrolled) {
-        return res.status(400).json({
-          success: false,
-          message: 'Already enrolled in this course'
-        });
+    const userId = req.user._id;
+
+    const course = await Course.findById(courseId).session(session);
+    const wallet = await Wallet.findOne({ user: userId }).session(session);
+
+    if (!course) {
+      throw new Error('COURSE_NOT_FOUND');
+    }
+    if (!wallet) {
+      throw new Error('WALLET_NOT_FOUND');
+    }
+
+    const originalAmount = course.pricing.originalAmount || course.pricing.amount;
+    let currentPrice = originalAmount;
+    let courseDiscount = 0;
+
+    if (course.pricing.discount && course.pricing.discount > 0) {
+      const discountAmt = (originalAmount * course.pricing.discount) / 100;
+      currentPrice = originalAmount - discountAmt;
+      courseDiscount = discountAmt;
+    }
+
+    let isEarlyBirdActive = false;
+    if (course.pricing.earlyBird?.deadline) {
+      const now = new Date();
+      const deadline = new Date(course.pricing.earlyBird.deadline);
+      if (now <= deadline) {
+        isEarlyBirdActive = true;
+        const earlyBirdDiscount = (currentPrice * course.pricing.earlyBird.discount) / 100;
+        currentPrice -= earlyBirdDiscount;
+        courseDiscount += earlyBirdDiscount;
       }
     }
 
-    // Get or create Stripe customer
-    let customer;
-    const user = await User.findById(req.user.id);
-    
-    if (user.subscription.stripeCustomerId) {
-      customer = await stripe.customers.retrieve(user.subscription.stripeCustomerId);
-    } else {
-      customer = await stripe.customers.create({
-        email: user.email,
-        name: user.name,
-        metadata: {
-          userId: user._id.toString()
+    let promoDiscount = 0;
+    let couponData = null;
+
+    if (promoCode) {
+      const promoDoc = await PromoCode.findOne({
+        code: promoCode.toUpperCase(),
+        isActive: true,
+        validFrom: { $lte: new Date() },
+        validUntil: { $gte: new Date() }
+      }).session(session);
+
+      if (!promoDoc) {
+        throw new Error('INVALID_PROMO');
+      }
+
+      if (promoDoc.type === 'course_specific' && !promoDoc.courses.includes(courseId)) {
+        throw new Error('PROMO_NOT_VALID_FOR_COURSE');
+      }
+
+      if (promoDoc.discountType === 'percentage') {
+        promoDiscount = (currentPrice * promoDoc.discountValue) / 100;
+        if (promoDoc.maxDiscount && promoDiscount > promoDoc.maxDiscount) {
+          promoDiscount = promoDoc.maxDiscount;
         }
-      });
-      
-      user.subscription.stripeCustomerId = customer.id;
-      await user.save();
+      } else {
+        promoDiscount = promoDoc.discountValue;
+        if (promoDiscount > currentPrice) promoDiscount = currentPrice;
+      }
+
+      currentPrice = Math.max(0, currentPrice - promoDiscount);
+      couponData = {
+        code: promoCode.toUpperCase(),
+        discountType: promoDoc.discountType,
+        discountValue: promoDoc.discountValue
+      };
     }
 
-    // Create payment intent
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amount * 100), // Convert to cents
-      currency: currency.toLowerCase(),
-      customer: customer.id,
-      metadata: {
-        userId: req.user.id,
-        courseId: courseId || '',
-        type: courseId ? 'course_purchase' : 'other'
-      }
-    });
+    let creditsUsed = 0;
+    if (useWallet && wallet.balance > 0) {
+      const maxWalletUsage = currentPrice * 0.1; // 10%
+      creditsUsed = Math.min(wallet.balance, maxWalletUsage);
+      currentPrice = Math.max(0, currentPrice - creditsUsed);
+    }
 
-    // Create payment record
-    const payment = await Payment.create({
-      user: req.user.id,
+    const transactionId = `TXN${Date.now()}${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
+    const transaction = new Transaction({
+      user: userId,
       course: courseId,
-      type: courseId ? 'course_purchase' : 'other',
-      amount,
-      currency,
+      type: 'purchase',
+      amount: currentPrice,
+      paymentMethod: creditsUsed > 0 ? 'bank' : 'bank',
+      transactionId,
       status: 'pending',
-      paymentMethod: 'stripe',
-      stripePaymentIntentId: paymentIntent.id,
-      stripeCustomerId: customer.id
+      breakdown: {
+        baseAmount: originalAmount,
+        tax: 0,
+        discount: courseDiscount + promoDiscount,
+        platformFee: 0,
+        creditsUsed,
+        creditsEarned: 0
+      },
+      coupon: couponData,
+      meta: { isEarlyBird: isEarlyBirdActive }
     });
 
-    res.json({
+    await transaction.save({ session });
+
+    if (creditsUsed > 0) {
+      wallet.balance -= creditsUsed;
+      wallet.totalSpent += creditsUsed;
+      await wallet.save({ session });
+    }
+
+    await session.commitTransaction();
+
+    res.status(201).json({
       success: true,
-      data: {
-        clientSecret: paymentIntent.client_secret,
-        paymentId: payment._id
-      }
+      redirectUrl: '/payment-status',
+      orderId: transactionId,
+      amount: currentPrice,
+      courseTitle: course.title,
+      currency: course.pricing.currency || 'INR'
     });
+
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    if (session && session.inTransaction()) {
+      try {
+        await session.abortTransaction();
+      } catch (abortError) {
+        console.warn('Abort transaction failed:', abortError);
+      }
+    }
+
+    if (error.message === 'COURSE_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+    if (error.message === 'WALLET_NOT_FOUND') {
+      return res.status(404).json({ success: false, message: 'Wallet not found. Please contact support.' });
+    }
+    if (error.message === 'INVALID_PROMO') {
+      return res.status(400).json({ success: false, message: 'Invalid or expired promo code' });
+    }
+    if (error.message === 'PROMO_NOT_VALID_FOR_COURSE') {
+      return res.status(400).json({ success: false, message: 'This promo is not valid for this course' });
+    }
+
+    console.error('Payment creation error:', error);
+    res.status(500).json({ success: false, message: 'Payment processing failed' });
+  } finally {
+    if (session) {
+      session.endSession();
+    }
   }
 };
 
-// @desc    Confirm payment
-// @route   POST /api/payments/confirm
-// @access  Private
-export const confirmPayment = async (req, res) => {
+export const getUserTransactions = async (req, res) => {
   try {
-    const { paymentIntentId } = req.body;
+    const { page = 1, limit = 10, type, status, queryUserId, search } = req.query;
+    const currentUser = req.user;
 
-    // Retrieve payment intent from Stripe
-    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const filter = [];
 
-    if (paymentIntent.status !== 'succeeded') {
-      return res.status(400).json({
-        success: false,
-        message: 'Payment not completed'
+    // ✅ Role-based filter
+    if (currentUser.role === "admin") {
+      if (queryUserId) {
+        filter.push({ user: new mongoose.Types.ObjectId(queryUserId) });
+      }
+    } else {
+      filter.push({ user: new mongoose.Types.ObjectId(currentUser._id) });
+    }
+
+    // ✅ Type filter
+    if (type) filter.push({ type });
+
+    // ✅ Status filter
+    if (status) filter.push({ status });
+
+    // ✅ Search filter (case-insensitive regex)
+    if (search && search.trim()) {
+      const regex = new RegExp(search.trim(), "i");
+      filter.push({
+        $or: [
+          { transactionId: regex },
+          { orderId: regex },
+          { invoiceNumber: regex },
+          { "coupon.code": regex }
+        ]
       });
     }
 
-    // Find and update payment record
-    const payment = await Payment.findOne({
-      stripePaymentIntentId: paymentIntentId,
-      user: req.user.id
-    });
-
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment record not found'
-      });
-    }
-
-    payment.status = 'completed';
-    payment.transactionId = paymentIntent.id;
-    await payment.save();
-
-    // If it's a course purchase, enroll the user
-    if (payment.course && payment.type === 'course_purchase') {
-      const user = await User.findById(req.user.id);
-      const course = await Course.findById(payment.course);
-
-      // Enroll user in course
-      user.courses.push({
-        course: payment.course,
-        enrolledAt: new Date(),
-        progress: 0
-      });
-
-      // Update course student count
-      course.studentsCount += 1;
-
-      await Promise.all([user.save(), course.save()]);
-
-      // Send enrollment notification
-      await Notification.create({
-        recipient: req.user.id,
-        title: 'Course Enrollment Successful',
-        message: `You have been successfully enrolled in "${course.title}"`,
-        type: 'course_enrollment',
-        data: {
-          courseId: course._id,
-          courseName: course.title
+    // ✅ Build pipeline
+    const pipeline = [
+      { $match: filter.length ? { $and: filter } : {} },
+      {
+        $lookup: {
+          from: "courses",
+          localField: "course",
+          foreignField: "_id",
+          as: "course"
         }
-      });
-
-      // Send real-time notification
-      if (req.io) {
-        req.io.to(`user_${req.user.id}`).emit('notification', {
-          type: 'course_enrollment',
-          title: 'Course Enrollment Successful',
-          message: `You have been successfully enrolled in "${course.title}"`,
-          data: { courseId: course._id }
-        });
+      },
+      { $unwind: { path: "$course", preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          user: 1,
+          course: { _id: 1, title: 1 },
+          type: 1,
+          amount: 1,
+          paymentMethod: 1,
+          breakdown: 1,
+          transactionId: 1,
+          orderId: 1,
+          invoiceNumber: 1,
+          status: 1,
+          createdAt: 1,
+          coupon: 1
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $facet: {
+          data: [
+            { $skip: (parseInt(page) - 1) * parseInt(limit) },
+            { $limit: parseInt(limit) }
+          ],
+          totalCount: [{ $count: "count" }]
+        }
       }
-    }
+    ];
+
+    const result = await Transaction.aggregate(pipeline);
+
+    const transactions = result[0].data;
+    const total = result[0].totalCount[0]?.count || 0;
 
     res.json({
       success: true,
-      message: 'Payment confirmed successfully',
-      data: payment
+      data: transactions,
+      pagination: {
+        page: parseInt(page),
+        pages: Math.ceil(total / limit),
+        total
+      }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    res.status(500).json({ success: false, message: "Server error" });
   }
 };
 
-// @desc    Get user payments
-// @route   GET /api/payments
-// @access  Private
-export const getPayments = async (req, res) => {
+export const getAdminTransactions = async (req, res) => {
   try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
+      return res.status(403).json({ success: false, message: 'Access denied' });
+    }
 
-    const { status, type } = req.query;
+    const {
+      page = 1,
+      limit = 10,
+      type,
+      status,
+      userId, // filter by specific user
+      search,
+      fromDate,
+      toDate
+    } = req.query;
+
+    const pageNum = parseInt(page, 10);
+    const limitNum = parseInt(limit, 10);
 
     // Build filter
-    let filter = {};
-    
-    if (req.user.role === 'student') {
-      filter.user = req.user.id;
-    } else if (req.user.role === 'teacher') {
-      // Teachers can see payments for their courses
-      const teacherCourses = await Course.find({ instructor: req.user.id }, '_id');
-      const courseIds = teacherCourses.map(course => course._id);
-      filter.course = { $in: courseIds };
+    const filter = [];
+
+    // User filter (optional)
+    if (userId) {
+      filter.push({ user: new mongoose.Types.ObjectId(userId) });
     }
-    // Admins can see all payments (no additional filter)
 
-    if (status) filter.status = status;
-    if (type) filter.type = type;
+    // Type & status
+    if (type) filter.push({ type });
+    if (status) filter.push({ status });
 
-    const payments = await Payment.find(filter)
-      .populate('user', 'name email')
-      .populate('course', 'title')
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit);
+    // Date range
+    if (fromDate || toDate) {
+      const dateFilter = {};
+      if (fromDate) dateFilter.$gte = new Date(fromDate);
+      if (toDate) dateFilter.$lte = new Date(toDate);
+      filter.push({ createdAt: dateFilter });
+    }
 
-    const total = await Payment.countDocuments(filter);
+    // Search
+    if (search?.trim()) {
+      const regex = new RegExp(search.trim(), 'i');
+      filter.push({
+        $or: [
+          { transactionId: regex },
+          { orderId: regex },
+          { invoiceNumber: regex },
+          { 'coupon.code': regex }
+        ]
+      });
+    }
 
-    res.json({
-      success: true,
-      data: {
-        payments,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
+    // Aggregation pipeline
+    const pipeline = [
+      { $match: filter.length ? { $and: filter } : {} },
+      {
+        $lookup: {
+          from: 'courses',
+          localField: 'course',
+          foreignField: '_id',
+          as: 'course'
+        }
+      },
+      { $unwind: { path: '$course', preserveNullAndEmptyArrays: true } },
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'user',
+          foreignField: '_id',
+          as: 'user'
+        }
+      },
+      { $unwind: { path: '$user', preserveNullAndEmptyArrays: true } },
+      {
+        $project: {
+          user: { _id: 1, name: 1, email: 1 },
+          course: { _id: 1, title: 1 },
+          type: 1,
+          amount: 1,
+          paymentMethod: 1,
+          breakdown: 1,
+          transactionId: 1,
+          orderId: 1,
+          invoiceNumber: 1,
+          status: 1,
+          createdAt: 1,
+          coupon: 1,
+          refund: 1
+        }
+      },
+      { $sort: { createdAt: -1 } },
+      {
+        $facet: {
+          data: [
+            { $skip: (pageNum - 1) * limitNum },
+            { $limit: limitNum }
+          ],
+          totalCount: [{ $count: 'count' }]
         }
       }
+    ];
+
+    const result = await Transaction.aggregate(pipeline);
+    const transactions = result[0].data;
+    const total = result[0].totalCount[0]?.count || 0;
+
+    const statsPipeline = [
+      { $match: filter.length ? { $and: filter } : {} },
+      {
+        $group: {
+          _id: null,
+          totalRevenue: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$status", "success"] },
+                    { $in: ["$type", ["purchase", "course_purchase", "subscription"]] }
+                  ]
+                },
+                "$amount",
+                0
+              ]
+            }
+          },
+          totalRefunds: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$status", "refund"] },
+                    { $in: ["$type", ["refund", "referral_bonus", "discount", "purchase_bonus"]] }
+                  ]
+                },
+                "$amount",
+                0
+              ]
+            }
+          },
+          transactionCount: { $sum: 1 },
+          successCount: { $sum: { $cond: [{ $eq: ['$status', 'success'] }, 1, 0] } },
+          pendingCount: { $sum: { $cond: [{ $eq: ['$status', 'pending'] }, 1, 0] } },
+          failedCount: { $sum: { $cond: [{ $in: ['$status', ['failed', 'cancelled']] }, 1, 0] } }
+        }
+      }
+    ];
+
+    const statsResult = await Transaction.aggregate(statsPipeline);
+    const stats = statsResult[0] || {
+      totalRevenue: 0,
+      totalRefunds: 0,
+      transactionCount: 0,
+      successCount: 0,
+      pendingCount: 0,
+      failedCount: 0
+    };
+
+    return res.json({
+      success: true,
+      data: transactions,
+      stats: {
+        totalRevenue: stats.totalRevenue,
+        totalRefunds: stats.totalRefunds,
+        netRevenue: stats.totalRevenue - stats.totalRefunds,
+        transactionCount: stats.transactionCount,
+        successCount: stats.successCount,
+        pendingCount: stats.pendingCount,
+        failedCount: stats.failedCount
+      },
+      pagination: {
+        page: pageNum,
+        pages: Math.ceil(total / limitNum),
+        total
+      }
     });
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    console.error('Admin transactions error:', error);
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// @desc    Refund payment
-// @route   POST /api/payments/:id/refund
-// @access  Private/Admin
-export const refundPayment = async (req, res) => {
+
+export const getTransaction = async (req, res) => {
   try {
-    const { reason, amount } = req.body;
-    
-    const payment = await Payment.findById(req.params.id)
-      .populate('user', 'name email')
-      .populate('course', 'title');
+    const { id } = req.params;
+    const userId = req.user._id;
 
-    if (!payment) {
-      return res.status(404).json({
-        success: false,
-        message: 'Payment not found'
-      });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
     }
 
-    if (payment.status !== 'completed') {
-      return res.status(400).json({
-        success: false,
-        message: 'Can only refund completed payments'
-      });
+    const transaction = await Transaction.findOne({ _id: id, user: userId })
+      .populate('course', 'title')
+      .populate('user','name email')
+      .lean();
+
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    // Create refund in Stripe
-    const refund = await stripe.refunds.create({
-      payment_intent: payment.stripePaymentIntentId,
-      amount: amount ? Math.round(amount * 100) : undefined, // Partial or full refund
-      reason: 'requested_by_customer',
-      metadata: {
-        reason: reason || 'Admin refund'
+    res.json({ success: true, data: transaction });
+  } catch (error) {
+    console.error('Get transaction error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+export const updateTransactionStatus = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { id } = req.params;
+    const { status, orderId, invoiceNumber, receiptUrl, reason } = req.body;
+    const userId = req.user._id;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
+    }
+
+    const allowedStatuses = ['pending', 'success', 'failed', 'refunded', 'cancelled'];
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    const transaction = await Transaction.findById(id).session(session);
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    // Only allow user to update their own transactions or admin
+    if (transaction.user.toString() !== userId.toString()) {
+      // Add admin check if you have roles
+      // if (req.user.role !== 'admin') {
+      //   return res.status(403).json({ success: false, message: 'Not authorized' });
+      // }
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    // Update fields
+    transaction.status = status;
+    if (orderId) transaction.orderId = orderId;
+    if (invoiceNumber) transaction.invoiceNumber = invoiceNumber;
+    if (receiptUrl) transaction.receiptUrl = receiptUrl;
+    if (reason) transaction.reason = reason;
+
+    // Handle refund logic
+    if (status === 'refunded') {
+      transaction.refund = {
+        isRefunded: true,
+        refundId: `REF_${Date.now()}`,
+        refundAmount: transaction.amount,
+        refundDate: new Date(),
+        reason: reason || 'Refunded by user request'
+      };
+    }
+
+    await transaction.save({ session });
+
+    // If successful payment, add credits earned to user wallet
+    if (status === 'success' && transaction.breakdown.creditsEarned > 0) {
+      const user = await User.findById(transaction.user).session(session);
+      if (user) {
+        user.walletBalance = (user.walletBalance || 0) + transaction.breakdown.creditsEarned;
+        await user.save({ session });
       }
-    });
-
-    // Update payment record
-    payment.status = 'refunded';
-    payment.refund = {
-      amount: refund.amount / 100,
-      reason: reason || 'Admin refund',
-      refundedAt: new Date(),
-      stripeRefundId: refund.id
-    };
-
-    await payment.save();
-
-    // If it was a course purchase, remove enrollment
-    if (payment.course && payment.type === 'course_purchase') {
-      const user = await User.findById(payment.user._id);
-      user.courses = user.courses.filter(
-        c => c.course.toString() !== payment.course._id.toString()
-      );
-      
-      const course = await Course.findById(payment.course._id);
-      course.studentsCount = Math.max(0, course.studentsCount - 1);
-      
-      await Promise.all([user.save(), course.save()]);
     }
 
-    // Notify user
-    await Notification.create({
-      recipient: payment.user._id,
-      title: 'Payment Refunded',
-      message: `Your payment for "${payment.course?.title || 'purchase'}" has been refunded`,
-      type: 'payment',
-      data: {
-        paymentId: payment._id,
-        amount: payment.refund.amount,
-        reason: payment.refund.reason
+    // If refunded and was wallet payment, refund to wallet
+    if (status === 'refunded' && transaction.paymentMethod === 'wallet') {
+      const user = await User.findById(transaction.user).session(session);
+      if (user) {
+        user.walletBalance = (user.walletBalance || 0) + transaction.amount;
+        await user.save({ session });
       }
-    });
+    }
+
+    await session.commitTransaction();
+
+    const populatedTransaction = await Transaction.findById(transaction._id)
+      .populate('course', 'title')
+      .lean();
 
     res.json({
       success: true,
-      message: 'Payment refunded successfully',
-      data: payment
+      data: populatedTransaction,
+      message: 'Transaction status updated successfully'
     });
+
   } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message
-    });
+    await session.abortTransaction();
+    console.error('Update transaction status error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    session.endSession();
   }
 };
 
-// @desc    Handle Stripe webhooks
-// @route   POST /api/payments/webhook
-// @access  Public
-export const webhookHandler = async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
+// @desc    Process refund
+// @route   POST /api/transactions/:id/refund
+// @access  Private
+export const processRefund = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
   try {
-    event = stripe.webhooks.constructEvent(
-      req.body,
-      sig,
-      process.env.STRIPE_WEBHOOK_SECRET
-    );
-  } catch (err) {
-    console.error('Webhook signature verification failed:', err.message);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
+    const { id } = req.params;
+    const { refundAmount, reason } = req.body;
+    const userId = req.user._id;
 
-  try {
-    switch (event.type) {
-      case 'payment_intent.succeeded':
-        const paymentIntent = event.data.object;
-        
-        // Update payment status
-        await Payment.findOneAndUpdate(
-          { stripePaymentIntentId: paymentIntent.id },
-          { 
-            status: 'completed',
-            transactionId: paymentIntent.id
-          }
-        );
-        break;
-
-      case 'payment_intent.payment_failed':
-        const failedPayment = event.data.object;
-        
-        await Payment.findOneAndUpdate(
-          { stripePaymentIntentId: failedPayment.id },
-          { status: 'failed' }
-        );
-        break;
-
-      default:
-        console.log(`Unhandled event type ${event.type}`);
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
     }
 
-    res.json({ received: true });
+    const transaction = await Transaction.findById(id).session(session);
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    if (transaction.user.toString() !== userId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized' });
+    }
+
+    if (transaction.status !== 'success') {
+      return res.status(400).json({ success: false, message: 'Only successful transactions can be refunded' });
+    }
+
+    if (transaction.refund?.isRefunded) {
+      return res.status(400).json({ success: false, message: 'Transaction already refunded' });
+    }
+
+    const maxRefund = transaction.amount;
+    if (refundAmount > maxRefund) {
+      return res.status(400).json({ success: false, message: `Maximum refund amount is ${maxRefund}` });
+    }
+
+    // Update transaction
+    transaction.status = 'refunded';
+    transaction.refund = {
+      isRefunded: true,
+      refundId: `REF_${Date.now()}`,
+      refundAmount: refundAmount || maxRefund,
+      refundDate: new Date(),
+      reason: reason || 'Refund requested by user'
+    };
+
+    await transaction.save({ session });
+
+    // Refund to original payment method
+    if (transaction.paymentMethod === 'wallet') {
+      const user = await User.findById(transaction.user).session(session);
+      if (user) {
+        user.walletBalance = (user.walletBalance || 0) + (refundAmount || maxRefund);
+        await user.save({ session });
+      }
+    }
+    // For bank payments, you'd integrate with your payment gateway here
+
+    await session.commitTransaction();
+
+    const populatedTransaction = await Transaction.findById(transaction._id)
+      .populate('course', 'title')
+      .lean();
+
+    res.json({
+      success: true,
+      data: populatedTransaction,
+      message: 'Refund processed successfully'
+    });
+
   } catch (error) {
-    console.error('Webhook handler error:', error);
-    res.status(500).json({ error: 'Webhook handler failed' });
+    await session.abortTransaction();
+    console.error('Process refund error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  } finally {
+    session.endSession();
+  }
+};
+
+// @desc    Get transaction statistics
+// @route   GET /api/transactions/stats
+// @access  Private
+export const getTransactionStats = async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const { days = 30 } = req.query;
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - parseInt(days));
+
+    const stats = await Transaction.aggregate([
+      {
+        $match: {
+          user: new mongoose.Types.ObjectId(userId),
+          createdAt: { $gte: startDate }
+        }
+      },
+      {
+        $group: {
+          _id: null,
+          totalTransactions: { $sum: 1 },
+          totalSpent: { $sum: '$amount' },
+          successfulTransactions: {
+            $sum: {
+              $cond: [{ $eq: ['$status', 'success'] }, 1, 0]
+            }
+          },
+          byType: {
+            $push: {
+              type: '$type',
+              amount: '$amount',
+              status: '$status'
+            }
+          }
+        }
+      },
+      {
+        $project: {
+          _id: 0,
+          totalTransactions: 1,
+          totalSpent: 1,
+          successfulTransactions: 1,
+          successRate: {
+            $cond: {
+              if: { $gt: ['$totalTransactions', 0] },
+              then: { $multiply: [{ $divide: ['$successfulTransactions', '$totalTransactions'] }, 100] },
+              else: 0
+            }
+          }
+        }
+      }
+    ]);
+
+    res.json({
+      success: true,
+      data: stats[0] || {
+        totalTransactions: 0,
+        totalSpent: 0,
+        successfulTransactions: 0,
+        successRate: 0
+      }
+    });
+  } catch (error) {
+    console.error('Get transaction stats error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 };
