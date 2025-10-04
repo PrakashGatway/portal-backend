@@ -4,6 +4,7 @@ import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '.
 import { sendWelcomeEmail, sendPasswordResetEmail, sendEmail } from '../utils/sendEmail.js';
 import Otp from '../models/Otp.js';
 import { Wallet } from "../models/Wallet.js";
+import { startSession } from 'mongoose';
 
 
 function generateReferralCodeFromUserId(userId) {
@@ -45,7 +46,11 @@ export const sendOtp = async (req, res) => {
   }
 };
 
+
 export const verifyOtp = async (req, res) => {
+  const session = await startSession();
+  session.startTransaction();
+
   try {
     const { email, otp, referCode } = req.body;
 
@@ -53,16 +58,20 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "Email and OTP are required" });
     }
 
-    const record = await Otp.findOne({ email });
+    const record = await Otp.findOne({ email }).session(session);
     if (!record) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: "OTP expired or not found" });
     }
 
     if (record.otp !== otp) {
+      await session.abortTransaction();
+      session.endSession();
       return res.status(400).json({ success: false, message: "Invalid OTP" });
     }
 
-    let user = await User.findOne({ email });
+    let user = await User.findOne({ email }).session(session);
     let accessToken;
 
     if (user) {
@@ -70,12 +79,28 @@ export const verifyOtp = async (req, res) => {
     } else {
       let referredBy = null;
       if (referCode) {
-        const referrerWallet = await Wallet.findOne({ referralCode: referCode }).populate('user');
-        if (referrerWallet) {
+        const referrerWallet = await Wallet.findOne({ referralCode: referCode })
+          .populate('user')
+          .session(session);
+        if (referrerWallet?.user) {
           referredBy = referrerWallet.user._id;
         }
       }
+      user = await User.create([{
+        email,
+        role: "user",
+        isVerified: true
+      }], { session });
 
+      user = user[0];
+
+      const newWallet = await Wallet.create([{
+        user: user._id,
+        referredBy: referredBy || null,
+        referralCode: generateReferralCodeFromUserId(user._id)
+      }], { session });
+
+      // Update referrer wallet if applicable
       if (referredBy) {
         await Wallet.findOneAndUpdate(
           { user: referredBy },
@@ -87,36 +112,25 @@ export const verifyOtp = async (req, res) => {
               totalReferrals: 1
             }
           },
-          { new: true }
+          { new: true, session }
         );
       }
-      user = await User.create({
-        email,
-        role: "user",
-        isVerified: true
-      });
-
-      await Wallet.create({ user: user._id, referredBy: referredBy || null, referralCode: generateReferralCodeFromUserId(user._id) });
-
-      await sendWelcomeEmail(user);
-
+      // await sendWelcomeEmail(user);
       accessToken = generateAccessToken(user._id);
     }
 
-    // res.cookie("auth_token", accessToken, {
-    //   httpOnly: true,
-    //   secure: false,
-    //   sameSite: "Lax"
-    // });
+    await Otp.deleteOne({ email }).session(session);
 
     res.cookie("auth_token", accessToken, {
       httpOnly: true,
-      secure: true, // Always true in production
-      sameSite: "None", // Required for cross-subdomain cookies
-      domain: "gatewayabroadeducations.com", // Works for www.domain
+      secure: true,
+      sameSite: "None",
+      domain: "gatewayabroadeducations.com",
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
 
+    await session.commitTransaction();
+    session.endSession();
 
     res.json({
       success: true,
@@ -124,9 +138,11 @@ export const verifyOtp = async (req, res) => {
       token: accessToken
     });
 
-    await Otp.deleteOne({ email });
   } catch (error) {
     console.error("Error verifying OTP:", error);
+
+    await session.abortTransaction();
+    session.endSession();
     res.status(500).json({ success: false, message: "Failed to verify OTP" });
   }
 };
