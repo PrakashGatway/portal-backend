@@ -13,7 +13,7 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'teacher', 'admin', 'super_admin', 'editor', "manager"],
+    enum: ['user', 'teacher', 'admin', 'super_admin', 'editor', "manager", "counselor"],
     default: 'user'
   },
   phoneNumber: {
@@ -42,15 +42,6 @@ const userSchema = new mongoose.Schema({
   },
   profilePic: {
     type: String
-  },
-  subscription: {
-    type: {
-      type: String,
-      enum: ['free', 'basic', 'premium', 'enterprise'],
-      default: 'free'
-    },
-    startDate: Date,
-    endDate: Date,
   },
   coursesTeaching: [{
     type: mongoose.Schema.Types.ObjectId,
@@ -99,20 +90,6 @@ const userSchema = new mongoose.Schema({
     facebook: String,
     instagram: String
   },
-  courses: [{
-    course: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Course'
-    },
-    enrolledAt: {
-      type: Date,
-      default: Date.now
-    },
-    progress: {
-      type: Number,
-      default: 0
-    }
-  }],
   achievements: [{
     title: String,
     description: String,

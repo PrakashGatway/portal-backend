@@ -303,7 +303,6 @@ export const resetPassword = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const userPromise = User.findById(req.user.id)
-      .populate('courses.course', 'title thumbnail')
       .populate('category', 'name icon')
       .populate('subCategory', 'name icon')
       .select('-refreshTokens');

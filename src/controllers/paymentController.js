@@ -174,14 +174,7 @@ export const getUserTransactions = async (req, res) => {
 
     const filter = [];
 
-    // ✅ Role-based filter
-    if (currentUser.role === "admin") {
-      if (queryUserId) {
-        filter.push({ user: new mongoose.Types.ObjectId(queryUserId) });
-      }
-    } else {
-      filter.push({ user: new mongoose.Types.ObjectId(currentUser._id) });
-    }
+    filter.push({ user: new mongoose.Types.ObjectId(currentUser._id) });
 
     // ✅ Type filter
     if (type) filter.push({ type });
@@ -189,7 +182,6 @@ export const getUserTransactions = async (req, res) => {
     // ✅ Status filter
     if (status) filter.push({ status });
 
-    // ✅ Search filter (case-insensitive regex)
     if (search && search.trim()) {
       const regex = new RegExp(search.trim(), "i");
       filter.push({
@@ -443,7 +435,6 @@ export const getAdminTransactions = async (req, res) => {
   }
 };
 
-
 export const getTransaction = async (req, res) => {
   try {
     const { id } = req.params;
@@ -455,7 +446,7 @@ export const getTransaction = async (req, res) => {
 
     const transaction = await Transaction.findOne({ _id: id, user: userId })
       .populate('course', 'title')
-      .populate('user','name email')
+      .populate('user', 'name email')
       .lean();
 
     if (!transaction) {
@@ -560,9 +551,6 @@ export const updateTransactionStatus = async (req, res) => {
   }
 };
 
-// @desc    Process refund
-// @route   POST /api/transactions/:id/refund
-// @access  Private
 export const processRefund = async (req, res) => {
   const session = await mongoose.startSession();
   session.startTransaction();
@@ -641,9 +629,6 @@ export const processRefund = async (req, res) => {
   }
 };
 
-// @desc    Get transaction statistics
-// @route   GET /api/transactions/stats
-// @access  Private
 export const getTransactionStats = async (req, res) => {
   try {
     const userId = req.user._id;

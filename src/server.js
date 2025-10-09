@@ -28,11 +28,13 @@ import contentRoutes from './routes/contentRoutes.js';
 import vimeoRoutes from './routes/vimeoRoutes.js';
 import promoRoutes from './routes/promoRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
+import purchaseRoutes from './routes/walletRoutes.js';
+import leadRoutes from './routes/leadRoutes.js'
 
 import submissionRoutes from './routes/submissionRoutes.js';
-import notificationRoutes from './routes/notificationRoutes.js';
+// import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
-import analyticsRoutes from './routes/analyticsRoutes.js';
+// import analyticsRoutes from './routes/analyticsRoutes.js';
 
 dotenv.config();
 connectDB();
@@ -56,10 +58,12 @@ app.use(helmet());
 const allowedOrigins = [
   "https://www.gatewayabroadeducations.com",
   "https://uat.gatewayabroadeducations.com",
+  "https://join.gatewayabroadeducations.com",
   "https://portal.gatewayabroadeducations.com",
   "https://gatewayabroadeducations.com",
   "https://dashboard.gatewayabroadeducations.com",
   "http://localhost:3000",
+  "http://localhost:8000",
   "http://localhost:5173",
   "https://6dtmqkkr-5173.inc1.devtunnels.ms",
   "https://portal-virid-eta.vercel.app"
@@ -103,16 +107,17 @@ app.use('/api/v1/page', pageRoutes);
 app.use('/api/v1/entities', entityRoutes);
 app.use('/api/v1/content', contentRoutes);
 app.use('/api/v1/modules', moduleRoutes);
-app.use('/api/v1/promo-codes',promoRoutes);
-app.use('/api/v1/wallet',walletRoutes);
+app.use('/api/v1/promo-codes', promoRoutes);
+app.use('/api/v1/wallet', walletRoutes);
 app.use('/api/v1/payments', paymentRoutes);
-
+app.use('/api/v1/purchase', purchaseRoutes);
+app.use('/api/v1/leads', leadRoutes)
 
 // app.use('/api/v1/tokens', tokenRoutes);
-app.use('/api/v1/live', vimeoRoutes); 
+app.use('/api/v1/live', vimeoRoutes);
 app.use('/api/v1/submissions', submissionRoutes);
-app.use('/api/v1/notifications', notificationRoutes);
-app.use('/api/v1/analytics', analyticsRoutes);
+// app.use('/api/v1/notifications', notificationRoutes);
+// app.use('/api/v1/analytics', analyticsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({
@@ -121,8 +126,6 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString(),
   });
 });
-
-
 
 io.on('connection', (socket) => {
   socket.on('joinClass', (joinData) => {

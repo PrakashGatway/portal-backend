@@ -4,8 +4,6 @@ import {
   getUser,
   updateUser,
   deleteUser,
-  enrollInCourse,
-  getUserCourses,
   updateUserStatus
 } from '../controllers/userController.js';
 import { protect, authorize } from '../middleware/auth.js';
@@ -22,8 +20,6 @@ router.route('/:id')
   .put(updateUser)
   .delete(authorize('admin', 'super_admin'), deleteUser);
 
-router.post('/:id/enroll', enrollInCourse);
-router.get('/:id/courses', getUserCourses);
 
 router.put('/:id/status', authorize('admin', 'super_admin'), updateUserStatus)
 

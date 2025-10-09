@@ -17,11 +17,11 @@ router.get('/', getUserTransactions);
 
 router.post('/create', createPayment)
 
-router.get('/all',authorize('admin'), getAdminTransactions)
+router.get('/all', authorize('admin'), getAdminTransactions)
 
 router.get('/:id', getTransaction);
 
-router.put('/:id/status', updateTransactionStatus);
+router.put('/:id/status', authorize('admin'), updateTransactionStatus);
 
 router.post('/:id/refund', processRefund);
 
