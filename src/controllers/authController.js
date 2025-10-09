@@ -5,6 +5,7 @@ import { sendWelcomeEmail, sendPasswordResetEmail, sendEmail } from '../utils/se
 import Otp from '../models/Otp.js';
 import { Wallet } from "../models/Wallet.js";
 import { startSession } from 'mongoose';
+import { Resend } from 'resend';
 
 
 function generateReferralCodeFromUserId(userId) {
@@ -33,11 +34,20 @@ export const sendOtp = async (req, res) => {
 
     await Otp.create({ email, otp });
 
-    await sendEmail({
-      email,
-      subject: "OTP for Login",
-      message: `Your OTP is ${otp}. It will expire in 5 minutes.`
+    const resend = new Resend('re_eF2gmkba_91qSe8sYWz7NBe42wynrfW76');
+
+    await resend.emails.send({
+      from: 'onboarding@resend.dev',
+      to: 'abroadgateway370@gmail.com',
+      subject: 'otp for verificaion',
+      html: `Your OTP is ${otp}. It will expire in 5 minutes.`
     });
+
+    // await sendEmail({
+    //   email,
+    //   subject: "OTP for Login",
+    //   message: `Your OTP is ${otp}. It will expire in 5 minutes.`
+    // });
 
     res.json({ success: true, message: "OTP sent successfully" });
   } catch (error) {
