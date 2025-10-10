@@ -3,13 +3,31 @@ import nodemailer from 'nodemailer';
 
 dotenv.config();
 
+// const createTransporter = () => {
+//   return nodemailer.createTransport({
+//     service: process.env.EMAIL_SERVICE,
+//     auth: {
+//       user: process.env.EMAIL_USER,
+//       pass: "wyxn ttai iqvg rfnt"
+//     }
+//   });
+// };
+
 const createTransporter = () => {
   return nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE,
+    host: 'smtp.gmail.com',  
+    port: 587,                  
+    secure: false,               // true for 465, false for 587
     auth: {
-      user: process.env.EMAIL_USER,
-      pass: "wyxn ttai iqvg rfnt"
-    }
+      user: process.env.EMAIL_USER,   
+      pass: "wyxn ttai iqvg rfnt",    
+    },
+    connectionTimeout: 10000,    // 10s
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+    tls: {
+      rejectUnauthorized: true,
+    },
   });
 };
 
