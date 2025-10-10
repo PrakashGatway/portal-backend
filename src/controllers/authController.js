@@ -6,6 +6,7 @@ import Otp from '../models/Otp.js';
 import { Wallet } from "../models/Wallet.js";
 import { startSession } from 'mongoose';
 import { Resend } from 'resend';
+import axios from 'axios';
 
 
 function generateReferralCodeFromUserId(userId) {
@@ -34,15 +35,21 @@ export const sendOtp = async (req, res) => {
 
     await Otp.create({ email, otp });
 
-    const resend = new Resend('re_eF2gmkba_91qSe8sYWz7NBe42wynrfW76');
-
-    await resend.emails.send({
-      from: 'onboarding@resend.dev',
-      to: email,
-      subject: 'otp for verificaion',
-      html: `Your OTP is ${otp}. It will expire in 5 minutes.`
-    });
-
+    await axios.post(
+      "https://api.brevo.com/v3/smtp/email",
+      {
+        sender: { name: "Gateway Abroad", email: "abroadgateway370@gmail.com" },
+        to: [{ email: email, name: "Recipient" }],
+        subject: "Otp For login",
+        htmlContent: `Your OTP is ${otp}. It will expire in 5 minutes.`,
+      },
+      {
+        headers: {
+          "api-key": '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',
+          "Content-Type": "application/json",
+        },
+      }
+    );
     // await sendEmail({
     //   email,
     //   subject: "OTP for Login",
