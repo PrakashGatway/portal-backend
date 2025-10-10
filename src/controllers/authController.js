@@ -46,7 +46,7 @@ export const sendOtp = async (req, res) => {
         },
         {
           headers: {
-            "api-key": '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',
+            "api-key": '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',
             "Content-Type": "application/json",
           },
         }
