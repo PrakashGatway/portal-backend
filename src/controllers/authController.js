@@ -35,31 +35,20 @@ export const sendOtp = async (req, res) => {
 
     await Otp.create({ email, otp });
 
-    // try {
-    //   await axios.post(
-    //     "https://api.brevo.com/v3/smtp/email",
-    //     {
-    //       sender: { name: "Gateway Abroad", email: "abroadgateway370@gmail.com" },
-    //       to: [{ email: email, name: "Recipient" }],
-    //       subject: "Otp For login",
-    //       htmlContent: `Your OTP is ${otp}. It will expire in 5 minutes.`,
-    //     },
-    //     {
-    //       headers: {
-    //         "api-key": 'xsmtpsib-d849cc38e7227119c4855d5c8c8d03d1e74af58ca62456cc9612e6c2376f0349-3RdqpCcrEY1X5ywk',
-    //         "Content-Type": "application/json",
-    //       },
-    //     }
-    //   );
-    // } catch (error) {
-    //   console.log(error?.response?.data)
-    // }
+    try {
+      await axios.post("https://otp-backend-main.vercel.app/api/send-otp", {
+        "email": email,
+        "otp": otp
+      });
+    } catch (error) {
+      console.log(error?.response?.data)
+    }
 
-    await sendEmail({
-      email,
-      subject: "OTP for Login",
-      message: `Your OTP is ${otp}. It will expire in 5 minutes.`
-    });
+    // await sendEmail({
+    //   email,
+    //   subject: "OTP for Login",
+    //   message: `Your OTP is ${otp}. It will expire in 5 minutes.`
+    // });
 
     res.json({ success: true, message: "OTP sent successfully" });
   } catch (error) {
