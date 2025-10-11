@@ -34,7 +34,10 @@ import leadRoutes from './routes/leadRoutes.js'
 import submissionRoutes from './routes/submissionRoutes.js';
 // import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
 // import analyticsRoutes from './routes/analyticsRoutes.js';
+
+setupWalletCronJob();
 
 dotenv.config();
 connectDB();

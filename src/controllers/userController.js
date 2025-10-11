@@ -36,50 +36,9 @@ export const getUsers = async (req, res) => {
     }
 
     pipeline.push({
-      $lookup: {
-        from: "Courses", // Use collection name safely
-        localField: 'courses.course',
-        foreignField: '_id',
-        as: 'courseDetails'
-      }
-    });
-
-    pipeline.push({
       $project: {
         refreshTokens: 0,
         __v: 0
-      }
-    });
-
-    pipeline.push({
-      $addFields: {
-        courses: {
-          $map: {
-            input: '$courses',
-            as: 'enrollment',
-            in: {
-              course: {
-                $mergeObjects: [
-                  '$$enrollment.course',
-                  {
-                    $arrayElemAt: [
-                      {
-                        $filter: {
-                          input: '$courseDetails',
-                          cond: { $eq: ['$$this._id', '$$enrollment.course'] }
-                        }
-                      },
-                      0
-                    ]
-                  }
-                ]
-              },
-              enrolledAt: '$$enrollment.enrolledAt',
-              progress: '$$enrollment.progress',
-              completedLessons: '$$enrollment.completedLessons'
-            }
-          }
-        }
       }
     });
     pipeline.push({
@@ -97,15 +56,6 @@ export const getUsers = async (req, res) => {
         isActive: 1,
         createdAt: 1,
         updatedAt: 1,
-
-        courses: {
-          course: { _id: 1, title: 1 }, // Only include _id and title (expand if needed)
-          enrolledAt: 1,
-          progress: 1,
-          completedLessons: 1
-        },
-
-        enrolledCoursesCount: { $size: '$courses' },
         fullAddress: {
           $cond: {
             if: '$address',
@@ -166,7 +116,6 @@ export const getUser = async (req, res) => {
   try {
     const user = await User.findById(req.params.id)
       .select('-password -refreshTokens')
-      .populate('courses.course', 'title thumbnail instructor');
 
     if (!user) {
       return res.status(404).json({
