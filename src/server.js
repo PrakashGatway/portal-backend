@@ -28,10 +28,10 @@ import contentRoutes from './routes/contentRoutes.js';
 import vimeoRoutes from './routes/vimeoRoutes.js';
 import promoRoutes from './routes/promoRoutes.js';
 import walletRoutes from './routes/walletRoutes.js';
-import purchaseRoutes from './routes/walletRoutes.js';
+import purchaseRoutes from './routes/purchaseRoutes.js';
 import leadRoutes from './routes/leadRoutes.js'
+import testRoutes from './routes/testRoutes.js';
 
-import submissionRoutes from './routes/submissionRoutes.js';
 // import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
@@ -66,6 +66,7 @@ const allowedOrigins = [
   "https://gatewayabroadeducations.com",
   "https://dashboard.gatewayabroadeducations.com",
   "http://localhost:3000",
+  "http://localhost:3001",
   "http://localhost:8000",
   "http://localhost:5173",
   "https://6dtmqkkr-5173.inc1.devtunnels.ms",
@@ -77,6 +78,7 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
+      console.log(origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -115,10 +117,10 @@ app.use('/api/v1/wallet', walletRoutes);
 app.use('/api/v1/payments', paymentRoutes);
 app.use('/api/v1/purchase', purchaseRoutes);
 app.use('/api/v1/leads', leadRoutes)
+app.use('/api/v1/live', vimeoRoutes);
+app.use('/api/v1/test', testRoutes);
 
 // app.use('/api/v1/tokens', tokenRoutes);
-app.use('/api/v1/live', vimeoRoutes);
-app.use('/api/v1/submissions', submissionRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
 // app.use('/api/v1/analytics', analyticsRoutes);
 

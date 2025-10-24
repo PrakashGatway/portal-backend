@@ -21,7 +21,27 @@ function generateReferralCodeFromUserId(userId) {
   return referral;
 }
 
-
+export const checkEmailExists = async (req, res) => {
+  try {
+    const { email } = req.query;
+    if (!email) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email is required'
+      });
+    }
+    const user = await User.findOne({ email: email.toLowerCase().trim() });
+    return res.status(200).json({
+      success: true,
+      isExists: !!user
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: 'Server error while checking email'
+    });
+  }
+};
 
 export const sendOtp = async (req, res) => {
   try {
@@ -41,8 +61,7 @@ export const sendOtp = async (req, res) => {
         "otp": otp
       });
     } catch (error) {
-      console.log(error?.response?.data)
-       res.status(500).json({ success: false, message: "Failed to send OTP" });
+      res.status(500).json({ success: false, message: "Failed to send OTP" });
     }
 
     // await sendEmail({
@@ -64,7 +83,8 @@ export const verifyOtp = async (req, res) => {
   session.startTransaction();
 
   try {
-    const { email, otp, referCode } = req.body;
+    const { email, otp, referCode, name, phoneNumber } = req.body;
+    console.log(req.body);
 
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: "Email and OTP are required" });
@@ -101,6 +121,8 @@ export const verifyOtp = async (req, res) => {
       user = await User.create([{
         email,
         role: "user",
+        name: name || "New User",
+        phoneNumber: phoneNumber || "",
         isVerified: true
       }], { session });
 
@@ -112,7 +134,6 @@ export const verifyOtp = async (req, res) => {
         referralCode: generateReferralCodeFromUserId(user._id)
       }], { session });
 
-      // Update referrer wallet if applicable
       if (referredBy) {
         await Wallet.findOneAndUpdate(
           { user: referredBy },

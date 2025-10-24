@@ -5,7 +5,6 @@ import asyncHandler from '../middleware/async.js';
 import Modules from '../models/Modules.js';
 import ErrorResponse from '../utils/errorResponse.js';
 
-// Validation middleware for content creation
 const validateContentInput = (req, res, next) => {
   const { title, course, instructor } = req.body;
   const errors = [];
@@ -179,7 +178,6 @@ const getAllContent = asyncHandler(async (req, res, next) => {
     data: content
   });
 });
-
 
 const getContentByType = asyncHandler(async (req, res, next) => {
   const { type } = req.params;
@@ -368,13 +366,22 @@ const getContentByType = asyncHandler(async (req, res, next) => {
 });
 
 const getContent = asyncHandler(async (req, res, next) => {
+  const { courseId, id } = req.params;
+  const userId = req.user?._id;
+  const hasPurchased = req.hasPurchasedCourse || false;
+
+  if (!mongoose.Types.ObjectId.isValid(courseId)) {
+    return next(new ErrorResponse('Invalid course ID', 400));
+  }
+
   const pipeline = [
     {
       $match: {
+        course: new mongoose.Types.ObjectId(courseId),
         $or: [
-          mongoose.Types.ObjectId.isValid(req.params.id)
-            ? { _id: new mongoose.Types.ObjectId(req.params.id) }
-            : { slug: req.params.id }
+          mongoose.Types.ObjectId.isValid(id)
+            ? { _id: new mongoose.Types.ObjectId(id) }
+            : { slug: id }
         ]
       }
     },
@@ -388,7 +395,7 @@ const getContent = asyncHandler(async (req, res, next) => {
     },
     {
       $lookup: {
-        from: 'users', // Assuming your user collection is 'users'
+        from: 'users',
         localField: 'instructor',
         foreignField: '_id',
         as: 'instructorDetails'
@@ -412,36 +419,37 @@ const getContent = asyncHandler(async (req, res, next) => {
     },
     {
       $project: {
-        // Content basic details (common fields)
         title: 1,
         description: 1,
         status: 1,
         isFree: 1,
         order: 1,
         duration: 1,
-        thumbnailPic: 1, // Include thumbnail if it exists on the base content model
+        thumbnailPic: 1,
         slug: 1,
         tags: 1,
         createdAt: 1,
         updatedAt: 1,
         publishedAt: 1,
-        contentType: 1, // From $addFields
+        contentType: 1,
         scheduledStart: 1,
         scheduledEnd: 1,
         meetingUrl: 1,
         maxParticipants: 1,
         liveStatus: 1,
-        video: 1, // This will include url, duration, publicId
+        video: 1,
         testType: 1,
         meetingId: 1,
         materialType: 1,
-        file: 1, // This will include url, publicId, size, mimeType
+        file: 1,
+        course: 1,
+        isFree: 1,
 
         courseInfo: {
           _id: 1,
           title: 1,
           description: 1,
-          thumbnail: 1, // Include course thumbnail
+          thumbnail: 1,
           slug: 1
         },
         instructorInfo: {
@@ -453,14 +461,13 @@ const getContent = asyncHandler(async (req, res, next) => {
           _id: 1,
           title: 1,
           description: 1,
-          icon: 1, // Include module icon
+          icon: 1,
           isPublished: 1
         },
       }
     }
   ];
 
-  // Add type-specific lookups
   pipeline.push({
     $lookup: {
       from: 'progresses',
@@ -485,15 +492,29 @@ const getContent = asyncHandler(async (req, res, next) => {
     }
   });
 
-  const content = await Content.aggregate(pipeline);
+  const contentResult = await Content.aggregate(pipeline);
 
-  if (!content || content.length === 0) {
-    return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
+  if (!contentResult || contentResult.length === 0) {
+    return next(new ErrorResponse(`Content not found`, 404));
+  }
+
+  const content = contentResult[0];
+
+  if (content.isFree === true) {
+    return res.status(200).json({ success: true, data: content });
+  }
+
+  if (!userId) {
+    return next(new ErrorResponse('Authentication required to access this content', 401));
+  }
+
+  if (!hasPurchased) {
+    return next(new ErrorResponse('You are not authorized to access this content', 403));
   }
 
   res.status(200).json({
     success: true,
-    data: content[0]
+    data: content
   });
 });
 

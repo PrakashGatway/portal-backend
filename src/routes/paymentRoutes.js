@@ -5,11 +5,14 @@ import {
   updateTransactionStatus,
   processRefund,
   getTransactionStats, createPayment,
-  getAdminTransactions
+  getAdminTransactions,
+  handlePaymentWebhook
 } from '../controllers/paymentController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
 const router = express.Router();
+
+router.post('/webhook', handlePaymentWebhook)
 
 router.use(protect);
 

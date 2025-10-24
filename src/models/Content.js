@@ -39,17 +39,13 @@ const contentSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  access: {
-    courses: [{
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'Course'
-    }],
-    availableFrom: Date,
-    availableUntil: Date
-  },
+  access: [{
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course'
+  }],
   status: {
     type: String,
-    enum: ['draft', 'published', 'archived', 'scheduled','live'],
+    enum: ['draft', 'published', 'archived', 'scheduled', 'live'],
     default: 'draft'
   },
   publishedAt: Date,
@@ -276,18 +272,18 @@ const testSchema = new mongoose.Schema({
 const studyMaterialSchema = new mongoose.Schema({
   materialType: {
     type: String,
-    enum: ['pdf', 'document', 'presentation', 'code', 'link', 'image', 'audio'],
+    enum: ['pdf', 'document', 'link', 'image', 'audio'],
     required: true
   },
   file: {
     url: String,
     publicId: String,
-    size: Number, // in bytes
+    size: Number, 
     mimeType: String
   },
   content: {
-    text: String, // For text-based materials
-    pages: Number, // For documents
+    text: String, 
+    pages: Number,
     downloadCount: {
       type: Number,
       default: 0

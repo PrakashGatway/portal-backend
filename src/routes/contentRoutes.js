@@ -16,7 +16,7 @@ import {
     updateContentStatus
 } from '../controllers/contentController.js';
 
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, ensureCoursePurchase } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -33,10 +33,10 @@ router.route('/liveclass/upcoming')
     .get(getUpcomingLiveClasses);
 
 router.route('/course/:courseId/structure')
-    .get(getCourseContentStructure);
+    .get(protect, getCourseContentStructure);
 
-router.route('/:id')
-    .get(getContent);
+router.route('/:id/:courseId')
+    .get(protect, ensureCoursePurchase, getContent);
 
 router.route('/liveclass')
     .post(protect, authorize('teacher', 'admin'), createLiveClass);

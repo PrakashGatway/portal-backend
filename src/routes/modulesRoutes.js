@@ -12,7 +12,7 @@ import {
   getModuleContentStructure
 } from '../controllers/modulesController.js';
 
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, ensureCoursePurchase, ensureCourseQuery } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -29,7 +29,7 @@ router.route('/:id')
   .get(getModule);
 
 router.route('/overview/:id')
-  .get(getModuleDetails);
+  .get(protect, ensureCourseQuery,getModuleDetails);
 
 router.route('/:id/content')
   .get(getModuleContentStructure);

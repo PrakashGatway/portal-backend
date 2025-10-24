@@ -84,7 +84,11 @@ const leadSchema = new Schema(
                     default: () => new Date()
                 }
             }
-        ]
+        ],
+        extraDetails:{
+            type: Schema.Types.Mixed,
+            default: {}
+        }
     },
     {
         timestamps: true,

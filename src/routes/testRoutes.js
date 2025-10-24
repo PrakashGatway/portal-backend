@@ -1,31 +1,29 @@
-import express from 'express';
+import { Router } from 'express';
+import * as ctrl from '../controllers/TestSeries/examController.js';
 import {
-  getTests,
-  getTest,
-  createTest,
-  updateTest,
-  deleteTest,
-  submitTest,
-  getTestSubmissions,
-  gradeSubmission
-} from '../controllers/testController.js';
-import { protect, authorize } from '../middleware/auth.js';
+    createSection,
+    getSections,
+    getSectionById,
+    updateSection,
+    deleteSection,
+} from '../controllers/TestSeries/sectionsController.js';
 
-const router = express.Router();
 
-router.use(protect);
+const router = Router();
 
-router.route('/')
-  .get(getTests)
-  .post(authorize('teacher', 'admin', 'super_admin'), createTest);
+router.post('/exams', ctrl.createExam);
+router.get('/exams', ctrl.getExams);
+router.get('/exams/:id', ctrl.getExamById);
+router.put('/exams/:id', ctrl.updateExam);
+router.delete('/exams/:id', ctrl.deleteExam);
 
-router.route('/:id')
-  .get(getTest)
-  .put(authorize('teacher', 'admin', 'super_admin'), updateTest)
-  .delete(authorize('teacher', 'admin', 'super_admin'), deleteTest);
+router.route('/sections')
+    .post(createSection)
+    .get(getSections);
 
-router.post('/:id/submit', submitTest);
-router.get('/:id/submissions', authorize('teacher', 'admin', 'super_admin'), getTestSubmissions);
-router.put('/submissions/:submissionId/grade', authorize('teacher', 'admin', 'super_admin'), gradeSubmission);
+router.route('/sections/:id')
+    .get(getSectionById)
+    .put(updateSection)
+    .delete(deleteSection);
 
 export default router;

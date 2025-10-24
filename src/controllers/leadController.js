@@ -25,6 +25,8 @@ export const getAllLeads = async (req, res) => {
             intakeDateRange // format: "YYYY-MM-DD_YYYY-MM-DD"
         } = req.query;
 
+        const user = req.user;
+
         const matchStage = {};
 
         if (search) {
@@ -41,11 +43,11 @@ export const getAllLeads = async (req, res) => {
         if (coursePreference) matchStage.coursePreference = coursePreference;
         if (countryOfResidence) matchStage.countryOfResidence = countryOfResidence;
 
-        if (assignedCounselor) {
-            if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
+        if (assignedCounselor || user.role == "counselor") {
+            if (!mongoose.Types.ObjectId.isValid(assignedCounselor) && user.role == "admin") {
                 return res.status(400).json({ error: 'Invalid counselor ID' });
             }
-            matchStage.assignedCounselor = new mongoose.Types.ObjectId(assignedCounselor);
+            matchStage.assignedCounselor = user.role == "counselor" ? user._id : new mongoose.Types.ObjectId(assignedCounselor);
         }
 
         if (intakeDateRange) {
@@ -77,7 +79,15 @@ export const getAllLeads = async (req, res) => {
                     localField: 'assignedCounselor',
                     foreignField: '_id',
                     as: 'assignedCounselor',
-                    pipeline: [{ $project: { password: 0 } }] // Exclude sensitive data
+                    pipeline: [
+                        {
+                            $project: {
+                                _id: 0,
+                                name: 1,
+                                email: 1
+                            }
+                        }
+                    ]
                 }
             },
             {
@@ -278,35 +288,34 @@ export const getLeadStats = async (req, res) => {
     }
 };
 
-// In leadController.js
 export const addNoteToLead = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { text } = req.body;
-    const createdBy = req.user._id; // assuming auth middleware attaches user
+    try {
+        const { id } = req.params;
+        const { text } = req.body;
+        const createdBy = req.user._id; // assuming auth middleware attaches user
 
-    if (!text?.trim()) {
-      return res.status(400).json({ error: 'Note text is required' });
-    }
-
-    const lead = await Lead.findByIdAndUpdate(
-      id,
-      {
-        $push: {
-          notes: {
-            text: text.trim(),
-            createdBy,
-            createdAt: new Date()
-          }
+        if (!text?.trim()) {
+            return res.status(400).json({ error: 'Note text is required' });
         }
-      },
-      { new: true }
-    ).populate('assignedCounselor', '-password');
 
-    if (!lead) return res.status(404).json({ error: 'Lead not found' });
+        const lead = await Lead.findByIdAndUpdate(
+            id,
+            {
+                $push: {
+                    notes: {
+                        text: text.trim(),
+                        createdBy,
+                        createdAt: new Date()
+                    }
+                }
+            },
+            { new: true }
+        ).populate('assignedCounselor', '-password');
 
-    res.json({ success: true, data: lead });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to add note' });
-  }
+        if (!lead) return res.status(404).json({ error: 'Lead not found' });
+
+        res.json({ success: true, data: lead });
+    } catch (error) {
+        res.status(500).json({ error: 'Failed to add note' });
+    }
 };

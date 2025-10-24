@@ -319,8 +319,8 @@ const getCourse = asyncHandler(async (req, res, next) => {
               name: '$$instructor.name',
               email: '$$instructor.email',
               profilePic: '$$instructor.profilePic',
-              profile:'$$instructor.profile',
-              experience:'$$instructor.experience',
+              profile: '$$instructor.profile',
+              experience: '$$instructor.experience',
             }
           }
         }
@@ -780,7 +780,6 @@ const getUpcomingCourses = asyncHandler(async (req, res, next) => {
 const getCourseCurriculum = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const userId = req.user?._id;
     const hasPurchased = req.hasPurchasedCourse || false;
 
     const curriculum = await Modules.aggregate([
@@ -788,11 +787,17 @@ const getCourseCurriculum = async (req, res) => {
       { $sort: { order: 1 } },
       {
         $lookup: {
-          from: 'contents', 
+          from: 'contents',
           localField: '_id',
           foreignField: 'module',
           as: 'items',
           pipeline: [
+            {
+              $match: {
+                status: { $nin: ['draft', 'deleted'] },
+                __t: { $in: ['LiveClasses', 'RecordedClasses'] }
+              }
+            },
             { $sort: { order: 1 } },
             {
               $project: {
@@ -846,7 +851,8 @@ const getCourseCurriculum = async (req, res) => {
                           $concat: [
                             { $toString: { $size: { $ifNull: ['$$item.questions', []] } } },
                             ' ',
-                            { $cond: {
+                            {
+                              $cond: {
                                 if: { $eq: [{ $size: { $ifNull: ['$$item.questions', []] } }, 1] },
                                 then: 'question',
                                 else: 'questions'

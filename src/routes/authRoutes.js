@@ -5,12 +5,14 @@ import {
   sendOtp,
   verifyOtp,
   updateUserProfile,
-  updateUserCategory
+  updateUserCategory,
+  checkEmailExists
 } from '../controllers/authController.js';
 import { protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
+router.get('/verify_email', checkEmailExists);
 router.post('/send_otp', sendOtp);
 router.post('/verify_otp', verifyOtp);
 router.get('/logout', protect, logout);

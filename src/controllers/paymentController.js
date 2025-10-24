@@ -4,6 +4,7 @@ import User from '../models/User.js';
 import Course from '../models/Course.js';
 import PromoCode from '../models/PromoCode.js';
 import { Wallet } from '../models/Wallet.js';
+import PurchasedCourse from '../models/PurchasedCourse.js';
 
 export const createPayment = async (req, res) => {
   let session = null;
@@ -167,6 +168,104 @@ export const createPayment = async (req, res) => {
   }
 };
 
+export const handlePaymentWebhook = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { transactionId, status, reason } = req.body;
+
+    if (!transactionId) {
+      return res.status(400).json({ success: false, message: 'Missing transactionId' });
+    }
+
+    const transaction = await Transaction.findOne({ transactionId }).session(session);
+    if (!transaction) {
+      return res.status(404).json({ success: false, message: 'Transaction not found' });
+    }
+
+    if (transaction.status === 'success' || transaction.status === 'failed') {
+      return res.status(200).json({ success: true, message: 'Already processed' });
+    }
+
+    if (status === 'success') {
+      const { user, course, amount, breakdown } = transaction;
+      const courseDoc = await Course.findById(course).session(session);
+      let accessExpiresAt = undefined;
+      // if (courseDoc?) {
+      accessExpiresAt = new Date();
+      accessExpiresAt.setDate(accessExpiresAt.getDate() + 730);
+      // }
+
+      const purchasedCourse = new PurchasedCourse({
+        user,
+        course,
+        accessExpiresAt,
+        isActive: true,
+        enrolledAt: new Date()
+      });
+      await purchasedCourse.save({ session });
+
+      // const wallet = await Wallet.findOne({ user }).session(session);
+      // if (wallet && wallet.referredBy) {
+      //   const referralBonus = amount * 0.1;
+      //   wallet.referralEarnings += referralBonus;
+      //   wallet.totalEarned += referralBonus;
+
+      //   // Also update referrer's wallet
+      //   const referrerWallet = await Wallet.findOne({ user: wallet.referredBy }).session(session);
+      //   if (referrerWallet) {
+      //     referrerWallet.balance += referralBonus;
+      //     referrerWallet.referralEarnings += referralBonus;
+      //     referrerWallet.totalEarned += referralBonus;
+      //     await referrerWallet.save({ session });
+
+      //     if (wallet.totalReferrals === 0) {
+      //       referrerWallet.totalReferrals += 1;
+      //       await referrerWallet.save({ session });
+      //     }
+      //   }
+
+      //   wallet.totalReferrals += 1; // or track per purchase
+      //   await wallet.save({ session });
+      // }
+
+      transaction.status = 'success';
+      await transaction.save({ session });
+      await session.commitTransaction();
+      return res.status(200).json({ success: true, message: 'Payment processed successfully' });
+    } else if (status === 'failed' || status === 'cancelled') {
+      const { user, breakdown } = transaction;
+      const creditsUsed = breakdown?.creditsUsed || 0;
+
+      if (creditsUsed > 0) {
+        const wallet = await Wallet.findOne({ user }).session(session);
+        if (wallet) {
+          wallet.balance += creditsUsed;
+          wallet.totalSpent = Math.max(0, wallet.totalSpent - creditsUsed);
+          await wallet.save({ session });
+        }
+      }
+
+      transaction.status = 'failed';
+      transaction.reason = reason || 'Payment failed';
+      await transaction.save({ session });
+
+      await session.commitTransaction();
+      return res.status(200).json({ success: true, message: 'Payment failed, wallet refunded' });
+    } else {
+      await session.abortTransaction();
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Webhook processing error:', error);
+    return res.status(500).json({ success: false, message: 'Webhook processing failed' });
+  } finally {
+    session.endSession();
+  }
+};
 export const getUserTransactions = async (req, res) => {
   try {
     const { page = 1, limit = 10, type, status, queryUserId, search } = req.query;
@@ -444,18 +543,18 @@ export const getTransaction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
     }
 
-    const transaction = await Transaction.findOne({ _id: id, user: userId })
+    const transaction = await Transaction.findOne({ _id: new mongoose.Types.ObjectId(id) })
       .populate('course', 'title')
       .populate('user', 'name email')
       .lean();
 
     if (!transaction) {
+      console.log('Transaction not found for ID:', id, 'and user ID:', userId);
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
     res.json({ success: true, data: transaction });
   } catch (error) {
-    console.error('Get transaction error:', error);
     res.status(500).json({ success: false, message: 'Server error' });
   }
 };

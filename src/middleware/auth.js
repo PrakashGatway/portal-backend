@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import PurchasedCourse from '../models/PurchasedCourse.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -34,7 +35,7 @@ export const protect = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({_id:decoded.id,isActive:true})
+    const user = await User.findOne({ _id: decoded.id, isActive: true })
     if (!user) {
       return res.status(401).json({
         success: false,
@@ -101,14 +102,47 @@ export const ensureCoursePurchase = async (req, res, next) => {
       return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const user = await User.findById(userId).select('purchasedCourses');
-    const hasPurchased = user.purchasedCourses.some(id => id.toString() === courseId);
+    const purchase = await PurchasedCourse.findOne({
+      user: userId,
+      course: courseId,
+      isActive: true,
+      $or: [
+        { accessExpiresAt: { $exists: false } },
+        { accessExpiresAt: { $gte: new Date() } }
+      ]
+    });
 
-    req.hasPurchasedCourse = hasPurchased;
-
+    req.hasPurchasedCourse = !!purchase;
     next();
   } catch (error) {
     console.error('Purchase check error:', error);
-    res.status(500).json({ message: 'Server error during purchase verification' });
+    res.status(500).json({ message: 'Server error during verification' });
+  }
+};
+
+export const ensureCourseQuery = async (req, res, next) => {
+  try {
+    const { course } = req.query;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const purchase = await PurchasedCourse.findOne({
+      user: userId,
+      course: course,
+      isActive: true,
+      $or: [
+        { accessExpiresAt: { $exists: false } },
+        { accessExpiresAt: { $gte: new Date() } }
+      ]
+    });
+
+    req.hasPurchasedCourse = !!purchase;
+    next();
+  } catch (error) {
+    console.error('Purchase check error:', error);
+    res.status(500).json({ message: 'Server error during verification' });
   }
 };

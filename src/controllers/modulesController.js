@@ -248,6 +248,8 @@ const getModule = asyncHandler(async (req, res, next) => {
 });
 
 const getModuleDetails = asyncHandler(async (req, res, next) => {
+  const hasPurchased = req.hasPurchasedCourse || false;
+
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
     return next(new ErrorResponse(`Invalid module ID format: ${req.params.id}`, 400));
   }

@@ -11,27 +11,27 @@ import {
   getCourseCurriculum
 } from '../controllers/courseController.js';
 
-import { protect, authorize } from '../middleware/auth.js';
+import { protect, authorize, ensureCoursePurchase } from '../middleware/auth.js';
 
 const router = express.Router();
 
 router.route('/')
-  .get(getCourses);
+  .get(protect, getCourses);
 
 router.route('/featured')
-  .get(getFeaturedCourses);
+  .get(protect, getFeaturedCourses);
 
 router.route('/upcoming')
-  .get(getUpcomingCourses);
+  .get(protect, getUpcomingCourses);
 
 router.route('/category/:categoryId')
-  .get(getCoursesByCategory);
+  .get(protect, getCoursesByCategory);
 
 router.route('/:id')
-  .get(getCourse);
+  .get(protect, getCourse);
 
 router.route('/curriculum/:courseId')
-  .get(getCourseCurriculum);
+  .get(protect, ensureCoursePurchase, getCourseCurriculum);
 
 router.route('/')
   .post(protect, authorize('admin'), createCourse);
