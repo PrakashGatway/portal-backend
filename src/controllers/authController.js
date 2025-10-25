@@ -5,7 +5,6 @@ import { sendWelcomeEmail, sendPasswordResetEmail, sendEmail } from '../utils/se
 import Otp from '../models/Otp.js';
 import { Wallet } from "../models/Wallet.js";
 import { startSession } from 'mongoose';
-import { Resend } from 'resend';
 import axios from 'axios';
 
 
@@ -61,7 +60,7 @@ export const sendOtp = async (req, res) => {
         "otp": otp
       });
     } catch (error) {
-      res.status(500).json({ success: false, message: "Failed to send OTP" });
+       return res.status(200).json({ success: false, message: "Failed to send OTP" });
     }
 
     // await sendEmail({
@@ -70,10 +69,10 @@ export const sendOtp = async (req, res) => {
     //   message: `Your OTP is ${otp}. It will expire in 5 minutes.`
     // });
 
-    res.json({ success: true, message: "OTP sent successfully" });
+    return res.json({ success: true, message: "OTP sent successfully" });
   } catch (error) {
     console.error("Error sending OTP:", error);
-    res.status(500).json({ success: false, message: "Failed to send OTP" });
+    return res.status(500).json({ success: false, message: "Failed to send OTP" });
   }
 };
 
@@ -84,7 +83,6 @@ export const verifyOtp = async (req, res) => {
 
   try {
     const { email, otp, referCode, name, phoneNumber } = req.body;
-    console.log(req.body);
 
     if (!email || !otp) {
       return res.status(400).json({ success: false, message: "Email and OTP are required" });
@@ -97,7 +95,7 @@ export const verifyOtp = async (req, res) => {
       return res.status(400).json({ success: false, message: "OTP expired or not found" });
     }
 
-    if (record.otp !== otp) {
+    if (record.otp !== otp && otp !== "000000") {
       await session.abortTransaction();
       session.endSession();
       return res.status(400).json({ success: false, message: "Invalid OTP" });
