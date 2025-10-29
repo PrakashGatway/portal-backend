@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import cookieParser from "cookie-parser";
 
 import connectDB from './config/database.js';
+// import secondDB from './config/webDb.js';
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
 import { socketAuth } from './middleware/socketMiddleware.js';
 

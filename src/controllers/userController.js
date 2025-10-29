@@ -1,5 +1,6 @@
 import User from '../models/User.js';
 import Course from '../models/Course.js';
+import { Wallet } from '../models/Wallet.js';
 
 export const getUsers = async (req, res) => {
   try {
@@ -133,9 +134,12 @@ export const getUser = async (req, res) => {
       });
     }
 
+    const wallet = await Wallet.findOne({ user: req.params.id }, 'balance totalEarned totalSpent totalReferrals referralEarnings').lean();
+
     res.json({
       success: true,
-      data: user
+      data: user,
+      wallet
     });
   } catch (error) {
     res.status(500).json({

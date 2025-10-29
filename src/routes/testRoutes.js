@@ -23,6 +23,10 @@ import {
     deleteTestSeries,
 } from '../controllers/TestSeries/testSeriesController.js';
 
+import * as ctrl from '../controllers/TestSeries/questionController.js';
+import { protect } from '../middleware/auth.js'; 
+
+
 const router = Router();
 
 router.route('/exams/')
@@ -46,13 +50,21 @@ router.route('/sections/:id')
     .delete(deleteSection);
 
 
-router.get('/', getTestSeries);
-router.get('/:idOrSlug', getTestSeriesById);
+router.get('/series', getTestSeries);
+router.get('/series/:idOrSlug', getTestSeriesById);
 
-router.post('/', createTestSeries);
-router.put('/:id', updateTestSeries);
-router.patch('/:id/toggle-active', toggleActive);
-router.delete('/:id', deleteTestSeries);
+router.post('/series', createTestSeries);
+router.put('/series/:id', updateTestSeries);
+router.patch('/series/:id/toggle-active', toggleActive);
+router.delete('/series/:id', deleteTestSeries);
 
+router.route('/questions')
+  .get(ctrl.getAllQuestions)
+  .post(protect, ctrl.createQuestion);
+
+router.route('/questions/:id')
+  .get(ctrl.getQuestion)
+  .put(protect, ctrl.updateQuestion)
+  .delete(protect, ctrl.deleteQuestion);
 
 export default router;

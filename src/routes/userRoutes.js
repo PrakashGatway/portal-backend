@@ -10,14 +10,14 @@ import { protect, authorize } from '../middleware/auth.js';
 
 const router = express.Router();
 
-router.use(protect); // All routes require authentication
+router.use(protect);
 
 router.route('/')
   .get(authorize('admin', 'super_admin'), getUsers);
 
 router.route('/:id')
-  .get(getUser)
-  .put(updateUser)
+  .get(authorize('admin', 'super_admin'), getUser)
+  .put(authorize('admin', 'super_admin'), updateUser)
   .delete(authorize('admin', 'super_admin'), deleteUser);
 
 

@@ -175,15 +175,11 @@ function createSlug(title = "") {
   return title
     .toString()
     .toLowerCase()
-    // remove accents (e.g., “é” → “e”)
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
-    // replace anything not alphanumeric, space, or hyphen with ""
     .replace(/[^a-z0-9\s-]/g, "")
-    // replace multiple spaces or underscores with single hyphen
     .trim()
     .replace(/\s+/g, "-")
-    // remove multiple consecutive hyphens
     .replace(/-+/g, "-");
 }
 
@@ -195,7 +191,6 @@ export const createTestSeries = async (req, res) => {
         const exam = await Exam.findById(examId);
         if (!exam) return res.status(400).json({ success: false, message: 'Invalid examId' });
 
-        // Validate sections
         for (const sec of sections) {
             const sectionExists = await Section.findById(sec.sectionId);
             if (!sectionExists) {
@@ -229,10 +224,6 @@ export const createTestSeries = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
-
-// @desc    Update test series
-// @route   PUT /api/test-series/:id
-// @access  Private (admin)
 export const updateTestSeries = async (req, res) => {
     try {
         const { id } = req.params;

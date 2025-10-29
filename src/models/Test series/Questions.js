@@ -12,17 +12,6 @@ const QuestionSchema = new Schema(
       ref: 'Section',
       required: true,
     },
-    sectionPart: {
-      type: Number,
-      min: 1,
-    },
-    questionNumber: {
-      type: Number,
-    },
-    order: {
-      type: Number,
-      required: true,
-    },
     marks: {
       type: Number,
       default: 1,
@@ -100,7 +89,7 @@ const QuestionSchema = new Schema(
     },
     explanation: String,
     tags: [String], // e.g., ["ielts", "academic", "map", "environment"]
-    timeLimit: Number, // seconds (e.g., 1200 for Writing Task 1)
+    timeLimit: Number, 
     isActive: {
       type: Boolean,
       default: true,

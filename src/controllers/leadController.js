@@ -43,12 +43,12 @@ export const getAllLeads = async (req, res) => {
         if (coursePreference) matchStage.coursePreference = coursePreference;
         if (countryOfResidence) matchStage.countryOfResidence = countryOfResidence;
 
-        if (assignedCounselor || user.role == "counselor") {
-            if (!mongoose.Types.ObjectId.isValid(assignedCounselor) && user.role == "admin") {
-                return res.status(400).json({ error: 'Invalid counselor ID' });
-            }
-            matchStage.assignedCounselor = user.role == "counselor" ? user._id : new mongoose.Types.ObjectId(assignedCounselor);
-        }
+        // if (assignedCounselor || user.role == "counselor") {
+        //     if (!mongoose.Types.ObjectId.isValid(assignedCounselor) && user.role == "admin") {
+        //         return res.status(400).json({ error: 'Invalid counselor ID' });
+        //     }
+        //     matchStage.assignedCounselor = user.role == "counselor" ? user._id : new mongoose.Types.ObjectId(assignedCounselor);
+        // }
 
         if (intakeDateRange) {
             const dateFilter = parseDateRange(intakeDateRange);
