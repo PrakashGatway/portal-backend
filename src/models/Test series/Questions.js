@@ -34,7 +34,9 @@ const QuestionSchema = new Schema(
         'matching_information',
         'matching_features',
         'true_false_not_given',   // Academic Reading
-        'yes_no_not_given',       // General Training Reading
+        'yes_no_not_given',
+        'matching_sentence_endings', // Academic Reading
+        'classification_reading',     // General Training Reading
         'multiple_choice_single',
         'multiple_choice_multiple',
         'writing_task_1_academic',
@@ -50,6 +52,9 @@ const QuestionSchema = new Schema(
         'drag_and_drop',
         'audio_response',
         'image_based',
+
+        "pick_from_a_list",
+        'classification_reading', 
       ],
     },
     difficulty: {
@@ -89,7 +94,7 @@ const QuestionSchema = new Schema(
     },
     explanation: String,
     tags: [String], // e.g., ["ielts", "academic", "map", "environment"]
-    timeLimit: Number, 
+    timeLimit: Number,
     isActive: {
       type: Boolean,
       default: true,

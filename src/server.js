@@ -32,6 +32,7 @@ import walletRoutes from './routes/walletRoutes.js';
 import purchaseRoutes from './routes/purchaseRoutes.js';
 import leadRoutes from './routes/leadRoutes.js'
 import testRoutes from './routes/testRoutes.js';
+import webRoutes from './routes/webRoutes.js';
 
 // import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -120,6 +121,7 @@ app.use('/api/v1/purchase', purchaseRoutes);
 app.use('/api/v1/leads', leadRoutes)
 app.use('/api/v1/live', vimeoRoutes);
 app.use('/api/v1/test', testRoutes);
+app.use('/api/v1/web', webRoutes);
 
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
