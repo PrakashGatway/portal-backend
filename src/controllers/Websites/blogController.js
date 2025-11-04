@@ -7,7 +7,7 @@ export const getArticles = async (req, res) => {
 
         const filter = {};
         if (status !== undefined && status !== '' && status !== null) filter.status = status === 'true';
-        if (category) filter.category = category;
+        if (category && category !== '') filter.category = category;
 
         if (search) {
             const regex = new RegExp(search, 'i');
@@ -18,7 +18,8 @@ export const getArticles = async (req, res) => {
             .populate('category', 'name')
             .limit(limit * 1)
             .skip((page - 1) * limit)
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .select('-content');
 
         const total = await Article.countDocuments(filter);
 
@@ -37,7 +38,7 @@ export const getArticles = async (req, res) => {
 
 export const getArticle = async (req, res) => {
     try {
-        const article = await Article.findById(req.params.id)
+        const article = await Article.findOne({ slug: req.params.slug })
             .populate('category', 'name slug')
 
         if (!article) {

@@ -16,6 +16,7 @@ const LEAD_SOURCES = [
     'website',
     'education_fair',
     'referral',
+    'metaAds',
     'social_media',
     'partner'
 ];
@@ -41,6 +42,10 @@ const leadSchema = new Schema(
         },
         intendedIntake: {
             type: Date,
+        },
+        city:{
+            type: String,
+            trim: true
         },
         coursePreference: {
             type: String,
