@@ -3,7 +3,7 @@ import { Article } from '../../models/WebsiteSchecmas/WebsiteSchemas.js';
 
 export const getArticles = async (req, res) => {
     try {
-        const { page = 1, limit = 10, status, category, search } = req.query;
+        const { page = 1, limit = 10, status, category, search,from } = req.query;
 
         const filter = {};
         if (status !== undefined && status !== '' && status !== null) filter.status = status === 'true';
@@ -13,13 +13,21 @@ export const getArticles = async (req, res) => {
             const regex = new RegExp(search, 'i');
             filter.$or = [{ title: regex }, { description: regex }];
         }
-
-        const articles = await Article.find(filter)
+        let articles;
+        if(from == 'admin'){
+            articles = await Article.find(filter)
+            .populate('category', 'name')
+            .limit(limit * 1)
+            .skip((page - 1) * limit)
+            .sort({ createdAt: -1 })
+        }else{
+            articles = await Article.find(filter)
             .populate('category', 'name')
             .limit(limit * 1)
             .skip((page - 1) * limit)
             .sort({ createdAt: -1 })
             .select('-content');
+        }
 
         const total = await Article.countDocuments(filter);
 

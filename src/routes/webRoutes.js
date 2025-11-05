@@ -52,7 +52,6 @@ router.get("/webhook", (req, res) => {
 });
 
 router.post("/webhook", async (req, res) => {
-  console.log("📩 Webhook POST body:", JSON.stringify(req.body, null, 2));
   if (req.body.entry) {
     for (const entry of req.body.entry) {
       for (const change of entry.changes || []) {
@@ -71,12 +70,12 @@ router.post("/webhook", async (req, res) => {
               leadData.field_data.map(f => [f.name, f.values[0]])
             );
 
-            const { full_name, email, phone_number, city, ...extraDetails } = formattedData;
+            const { full_name, email, phone_number, phone, city, ...extraDetails } = formattedData;
 
             await Lead.create({
               fullName: full_name,
               email,
-              phone: phone_number,
+              phone: phone_number || phone,
               city,
               coursePreference: 'unfilled',
               source: 'metaAds',

@@ -18,7 +18,8 @@ const LEAD_SOURCES = [
     'referral',
     'metaAds',
     'social_media',
-    'partner'
+    'partner',
+    'facebook'
 ];
 
 const leadSchema = new Schema(
@@ -43,7 +44,7 @@ const leadSchema = new Schema(
         intendedIntake: {
             type: Date,
         },
-        city:{
+        city: {
             type: String,
             trim: true
         },
@@ -90,7 +91,7 @@ const leadSchema = new Schema(
                 }
             }
         ],
-        extraDetails:{
+        extraDetails: {
             type: Schema.Types.Mixed,
             default: {}
         }
