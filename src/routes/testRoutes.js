@@ -24,12 +24,21 @@ import {
 } from '../controllers/TestSeries/testSeriesController.js';
 
 import * as ctrl from '../controllers/TestSeries/questionController.js';
-import { protect } from '../middleware/auth.js'; 
+import { protect } from '../middleware/auth.js';
+
+import {
+    startTest,
+    getCurrentQuestion,
+    submitAnswer,
+    skipQuestion,
+    submitTest,
+    getTestAnalysis
+} from '../controllers/TestSeries/testController.js';
 
 
 const router = Router();
 
-router.route('/exams/')
+router.route('/exams')
     .get(getExams)
     .post(createExam);
 
@@ -44,6 +53,7 @@ router.route('/sections')
     .post(createSection)
     .get(getSections);
 
+router.get('/sections/:id/questions',);
 router.route('/sections/:id')
     .get(getSectionById)
     .put(updateSection)
@@ -59,12 +69,26 @@ router.patch('/series/:id/toggle-active', toggleActive);
 router.delete('/series/:id', deleteTestSeries);
 
 router.route('/questions')
-  .get(ctrl.getAllQuestions)
-  .post(protect, ctrl.createQuestion);
+    .get(ctrl.getAllQuestions)
+    .post(protect, ctrl.createQuestion);
 
 router.route('/questions/:id')
-  .get(ctrl.getQuestion)
-  .put(protect, ctrl.updateQuestion)
-  .delete(protect, ctrl.deleteQuestion);
+    .get(ctrl.getQuestion)
+    .put(protect, ctrl.updateQuestion)
+    .delete(protect, ctrl.deleteQuestion);
+
+    
+router.post('/start', protect, startTest);
+
+router.get('/session/:sessionId/current-question', protect, getCurrentQuestion);
+
+router.post('/session/:sessionId/submit-answer', protect, submitAnswer);
+
+router.post('/session/:sessionId/skip-question', protect, skipQuestion);
+
+router.post('/session/:sessionId/submit', protect, submitTest);
+
+router.get('/session/:sessionId/analysis', protect, getTestAnalysis);
+
 
 export default router;

@@ -81,6 +81,7 @@ const getAllQuestions = async (req, res, next) => {
                 isActive: 1,
                 createdAt: 1,
                 updatedAt: 1,
+                questionGroup: 1,
                 createdBy: {
                     _id: '$createdBy._id',
                     name: '$createdBy.name',
@@ -130,8 +131,6 @@ const getAllQuestions = async (req, res, next) => {
 
 const getQuestion = async (req, res, next) => {
     const { id } = req.params;
-    if (!validateObjectId(id)) return next(new ErrorResponse('Invalid ID', 400));
-
     const question = await Question.findById(id)
         .populate('examId sectionId createdBy');
 
@@ -141,19 +140,20 @@ const getQuestion = async (req, res, next) => {
 
 const createQuestion = async (req, res, next) => {
     try {
+        console.log(req.body)
         const question = await Question.create({
             ...req.body,
             createdBy: req.user?.id,
         });
         res.status(201).json({ success: true, question });
     } catch (err) {
+        console.log(err);
         next(new ErrorResponse(err.message, 400));
     }
 };
 
 const updateQuestion = async (req, res, next) => {
     const { id } = req.params;
-    if (!validateObjectId(id)) return next(new ErrorResponse('Invalid ID', 400));
 
     const question = await Question.findByIdAndUpdate(id, req.body, {
         new: true,
@@ -166,17 +166,12 @@ const updateQuestion = async (req, res, next) => {
 
 const deleteQuestion = async (req, res, next) => {
     const { id } = req.params;
-    if (!validateObjectId(id)) return next(new ErrorResponse('Invalid ID', 400));
-
-    const question = await Question.findByIdAndUpdate(
-        id,
-        { isActive: false },
-        { new: true }
-    );
+    const question = await Question.findByIdAndDelete(id);
 
     if (!question) return next(new ErrorResponse('Question not found', 404));
     res.status(200).json({ success: true, message: 'Question deactivated' });
 };
+
 
 export {
     getAllQuestions,

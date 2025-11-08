@@ -130,7 +130,6 @@ export const getTestSeries = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
-
 export const getTestSeriesById = async (req, res) => {
     try {
         const { idOrSlug } = req.params;
@@ -170,7 +169,6 @@ export const getTestSeriesById = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
-
 function createSlug(title = "") {
   return title
     .toString()
@@ -182,8 +180,6 @@ function createSlug(title = "") {
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-");
 }
-
-
 export const createTestSeries = async (req, res) => {
     try {
         const { title, type, examId, sections, slug: inputSlug, ...rest } = req.body;
@@ -277,7 +273,6 @@ export const updateTestSeries = async (req, res) => {
         res.status(500).json({ success: false, message: 'Server error' });
     }
 };
-
 export const toggleActive = async (req, res) => {
     try {
         const { id } = req.params;

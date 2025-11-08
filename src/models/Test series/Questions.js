@@ -1,115 +1,135 @@
+// models/Test series/Questions.js
 import { Schema, model } from 'mongoose';
 
-const QuestionSchema = new Schema(
-  {
-    examId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Exam',
-      required: true,
-    },
-    sectionId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Section',
-      required: true,
-    },
-    marks: {
-      type: Number,
-      default: 1,
-    },
-    questionType: {
-      type: String,
-      required: true,
-      enum: [
-        'form_completion',
-        'note_completion',
-        'table_completion',
-        'flow_chart_completion',
-        'summary_completion',
-        'sentence_completion',
-        'short_answer',
-        'map_labelling',
-        'plan_labelling',
-        'diagram_labelling',
-        'matching_headings',
-        'matching_information',
-        'matching_features',
-        'true_false_not_given',   // Academic Reading
-        'yes_no_not_given',
-        'matching_sentence_endings', // Academic Reading
-        'classification_reading',     // General Training Reading
-        'multiple_choice_single',
-        'multiple_choice_multiple',
-        'writing_task_1_academic',
-        'writing_task_1_general',
-        'writing_task_2',
-        'speaking_part_1',
-        'speaking_part_2',
-        'speaking_part_3',
-        'true_false',
-        'fill_in_blank',          // generic fallback
-        'essay',
-        'matching',
-        'drag_and_drop',
-        'audio_response',
-        'image_based',
+const questionTypes = [
+  'form_completion', 'note_completion', 'table_completion', 'flow_chart_completion',
+  'summary_completion', 'sentence_completion', 'short_answer', 'map_labelling',
+  'plan_labelling', 'diagram_labelling', 'matching_headings', 'matching_information',
+  'matching_features', 'true_false_not_given', 'yes_no_not_given', 
+  'matching_sentence_endings', 'classification_reading', 'multiple_choice_single',
+  'multiple_choice_multiple', 'writing_task_1_academic', 'writing_task_1_general',
+  'writing_task_2', 'speaking_part_1', 'speaking_part_2', 'speaking_part_3',
+  'true_false', 'fill_in_blank', 'essay', 'matching', 'drag_and_drop', 
+  'audio_response', 'image_based', 'pick_from_a_list'
+];
 
-        "pick_from_a_list",
-        'classification_reading', 
-      ],
-    },
-    difficulty: {
-      type: String,
-      enum: ['easy', 'medium', 'hard'],
-      default: 'medium',
-    },
-    content: {
-      instruction: {
-        type: String, // e.g., "Complete the form. Write ONE WORD ONLY."
-        required: true,
-        trim: true,
-      },
-      passageText: String,    // Reading passage
-      transcript: String,     // Listening script (for admin/reference)
-      imageUrl: String,       // maps, diagrams, charts
-      audioUrl: String,       // Listening audio
-      videoUrl: String,
-    },
-    cueCard: {
-      topic: String,
-      prompts: [String], // e.g., ["Who was with you?", "Why was it memorable?"]
-    },
-    options: [
-      {
-        label: String,        // "A", "i", "1" — useful for headings
-        text: String,
-        isCorrect: Boolean,
-        explanation: String,
-      },
-    ],
-    correctAnswer: Schema.Types.Mixed,
-    sampleAnswer: {
-      text: String,
-      wordCount: Number,
-      bandScore: Number, // or generic "score"
-    },
-    explanation: String,
-    tags: [String], // e.g., ["ielts", "academic", "map", "environment"]
-    timeLimit: Number,
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-    },
+const QuestionOptionSchema = new Schema({
+  label: String,
+  text: String,
+  isCorrect: Boolean,
+  explanation: String,
+}, { _id: true });
+
+const SubQuestionSchema = new Schema({
+  question: {
+    type: String,
+    required: true,
   },
-  {
-    timestamps: true,
-  }
-);
+  order: {
+    type: Number,
+    required: true,
+  },
+  options: [QuestionOptionSchema],
+  correctAnswer: Schema.Types.Mixed,
+  explanation: String,
+});
 
-QuestionSchema.index({ examId: 1, section: 1, sectionPart: 1, questionNumber: 1 });
-QuestionSchema.index({ examId: 1, order: 1 });
+const QuestionGroupSchema = new Schema({
+  title: {
+    type: String,
+    required: true,
+  },
+  instruction: String,
+  order: {
+    type: Number,
+    required: true,
+  },
+  totalQuestions:{
+    type: Number
+  },
+  type: {
+    type: String,
+    required: true,
+    enum: questionTypes
+  },
+  marks: {
+    type: Number,
+    required: true
+  },
+  commonOptions: String,
+  questions: [SubQuestionSchema],
+}, { _id: true });
+
+const QuestionSchema = new Schema({
+  exam: {
+    type: String,
+    enum: ["gmat", "pte", "sat", "ielts"],
+    required: true
+  },
+  sectionId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Section',
+    required: true,
+  },
+  questionCategory: {
+    type: String,
+    enum: ["reading", "listening", "speaking", "writing", "general", "other"],
+    required: true
+  },
+  marks: {
+    type: Number,
+    default: 1,
+  },
+  isQuestionGroup: {
+    type: Boolean,
+    default: false
+  },
+  questionGroup: [QuestionGroupSchema],
+  questionType: {
+    type: String,
+    enum: questionTypes,
+    required: true
+  },
+  difficulty: {
+    type: String,
+    enum: ['easy', 'medium', 'hard'],
+    default: 'medium',
+  },
+  content: {
+    instruction: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    passageTitle: String,
+    passageText: String,
+    transcript: String,
+    imageUrl: String,
+    audioUrl: String,
+    videoUrl: String,
+  },
+  cueCard: {
+    topic: String,
+    prompts: [String],
+  },
+  options: [QuestionOptionSchema],
+  correctAnswer: Schema.Types.Mixed,
+  explanation: String,
+  tags: [String],
+  timeLimit: Number,
+  isActive: {
+    type: Boolean,
+    default: true,
+  },
+  order: {
+    type: Number,
+    default: 0
+  }
+}, {
+  timestamps: true,
+});
+
+QuestionSchema.index({ sectionId: 1, order: 1 });
+QuestionSchema.index({ exam: 1, questionCategory: 1, isActive: 1 });
 
 export const Question = model('Question', QuestionSchema);
