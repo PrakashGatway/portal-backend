@@ -7,7 +7,6 @@ const getAllQuestions = async (req, res, next) => {
         const {
             page = 1,
             limit = 20,
-            examId,
             sectionId,
             questionType,
             difficulty,
@@ -16,7 +15,6 @@ const getAllQuestions = async (req, res, next) => {
         } = req.query;
 
         const matchFilter = { isActive: isActive == 'true' };
-        if (examId && mongoose.Types.ObjectId.isValid(examId)) matchFilter.examId = new mongoose.Types.ObjectId(examId);
         if (sectionId && mongoose.Types.ObjectId.isValid(sectionId)) matchFilter.sectionId = new mongoose.Types.ObjectId(sectionId);
         if (questionType) matchFilter.questionType = questionType;
         if (difficulty) matchFilter.difficulty = difficulty;
@@ -26,17 +24,6 @@ const getAllQuestions = async (req, res, next) => {
         const pipeline = [];
 
         pipeline.push({ $match: matchFilter });
-        pipeline.push({
-            $lookup: {
-                from: 'exams',
-                localField: 'examId',
-                foreignField: '_id',
-                as: 'exam',
-            },
-        });
-        pipeline.push({
-            $unwind: { path: '$exam', preserveNullAndEmptyArrays: true }
-        });
 
         pipeline.push({
             $lookup: {
@@ -51,22 +38,13 @@ const getAllQuestions = async (req, res, next) => {
         });
 
         pipeline.push({
-            $lookup: {
-                from: 'users',
-                localField: 'createdBy',
-                foreignField: '_id',
-                as: 'createdBy',
-            },
-        });
-        pipeline.push({
-            $unwind: { path: '$createdBy', preserveNullAndEmptyArrays: true }
-        });
-
-        pipeline.push({
             $project: {
                 _id: 1,
-                examId: 1,
                 sectionId: 1,
+                title: 1,
+                totalQuestions: 1,
+                questionCategory: 1,
+                exam: 1,
                 marks: 1,
                 questionType: 1,
                 difficulty: 1,
@@ -82,15 +60,6 @@ const getAllQuestions = async (req, res, next) => {
                 createdAt: 1,
                 updatedAt: 1,
                 questionGroup: 1,
-                createdBy: {
-                    _id: '$createdBy._id',
-                    name: '$createdBy.name',
-                    email: '$createdBy.email'
-                },
-                exam: {
-                    _id: '$exam._id',
-                    title: '$exam.name'
-                },
                 section: {
                     _id: '$section._id',
                     title: '$section.name'
@@ -140,7 +109,6 @@ const getQuestion = async (req, res, next) => {
 
 const createQuestion = async (req, res, next) => {
     try {
-        console.log(req.body)
         const question = await Question.create({
             ...req.body,
             createdBy: req.user?.id,

@@ -1,15 +1,14 @@
-// models/Test series/Questions.js
 import { Schema, model } from 'mongoose';
 
 const questionTypes = [
   'form_completion', 'note_completion', 'table_completion', 'flow_chart_completion',
   'summary_completion', 'sentence_completion', 'short_answer', 'map_labelling',
   'plan_labelling', 'diagram_labelling', 'matching_headings', 'matching_information',
-  'matching_features', 'true_false_not_given', 'yes_no_not_given', 
+  'matching_features', 'true_false_not_given', 'yes_no_not_given',
   'matching_sentence_endings', 'classification_reading', 'multiple_choice_single',
   'multiple_choice_multiple', 'writing_task_1_academic', 'writing_task_1_general',
   'writing_task_2', 'speaking_part_1', 'speaking_part_2', 'speaking_part_3',
-  'true_false', 'fill_in_blank', 'essay', 'matching', 'drag_and_drop', 
+  'true_false', 'fill_in_blank', 'essay', 'matching', 'drag_and_drop',
   'audio_response', 'image_based', 'pick_from_a_list'
 ];
 
@@ -26,8 +25,7 @@ const SubQuestionSchema = new Schema({
     required: true,
   },
   order: {
-    type: Number,
-    required: true,
+    type: Number
   },
   options: [QuestionOptionSchema],
   correctAnswer: Schema.Types.Mixed,
@@ -44,9 +42,6 @@ const QuestionGroupSchema = new Schema({
     type: Number,
     required: true,
   },
-  totalQuestions:{
-    type: Number
-  },
   type: {
     type: String,
     required: true,
@@ -61,9 +56,11 @@ const QuestionGroupSchema = new Schema({
 }, { _id: true });
 
 const QuestionSchema = new Schema({
+  title: {
+    type: String,
+  },
   exam: {
     type: String,
-    enum: ["gmat", "pte", "sat", "ielts"],
     required: true
   },
   sectionId: {
@@ -73,8 +70,6 @@ const QuestionSchema = new Schema({
   },
   questionCategory: {
     type: String,
-    enum: ["reading", "listening", "speaking", "writing", "general", "other"],
-    required: true
   },
   marks: {
     type: Number,
@@ -85,6 +80,7 @@ const QuestionSchema = new Schema({
     default: false
   },
   questionGroup: [QuestionGroupSchema],
+  totalQuestions: Number,
   questionType: {
     type: String,
     enum: questionTypes,
@@ -121,10 +117,6 @@ const QuestionSchema = new Schema({
     type: Boolean,
     default: true,
   },
-  order: {
-    type: Number,
-    default: 0
-  }
 }, {
   timestamps: true,
 });

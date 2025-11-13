@@ -32,7 +32,8 @@ import {
     submitAnswer,
     skipQuestion,
     submitTest,
-    getTestAnalysis
+    getTestAnalysis,
+    getPreviousQuestion
 } from '../controllers/TestSeries/testController.js';
 
 
@@ -77,14 +78,19 @@ router.route('/questions/:id')
     .put(protect, ctrl.updateQuestion)
     .delete(protect, ctrl.deleteQuestion);
 
-    
+
 router.post('/start', protect, startTest);
 
-router.get('/session/:sessionId/current-question', protect, getCurrentQuestion);
+// router.get('/session/:sessionId/current-question', protect, getCurrentQuestion);
 
-router.post('/session/:sessionId/submit-answer', protect, submitAnswer);
+router.post('/session/:sessionId/submit', protect, submitAnswer);
 
-router.post('/session/:sessionId/skip-question', protect, skipQuestion);
+router.get('/session/:sessionId/previous',
+    protect,
+    getPreviousQuestion
+);
+
+// router.post('/session/:sessionId/skip-question', protect, skipQuestion);
 
 router.post('/session/:sessionId/submit', protect, submitTest);
 

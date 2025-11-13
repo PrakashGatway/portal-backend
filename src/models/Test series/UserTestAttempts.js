@@ -2,11 +2,6 @@
 import { Schema, model } from 'mongoose';
 
 const UserResponseSchema = new Schema({
-  questionId: {
-    type: Schema.Types.ObjectId,
-    ref: 'Question',
-    required: true,
-  },
   questionGroupId: {
     type: Schema.Types.ObjectId,
   },
@@ -20,10 +15,9 @@ const UserResponseSchema = new Schema({
   },
   isCorrect: Boolean,
   marksObtained: {
-    type: Number,
-    default: 0
+    type: String
   },
-  evaluatedAt: Date,
+  evaluation: Schema.Types.Mixed
 }, { _id: true });
 
 const UserSessionSchema = new Schema({
@@ -45,7 +39,16 @@ const UserSessionSchema = new Schema({
     type: Number,
     default: 0,
   },
-  responses: [UserResponseSchema],
+  lastQuestionIndex: {
+    type: Number,
+    default: 0,
+  },
+  responses: [{
+    sectionType: String,
+    sectionId: Schema.Types.ObjectId,
+    questionId: Schema.Types.ObjectId,
+    questions: [UserResponseSchema]
+  }],
   startTime: {
     type: Date,
     default: Date.now,

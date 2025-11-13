@@ -3,11 +3,20 @@ import mongoose from "mongoose";
 
 export const getCategories = async (req, res) => {
     try {
-        const { page = 1, limit = 10, isActive } = req.query;
+        const { page = 1, limit = 10, isActive, from } = req.query;
 
         const filter = {};
         if (isActive !== undefined && isActive !== '' && isActive !== null) {
             filter.isActive = isActive === 'true';
+        }
+        if (from == "admin") {
+            const categories = await Category.find(filter).select('name slug');
+            return res.json({
+                success: true,
+                count: categories.length,
+                data: categories,
+            })
+
         }
 
         const categories = await Category.find(filter)
@@ -15,9 +24,11 @@ export const getCategories = async (req, res) => {
             .skip((page - 1) * limit)
             .sort({ createdAt: -1 });
 
+
+
         const total = await Category.countDocuments(filter);
 
-        res.json({
+        return res.json({
             success: true,
             count: categories.length,
             total,

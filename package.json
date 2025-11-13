@@ -18,6 +18,7 @@
   "author": "Study Platform Team",
   "license": "MIT",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@vimeo/vimeo": "^3.0.3",
     "agenda": "^4.3.0",
     "agora-access-token": "^2.0.4",
@@ -27,8 +28,8 @@
     "compression": "^1.7.4",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
-    "dotenv": "^16.3.1",
-    "express": "^4.18.2",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "joi": "^17.11.0",

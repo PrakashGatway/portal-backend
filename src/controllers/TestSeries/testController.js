@@ -3,54 +3,7 @@ import mongoose from 'mongoose';
 import { Question } from '../../models/Test series/Questions.js';
 import TestSeries from '../../models/Test series/TestSeries.js';
 import { UserSession } from '../../models/Test series/UserTestAttempts.js';
-
-
-// Add this function to get question with user's previous answer
-export const getCurrentQuestionWithAnswer = async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const userId = req.user._id;
-
-    const sessionValidation = await validateSession(sessionId, userId);
-    if (!sessionValidation.success) {
-      return res.status(sessionValidation.status).json(sessionValidation);
-    }
-
-    const session = sessionValidation.data;
-    const questionData = await getCurrentQuestionData(session);
-
-    if (!questionData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Question not found'
-      });
-    }
-
-    // Get user's previous answer for this question
-    const currentQuestionId = await getCurrentQuestionId(session);
-    const userAnswer = await getUserAnswerForQuestion(session, currentQuestionId);
-
-    res.status(200).json({
-      success: true,
-      question: questionData,
-      userAnswer: userAnswer ? {
-        answer: userAnswer.answer,
-        timeSpent: userAnswer.timeSpent,
-        isCorrect: userAnswer.isCorrect,
-        marksObtained: userAnswer.marksObtained
-      } : null,
-      progress: await getProgress(session)
-    });
-
-  } catch (error) {
-    console.error('Get current question with answer error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
+import { writingEvaluationService } from '../../services/writingServices.js';
 
 async function getCurrentQuestionId(session) {
   const testSeries = await TestSeries.findById(session.testSeriesId);
@@ -60,6 +13,7 @@ async function getCurrentQuestionId(session) {
 export const startTest = async (req, res) => {
   try {
     const { testSeriesId } = req.body;
+
     const userId = req.user._id;
 
     if (!testSeriesId) {
@@ -69,8 +23,7 @@ export const startTest = async (req, res) => {
       });
     }
 
-    // Validate test series
-    const testSeries = await TestSeries.findById(testSeriesId)
+    const testSeries = await TestSeries.findById(new mongoose.Types.ObjectId(testSeriesId))
       .populate('sections.sectionId')
       .lean();
 
@@ -88,19 +41,25 @@ export const startTest = async (req, res) => {
       });
     }
 
-    // Check for existing active session
     const existingSession = await UserSession.findOne({
       userId,
       testSeriesId,
       isCompleted: false
     });
 
+
     if (existingSession) {
+      let currentQuestion = await getCurrentQuestionData(existingSession);
+      const progress = await getProgress(existingSession)
       return res.status(200).json({
         success: true,
         message: 'Existing session found',
         sessionId: existingSession._id,
-        continueExisting: true
+        continueExisting: true,
+        lastQuestionIndex: existingSession.lastQuestionIndex,
+        currentQuestion: currentQuestion,
+        progress: progress,
+        timeRemaining: testSeries.duration * 60
       });
     }
 
@@ -110,7 +69,8 @@ export const startTest = async (req, res) => {
       testSeriesId,
       startTime: new Date(),
       currentSectionIndex: 0,
-      currentQuestionIndex: 0
+      currentQuestionIndex: 0,
+      lastQuestionIndex: 0
     });
 
     await session.save();
@@ -181,7 +141,7 @@ export const getCurrentQuestion = async (req, res) => {
 export const submitAnswer = async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { answers, timeSpent } = req.body; // answers can be array or single
+    const { answers, timeSpent, lastQuestionIndex } = req.body; // answers can be array or single
     const userId = req.user._id;
 
     const sessionValidation = await validateSession(sessionId, userId);
@@ -222,11 +182,37 @@ export const submitAnswer = async (req, res) => {
         timeSpent
       );
     }
+    const existingResponseIndex = session.responses.findIndex(
+      response => response.questionId.toString() === currentQuestion._id.toString()
+    );
 
-    for (const result of processedResults) {
-      session.responses.push(result);
-      session.totalScore += result.marksObtained;
+    const totalMarksObtained = processedResults?.reduce((sum, result) => sum + result.marksObtained, 0);
+
+    if (existingResponseIndex !== -1) {
+      const oldResponse = session.responses[existingResponseIndex];
+      const oldTotalMarks = oldResponse.questions.reduce((sum, q) => sum + (q.marksObtained || 0), 0);
+      session.totalScore = session.totalScore - oldTotalMarks + totalMarksObtained;
+    } else {
+      session.totalScore += totalMarksObtained;
     }
+
+    const responseData = {
+      sectionType: currentQuestion.questionCategory, // reading, listening, etc.
+      sectionId: currentQuestion.sectionId,
+      questionId: currentQuestion._id,
+      questions: processedResults,
+    };
+
+    if (existingResponseIndex !== -1) {
+      session.responses[existingResponseIndex] = {
+        ...session.responses[existingResponseIndex],
+        ...responseData,
+        updatedAt: new Date()
+      };
+    } else {
+      session.responses.push(responseData);
+    }
+    session.lastQuestionIndex = lastQuestionIndex
     await session.save();
 
     await moveToNextQuestion(session);
@@ -245,8 +231,10 @@ export const submitAnswer = async (req, res) => {
       });
     }
 
-    // Get next question
     const nextQuestion = await getCurrentQuestionData(session);
+    const currentQuestionId = await getCurrentQuestionId(session);
+    const userAnswer = await getUserAnswerForQuestion(session, currentQuestionId);
+
 
     res.status(200).json({
       success: true,
@@ -254,11 +242,18 @@ export const submitAnswer = async (req, res) => {
       isTestCompleted: false,
       nextQuestion,
       progress: await getProgress(session),
-      submittedResults: processedResults
+      userAnswer: userAnswer ? userAnswer.questions.map(q => {
+        return {
+          questionGroupId: q.questionGroupId,
+          questionId: q.subQuestionId,
+          answer: q.answer
+        }
+      }) : [],
+      // submittedResults: processedResults
     });
 
   } catch (error) {
-    console.error('Submit answer error:', error);
+    console.log(error)
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -433,16 +428,23 @@ export const getPreviousQuestion = async (req, res) => {
         message: 'Previous question not found'
       });
     }
-
+    const currentQuestionId = await getCurrentQuestionId(session);
+    const userAnswer = await getUserAnswerForQuestion(session, currentQuestionId);
     res.status(200).json({
       success: true,
       message: 'Moved to previous question',
       question: previousQuestion,
-      progress: await getProgress(session)
+      progress: await getProgress(session),
+      userAnswer: userAnswer ? userAnswer.questions.map(q => {
+        return {
+          questionGroupId: q.questionGroupId,
+          questionId: q.subQuestionId,
+          answer: q.answer
+        }
+      }) : [],
     });
 
   } catch (error) {
-    console.error('Get previous question error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -540,7 +542,7 @@ async function getCurrentQuestionData(session) {
   const testSeries = await TestSeries.findById(session.testSeriesId);
 
   if (session.currentSectionIndex >= testSeries.sections.length) {
-    return null; // Test completed
+    return null;
   }
 
   const currentSection = testSeries.sections[session.currentSectionIndex];
@@ -562,27 +564,43 @@ async function getCurrentQuestionForEvaluation(session) {
   const currentSection = testSeries.sections[session.currentSectionIndex];
   const questionId = currentSection.questionIds[session.currentQuestionIndex];
 
-  return await Question.findById(questionId, "-content");
+  return await Question.findById(questionId);
 }
 
 async function processSingleQuestion(question, answer, timeSpent) {
-  const isCorrect = validateAnswer(answer, question.correctAnswer);
-  const marksObtained = isCorrect ? question.marks : 0;
 
-  const response = {
-    questionId: question._id,
-    answer,
-    timeSpent: timeSpent || 0,
-    isCorrect,
-    marksObtained,
-    evaluatedAt: new Date()
-  };
+  let isCorrect = false;
+  let marksObtained = 0;
+  let evaluation = null;
+
+  const found = answer.find(item => item.questionId == question._id);
+
+  if (question.questionType === "writing_task_1_academic" ||
+    question.questionType === "writing_task_1_general" ||
+    question.questionType === "writing_task_2") {
+
+
+    const result = await writingEvaluationService.evaluateWritingTask(question, found.answer);
+    isCorrect = result.isCorrect;
+    marksObtained = result.marksObtained;
+    evaluation = result.evaluation;
+
+  } else {
+    // Handle other question types if needed
+    // const isCorrect = validateAnswer(answer, question.correctAnswer);
+    // const marksObtained = isCorrect ? question.marks : 0;
+  }
+  const { bandScore, ...rest } = evaluation
 
   return [{
-    response,
+    questionGroupId: question._id,
+    subQuestionId: question._id,
+    isCorrect,
+    timeSpent: timeSpent,
     marksObtained,
-    isCorrect
-  }];
+    answer: found.answer,
+    evaluation: rest
+  }]
 }
 
 async function processGroupedQuestions(questionGroup, answers, totalTimeSpent) {
@@ -633,13 +651,8 @@ function processQuestionByType(questionType, userAnswer, subQuestion, group, que
   switch (questionType) {
     case 'matching_information':
       isCorrect = validateMatchingAnswer(userAnswer, subQuestion.correctAnswer);
-      console.log(isCorrect)
-      marksObtained = isCorrect ? group.marks : 1;
-      validationDetails = {
-        expected: subQuestion.correctAnswer,
-        provided: userAnswer,
-        type: 'matching'
-      };
+      marksObtained = isCorrect ? group.marks : 0;
+      validationDetails = userAnswer
       break;
 
     case 'summary_completion':
@@ -653,7 +666,7 @@ function processQuestionByType(questionType, userAnswer, subQuestion, group, que
     case 'multiple_choice_multiple':
       const mcqResult = validateMultipleChoiceMultiple(userAnswer, subQuestion.correctAnswer, subQuestion.options);
       isCorrect = mcqResult.isCorrect;
-      marksObtained = isCorrect ? group.marks : 0;
+      marksObtained = isCorrect ? group.marks + 1 : 0;
       processedAnswer = mcqResult.processedAnswer;
       validationDetails = mcqResult.details;
       break;
@@ -669,7 +682,6 @@ function processQuestionByType(questionType, userAnswer, subQuestion, group, que
 
     case 'true_false_not_given':
     case 'yes_no_not_given':
-      // For True/False/Not Given or Yes/No/Not Given
       isCorrect = validateTFNGAnswer(userAnswer, subQuestion.correctAnswer);
       marksObtained = isCorrect ? group.marks : 0;
       validationDetails = {
@@ -726,8 +738,7 @@ function processQuestionByType(questionType, userAnswer, subQuestion, group, que
   };
 
   return {
-    questionId: subQuestion._id,
-    questionGroupId: questionGroup._id,
+    questionGroupId: group._id,
     subQuestionId: subQuestion._id,
     isCorrect,
     timeSpent: timeSpent,
@@ -925,7 +936,6 @@ function validateCompletionAnswer(userAnswer, correctAnswer) {
   return { isCorrect, processedAnswer, details };
 }
 
-// Fallback validation function
 function validateAnswer(userAnswer, correctAnswer) {
   if (userAnswer === null || userAnswer === undefined) {
     return false;
@@ -941,8 +951,6 @@ function validateAnswer(userAnswer, correctAnswer) {
 
   return userAnswer === correctAnswer;
 }
-
-
 
 async function moveToNextQuestion(session) {
   const testSeries = await TestSeries.findById(session.testSeriesId);
@@ -1004,63 +1012,83 @@ async function getProgress(session) {
 async function generateTestAnalysis(sessionId) {
   const session = await UserSession.findById(sessionId)
     .populate('testSeriesId')
-    .populate('responses.questionId');
+    .lean();
 
   if (!session) {
     throw new Error('Session not found');
   }
 
-  const totalMarks = session.responses.reduce((sum, response) =>
-    sum + (response.marksObtained || 0), 0
+  // Flatten all sub-question responses across sections
+  const allResponses = session.responses.flatMap(section =>
+    (section.questions || []).map(q => ({
+      ...q,
+      sectionType: section.sectionType,
+      sectionId: section.sectionId,
+      questionId: section.questionId
+    }))
   );
 
-  const correctAnswers = session.responses.filter(r => r.isCorrect).length;
-  const totalQuestions = session.responses.length;
+  // Compute overall stats
+  const totalMarks = allResponses.reduce(
+    (sum, r) => sum + (parseFloat(r.marksObtained) || 0),
+    0
+  );
 
-  return {
+  const correctAnswers = allResponses.filter(r => r.isCorrect).length;
+  const totalQuestions = allResponses.length;
+  const skippedQuestions = allResponses.filter(r => !r.answer || r.answer === '').length;
+
+  const duration = session.duration || (
+    session.endTime && session.startTime
+      ? (session.endTime - session.startTime) / 1000 // in seconds
+      : 0
+  );
+
+  const analysis = {
     summary: {
       totalQuestions,
       correctAnswers,
-      incorrectAnswers: totalQuestions - correctAnswers,
-      skippedQuestions: session.responses.filter(r => r.skipped).length,
+      incorrectAnswers: totalQuestions - correctAnswers - skippedQuestions,
+      skippedQuestions,
       totalScore: totalMarks,
       accuracy: totalQuestions > 0 ? (correctAnswers / totalQuestions) * 100 : 0,
-      timeSpent: session.duration,
-      averageTimePerQuestion: totalQuestions > 0 ? session.duration / totalQuestions : 0
+      timeSpent: duration,
+      averageTimePerQuestion: totalQuestions > 0 ? duration / totalQuestions : 0
     },
-    // sectionWiseAnalysis: await getSectionWiseAnalysis(session),
-    questionAnalysis: session.responses.map(response => ({
-      questionId: response.questionId,
-      isCorrect: response.isCorrect,
-      marksObtained: response.marksObtained,
-      timeSpent: response.timeSpent,
-      answer: response.answer || false
+    questionAnalysis: allResponses.map(r => ({
+      sectionType: r.sectionType,
+      sectionId: r.sectionId,
+      questionGroupId: r.questionGroupId,
+      subQuestionId: r.subQuestionId,
+      isCorrect: r.isCorrect || false,
+      marksObtained: r.marksObtained ? parseFloat(r.marksObtained) : 0,
+      timeSpent: r.timeSpent || 0,
+      answer: r.answer || null,
+      evaluation: r.evaluation || null
     })),
-    recommendations: generateRecommendations(session)
+    // Add per-section stats
+    sectionWiseAnalysis: session.responses.map(section => {
+      const questions = section.questions || [];
+      const totalMarks = questions.reduce(
+        (sum, q) => sum + (parseFloat(q.marksObtained) || 0),
+        0
+      );
+      const correct = questions.filter(q => q.isCorrect).length;
+      return {
+        sectionType: section.sectionType,
+        sectionId: section.sectionId,
+        totalQuestions: questions.length,
+        correctAnswers: correct,
+        accuracy: questions.length > 0 ? (correct / questions.length) * 100 : 0,
+        score: totalMarks
+      };
+    }),
+    // recommendations: generateRecommendations(allResponses)
   };
+
+  return analysis;
 }
 
-async function getSectionWiseAnalysis(session) {
-  const testSeries = await TestSeries.findById(session.testSeriesId)
-    .populate('sections.sectionId');
-
-  return testSeries.sections.map(section => {
-    const sectionResponses = session.responses.filter(response =>
-      section.questionIds.includes(response.questionId._id.toString())
-    );
-
-    const correctInSection = sectionResponses.filter(r => r.isCorrect).length;
-    const totalInSection = sectionResponses.length;
-
-    return {
-      sectionName: section.sectionId.name,
-      totalQuestions: totalInSection,
-      correctAnswers: correctInSection,
-      accuracy: totalInSection > 0 ? (correctInSection / totalInSection) * 100 : 0,
-      totalScore: sectionResponses.reduce((sum, r) => sum + (r.marksObtained || 0), 0)
-    };
-  });
-}
 
 function generateRecommendations(session) {
   const recommendations = [];
@@ -1092,16 +1120,13 @@ function generateRecommendations(session) {
   return recommendations;
 }
 
-
-// Add these helper functions to your existing helpers
-
 async function moveToPreviousQuestion(session) {
   const testSeries = await TestSeries.findById(session.testSeriesId);
-  
+
   // Move back within current section
   if (session.currentQuestionIndex > 0) {
     session.currentQuestionIndex--;
-  } 
+  }
   // Move to previous section
   else if (session.currentSectionIndex > 0) {
     session.currentSectionIndex--;
@@ -1111,78 +1136,10 @@ async function moveToPreviousQuestion(session) {
 
   await session.save();
 }
-
-// Enhanced getProgress function to include navigation info
-// async function getProgress(session) {
-//   const testSeries = await TestSeries.findById(session.testSeriesId);
-  
-//   let questionsAnswered = 0;
-//   let totalQuestions = 0;
-//   let questionList = [];
-
-//   // Build question list for navigation
-//   testSeries.sections.forEach((section, sectionIndex) => {
-//     totalQuestions += section.questionIds.length;
-    
-//     section.questionIds.forEach((questionId, questionIndex) => {
-//       const isCurrent = sectionIndex === session.currentSectionIndex && 
-//                        questionIndex === session.currentQuestionIndex;
-//       const isAnswered = session.responses.some(response => 
-//         response.questionId.toString() === questionId.toString()
-//       );
-      
-//       questionList.push({
-//         sectionIndex,
-//         questionIndex,
-//         questionId,
-//         isCurrent,
-//         isAnswered,
-//         canNavigate: true // You can add logic to restrict navigation if needed
-//       });
-      
-//       if (sectionIndex < session.currentSectionIndex || 
-//           (sectionIndex === session.currentSectionIndex && questionIndex < session.currentQuestionIndex)) {
-//         questionsAnswered++;
-//       }
-//     });
-//   });
-
-//   // Count current question if answered
-//   const currentQuestionId = testSeries.sections[session.currentSectionIndex]?.questionIds[session.currentQuestionIndex];
-//   if (currentQuestionId && session.responses.some(response => 
-//     response.questionId.toString() === currentQuestionId.toString()
-//   )) {
-//     questionsAnswered++;
-//   }
-
-//   return {
-//     currentSection: session.currentSectionIndex + 1,
-//     totalSections: testSeries.sections.length,
-//     currentQuestion: session.currentQuestionIndex + 1,
-//     questionsAnswered,
-//     totalQuestions,
-//     completionPercentage: Math.round((questionsAnswered / totalQuestions) * 100),
-//     canGoBack: session.currentSectionIndex > 0 || session.currentQuestionIndex > 0,
-//     canGoForward: await canGoForward(session),
-//     questionList // For detailed navigation
-//   };
-// }
-
-async function canGoForward(session) {
-  const testSeries = await TestSeries.findById(session.testSeriesId);
-  
-  const currentSection = testSeries.sections[session.currentSectionIndex];
-  const hasNextInSection = session.currentQuestionIndex < currentSection.questionIds.length - 1;
-  const hasNextSection = session.currentSectionIndex < testSeries.sections.length - 1;
-  
-  return hasNextInSection || hasNextSection;
-}
-
-// Enhanced function to get user's previous answer for a question
 async function getUserAnswerForQuestion(session, questionId) {
-  const response = session.responses.find(resp => 
+  const response = session.responses.find(resp =>
     resp.questionId.toString() === questionId.toString()
   );
-  
+
   return response || null;
 }
