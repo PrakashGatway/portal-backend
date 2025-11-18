@@ -35,23 +35,6 @@ export const getTestSeries = async (req, res) => {
         const pipeline = [
             { $match: matchStage },
             {
-                $lookup: {
-                    from: 'exams',
-                    localField: 'examId',
-                    foreignField: '_id',
-                    as: 'exam',
-                },
-            },
-            { $unwind: { path: '$exam', preserveNullAndEmptyArrays: true } },
-            {
-                $lookup: {
-                    from: 'courses',
-                    localField: 'courseAccess',
-                    foreignField: '_id',
-                    as: 'courses',
-                },
-            },
-            {
                 $addFields: {
                     totalSections: { $size: '$sections' },
                     totalQuestions: { $sum: '$sections.totalQuestions' },
@@ -252,11 +235,7 @@ export const updateTestSeries = async (req, res) => {
             }
         }
 
-        const slug = inputSlug
-            ? await generateUniqueSlug(inputSlug, id)
-            : title && title !== existing.title
-                ? await generateUniqueSlug(title, id)
-                : existing.slug;
+        const slug = inputSlug || createSlug(title);
 
         const updated = await TestSeries.findByIdAndUpdate(
             id,

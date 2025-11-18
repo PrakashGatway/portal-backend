@@ -17,7 +17,7 @@ const QuestionOptionSchema = new Schema({
   text: String,
   isCorrect: Boolean,
   explanation: String,
-}, { _id: true });
+}, { _id: false });
 
 const SubQuestionSchema = new Schema({
   question: {
@@ -44,7 +44,6 @@ const QuestionGroupSchema = new Schema({
   },
   type: {
     type: String,
-    required: true,
     enum: questionTypes
   },
   marks: {
@@ -84,7 +83,6 @@ const QuestionSchema = new Schema({
   questionType: {
     type: String,
     enum: questionTypes,
-    required: true
   },
   difficulty: {
     type: String,

@@ -8,6 +8,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 import cookieParser from "cookie-parser";
+import crypto from 'crypto';
 
 import connectDB from './config/database.js';
 // import secondDB from './config/webDb.js';
@@ -33,6 +34,8 @@ import purchaseRoutes from './routes/purchaseRoutes.js';
 import leadRoutes from './routes/leadRoutes.js'
 import testRoutes from './routes/testRoutes.js';
 import webRoutes from './routes/webRoutes.js';
+import aiRoutes from './services/speakingService.js'
+import supportRoutes from './routes/supportRoutes.js';
 
 // import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -122,6 +125,8 @@ app.use('/api/v1/leads', leadRoutes)
 app.use('/api/v1/live', vimeoRoutes);
 app.use('/api/v1/test', testRoutes);
 app.use('/api/v1/web', webRoutes);
+app.use('/api/v1/support', supportRoutes);
+app.use('/api', aiRoutes);
 
 
 // app.use('/api/v1/tokens', tokenRoutes);

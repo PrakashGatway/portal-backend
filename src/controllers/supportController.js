@@ -1,7 +1,7 @@
 import { SupportTicket } from '../models/Support.js';
 
-
-export const getUserTickets = async (req, res, next) => {
+// Get all support tickets (with filtering options)
+export const getAllTickets = async (req, res) => {
     try {
         const {
             page = 1,
@@ -9,13 +9,16 @@ export const getUserTickets = async (req, res, next) => {
             status,
             priority,
             category,
-            search
+            search,
+            assignedTo
         } = req.query;
 
-        const filter = { userId: req.user.id };
+        let filter = {};
+
         if (status) filter.status = status;
         if (priority) filter.priority = priority;
         if (category) filter.category = category;
+        if (assignedTo) filter.assignedTo = assignedTo;
         if (search) {
             filter.$or = [
                 { subject: { $regex: search, $options: 'i' } },
@@ -23,140 +26,297 @@ export const getUserTickets = async (req, res, next) => {
             ];
         }
 
-        const skip = (page - 1) * limit;
-        const total = await SupportTicket.countDocuments(filter);
-        const tickets = await SupportTicket.find(filter)
-            .sort({ updatedAt: -1 })
-            .skip(skip)
-            .limit(parseInt(limit))
-            .populate('assignedTo', 'name email')
-            .lean();
+        // For regular users, only show their own tickets
+        if (req.user.role !== 'admin' && req.user.role !== 'support') {
+            filter.userId = req.user._id;
+        }
 
-        res.status(200).json({
+        const tickets = await SupportTicket.find(filter)
+            .populate('userId', 'name email')
+            .populate('assignedTo', 'name email')
+            .sort({ createdAt: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const total = await SupportTicket.countDocuments(filter);
+
+        res.json({
             success: true,
             tickets,
-            pagination: {
-                page: parseInt(page),
-                limit: parseInt(limit),
-                total,
-                pages: Math.ceil(total / limit)
+            totalPages: Math.ceil(total / limit),
+            currentPage: parseInt(page),
+            total
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Get single support ticket
+export const getTicketById = async (req, res) => {
+    try {
+        const ticket = await SupportTicket.findById(req.params.id)
+            .populate('userId', 'name email')
+            .populate('assignedTo', 'name email')
+            .populate('replies.createdBy', 'name email');
+
+        if (!ticket) {
+            return res.status(404).json({
+                success: false,
+                message: 'Ticket not found'
+            });
+        }
+
+        // Check if user can access this ticket
+        if (req.user.role !== 'admin' && req.user.role !== 'support' &&
+            ticket.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: ticket
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Create new support ticket
+export const createTicket = async (req, res) => {
+    try {
+        const { subject, description, category, priority, relatedTo, relatedModel, extraInfo } = req.body;
+
+        const ticket = new SupportTicket({
+            userId: req.user._id,
+            subject,
+            description,
+            category,
+            priority,
+            relatedTo: relatedTo || undefined,
+            relatedModel: relatedModel || 'None',
+            extraInfo
+        });
+
+        await ticket.save();
+
+        await ticket.populate('userId', 'name email');
+
+        res.status(201).json({
+            success: true,
+            data: ticket
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+// Update ticket status/priority/assignment
+export const updateTicket = async (req, res) => {
+    try {
+        const allowedUpdates = ['status', 'priority', 'assignedTo', 'category'];
+        const updates = {};
+
+        allowedUpdates.forEach(update => {
+            if (req.body[update] !== undefined) {
+                updates[update] = req.body[update];
             }
         });
-    } catch (err) {
-        next(new AppError(err.message, 500));
+
+        const ticket = await SupportTicket.findByIdAndUpdate(
+            req.params.id,
+            updates,
+            { new: true, runValidators: true }
+        ).populate('userId', 'name email');
+
+        if (!ticket) {
+            return res.status(404).json({
+                success: false,
+                message: 'Ticket not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: ticket
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
-export const getTicketById = async (req, res, next) => {
-    const { id } = req.params;
-    if (!validateObjectId(id)) {
-        return next(new AppError('Invalid ticket ID', 400));
-    }
-
-    const ticket = await SupportTicket.findOne({
-        _id: id,
-        userId: req.user.id
-    }).populate('assignedTo', 'name email');
-
-    if (!ticket) {
-        return next(new AppError('Ticket not found', 404));
-    }
-
-    res.status(200).json({ success: true, ticket });
-};
-
-export const createTicket = async (req, res, next) => {
+// Delete ticket (admin only)
+export const deleteTicket = async (req, res) => {
     try {
-        const { relatedTo, relatedModel } = req.body;
-        let ticketData = {
-            ...req.body,
-            userId: req.user.id,
-            createdBy: req.user.id,
-            replies: []
-        };
+        const ticket = await SupportTicket.findByIdAndDelete(req.params.id);
 
-        // Validate dynamic reference
-        if (relatedTo && relatedModel && relatedModel !== 'None') {
-            if (!validateObjectId(relatedTo)) {
-                return next(new AppError('Invalid relatedTo ID', 400));
-            }
-            ticketData.relatedTo = relatedTo;
-            ticketData.relatedModel = relatedModel;
-        } else {
-            ticketData.relatedModel = 'None';
+        if (!ticket) {
+            return res.status(404).json({
+                success: false,
+                message: 'Ticket not found'
+            });
         }
 
-        const ticket = await SupportTicket.create(ticketData);
-        res.status(201).json({ success: true, ticket });
-    } catch (err) {
-        next(new AppError(err.message, 400));
+        res.json({
+            success: true,
+            message: 'Ticket deleted successfully'
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 
-export const addReply = async (req, res, next) => {
-    const { id } = req.params;
-    const { message } = req.body;
+// Add reply to ticket
+export const addReply = async (req, res) => {
+    try {
+        const { message } = req.body;
 
-    if (!validateObjectId(id)) {
-        return next(new AppError('Invalid ticket ID', 400));
-    }
-    if (!message?.trim()) {
-        return next(new AppError('Message is required', 400));
-    }
-
-    const ticket = await SupportTicket.findOne({
-        _id: id,
-        userId: req.user.id
-    });
-
-    if (!ticket) {
-        return next(new AppError('Ticket not found', 404));
-    }
-
-    // Auto-update status if user replies to a resolved/closed ticket
-    let update = {
-        $push: {
-            replies: {
-                message: message.trim(),
-                createdBy: req.user.id,
-                isSupport: false
-            }
+        const ticket = await SupportTicket.findById(req.params.id);
+        if (!ticket) {
+            return res.status(404).json({
+                success: false,
+                message: 'Ticket not found'
+            });
         }
-    };
 
-    if (ticket.status === 'resolved' || ticket.status === 'closed') {
-        update.$set = { status: 'open' };
+        // Check if user can reply to this ticket
+        if (req.user.role !== 'admin' && req.user.role !== 'support' &&
+            ticket.userId.toString() !== req.user._id.toString()) {
+            return res.status(403).json({
+                success: false,
+                message: 'Access denied'
+            });
+        }
+
+        const isSupport = req.user.role === 'admin' || req.user.role === 'support';
+
+        ticket.replies.push({
+            message,
+            createdBy: req.user._id,
+            isSupport
+        });
+
+        await ticket.save();
+        await ticket.populate('replies.createdBy', 'name email');
+
+        res.status(201).json({
+            success: true,
+            data: ticket
+        });
+    } catch (error) {
+        res.status(400).json({
+            success: false,
+            message: error.message
+        });
     }
-
-    const updated = await SupportTicket.findByIdAndUpdate(
-        id,
-        update,
-        { new: true }
-    ).populate('assignedTo', 'name email');
-
-    res.status(200).json({ success: true, ticket: updated });
 };
 
-export const updateTicketStatus = async (req, res, next) => {
-    const { id } = req.params;
-    const { status } = req.body;
+// Close ticket
+export const closeTicket = async (req, res) => {
+    try {
+        const ticket = await SupportTicket.findByIdAndUpdate(
+            req.params.id,
+            { status: 'closed' },
+            { new: true }
+        ).populate('userId', 'name email');
 
-    if (!validateObjectId(id)) {
-        return next(new AppError('Invalid ticket ID', 400));
+        if (!ticket) {
+            return res.status(404).json({
+                success: false,
+                message: 'Ticket not found'
+            });
+        }
+
+        res.json({
+            success: true,
+            data: ticket
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-    if (!status || !['open', 'resolved', 'closed'].includes(status)) {
-        return next(new AppError('Valid status required', 400));
+};
+
+// Get user's tickets
+export const getUserTickets = async (req, res) => {
+    try {
+        const tickets = await SupportTicket.find({ userId: req.user._id })
+            .sort({ createdAt: -1 });
+
+        res.json({
+            success: true,
+            data: tickets
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
+};
 
-    const ticket = await SupportTicket.findOneAndUpdate(
-        { _id: id, userId: req.user.id },
-        { status },
-        { new: true }
-    );
+// Get ticket statistics (admin only)
+export const getTicketStats = async (req, res) => {
+    try {
+        const stats = await SupportTicket.aggregate([
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
 
-    if (!ticket) {
-        return next(new AppError('Ticket not found', 404));
+        const priorityStats = await SupportTicket.aggregate([
+            {
+                $group: {
+                    _id: '$priority',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const categoryStats = await SupportTicket.aggregate([
+            {
+                $group: {
+                    _id: '$category',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        res.json({
+            success: true,
+            data: {
+                status: stats,
+                priority: priorityStats,
+                category: categoryStats
+            }
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
-
-    res.status(200).json({ success: true, ticket });
 };

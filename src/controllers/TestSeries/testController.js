@@ -188,19 +188,12 @@ export const submitAnswer = async (req, res) => {
 
     const totalMarksObtained = processedResults?.reduce((sum, result) => sum + result.marksObtained, 0);
 
-    if (existingResponseIndex !== -1) {
-      const oldResponse = session.responses[existingResponseIndex];
-      const oldTotalMarks = oldResponse.questions.reduce((sum, q) => sum + (q.marksObtained || 0), 0);
-      session.totalScore = session.totalScore - oldTotalMarks + totalMarksObtained;
-    } else {
-      session.totalScore += totalMarksObtained;
-    }
-
     const responseData = {
-      sectionType: currentQuestion.questionCategory, // reading, listening, etc.
+      sectionType: currentQuestion.questionCategory,
       sectionId: currentQuestion.sectionId,
       questionId: currentQuestion._id,
       questions: processedResults,
+      totalScore: totalMarksObtained
     };
 
     if (existingResponseIndex !== -1) {
@@ -575,16 +568,25 @@ async function processSingleQuestion(question, answer, timeSpent) {
 
   const found = answer.find(item => item.questionId == question._id);
 
+  if (!found) {
+    return [{
+      questionGroupId: question._id,
+      subQuestionId: question._id,
+      isCorrect,
+      timeSpent: timeSpent,
+      marksObtained,
+      answer: "",
+      evaluation: ""
+    }];
+  }
+
   if (question.questionType === "writing_task_1_academic" ||
     question.questionType === "writing_task_1_general" ||
     question.questionType === "writing_task_2") {
-
-
     const result = await writingEvaluationService.evaluateWritingTask(question, found.answer);
     isCorrect = result.isCorrect;
     marksObtained = result.marksObtained;
     evaluation = result.evaluation;
-
   } else {
     // Handle other question types if needed
     // const isCorrect = validateAnswer(answer, question.correctAnswer);
@@ -645,50 +647,64 @@ async function processGroupedQuestions(questionGroup, answers, totalTimeSpent) {
 function processQuestionByType(questionType, userAnswer, subQuestion, group, questionGroup, timeSpent) {
   let isCorrect = false;
   let marksObtained = 0;
-  let processedAnswer = userAnswer;
   let validationDetails = {};
 
   switch (questionType) {
     case 'matching_information':
-      isCorrect = validateMatchingAnswer(userAnswer, subQuestion.correctAnswer);
+      isCorrect = userAnswer.toLowerCase() === subQuestion.correctAnswer.toLowerCase();
+      marksObtained = isCorrect ? group.marks : 0;
+      validationDetails = userAnswer
+      break;
+    case 'matching_features':
+      isCorrect = userAnswer.toLowerCase() === subQuestion.correctAnswer.toLowerCase();
       marksObtained = isCorrect ? group.marks : 0;
       validationDetails = userAnswer
       break;
 
     case 'summary_completion':
-      const summaryResult = validateSummaryAnswer(userAnswer, subQuestion.correctAnswer);
-      isCorrect = summaryResult.isCorrect;
-      marksObtained = isCorrect ? group.marks : 0;
-      processedAnswer = summaryResult.processedAnswer;
-      validationDetails = summaryResult.details;
+      const correctArray = subQuestion.correctAnswer
+        .split(',')
+        .map(item => item.trim());
+
+      let correctCount = 0;
+
+      userAnswer.forEach((ans, index) => {
+        if (ans.toLowerCase() === correctArray[index].toLowerCase()) {
+          correctCount++;
+        }
+      });
+      marksObtained = group.marks ? correctCount * group.marks : correctCount * 1;
+      isCorrect = true;
+      validationDetails = userAnswer;
       break;
 
-    case 'multiple_choice_multiple':
-      const mcqResult = validateMultipleChoiceMultiple(userAnswer, subQuestion.correctAnswer, subQuestion.options);
-      isCorrect = mcqResult.isCorrect;
-      marksObtained = isCorrect ? group.marks + 1 : 0;
-      processedAnswer = mcqResult.processedAnswer;
-      validationDetails = mcqResult.details;
-      break;
+    case 'multiple_choice_multiple': {
+      const correctArray = subQuestion.correctAnswer
+        .split(',')
+        .map(item => item.trim().toLowerCase());
 
+      let correctCount = 0;
+      userAnswer.forEach(ans => {
+        if (correctArray.includes(ans.toLowerCase())) {
+          correctCount++;
+        }
+      });
+      marksObtained = group.marks ? correctCount * group.marks : correctCount * 1;
+      isCorrect = true
+      validationDetails = userAnswer;
+      break;
+    }
     case 'multiple_choice_single':
-      // For single choice: compare single option
-      const singleChoiceResult = validateMultipleChoiceSingle(userAnswer, subQuestion.correctAnswer, subQuestion.options);
-      isCorrect = singleChoiceResult.isCorrect;
+      isCorrect = userAnswer.toLowerCase() === subQuestion.correctAnswer.toLowerCase();
       marksObtained = isCorrect ? group.marks : 0;
-      processedAnswer = singleChoiceResult.processedAnswer;
-      validationDetails = singleChoiceResult.details;
+      validationDetails = userAnswer;
       break;
 
     case 'true_false_not_given':
     case 'yes_no_not_given':
-      isCorrect = validateTFNGAnswer(userAnswer, subQuestion.correctAnswer);
+      isCorrect = userAnswer.toLowerCase() === subQuestion.correctAnswer.toLowerCase();
       marksObtained = isCorrect ? group.marks : 0;
-      validationDetails = {
-        expected: subQuestion.correctAnswer,
-        provided: userAnswer,
-        type: 'true_false_ng'
-      };
+      validationDetails = userAnswer
       break;
 
     case 'sentence_completion':
@@ -715,27 +731,8 @@ function processQuestionByType(questionType, userAnswer, subQuestion, group, que
     default:
       isCorrect = validateAnswer(userAnswer, subQuestion.correctAnswer);
       marksObtained = isCorrect ? group.marks : 0;
-      validationDetails = {
-        expected: subQuestion.correctAnswer,
-        provided: userAnswer,
-        type: 'default'
-      };
+      validationDetails = userAnswer
   }
-
-  const response = {
-    questionId: subQuestion._id,
-    questionGroupId: questionGroup._id,
-    subQuestionId: subQuestion._id,
-    groupId: group._id,
-    groupTitle: group.title,
-    questionType: group.type,
-    answer: processedAnswer,
-    timeSpent: timeSpent,
-    isCorrect,
-    marksObtained,
-    evaluatedAt: new Date(),
-    validationDetails: validationDetails
-  };
 
   return {
     questionGroupId: group._id,
@@ -772,112 +769,6 @@ function handleSkippedQuestion(questionType, subQuestion, group, questionGroup) 
     questionType: questionType,
     skipped: true
   };
-}
-
-function validateMatchingAnswer(userAnswer, correctAnswer) {
-  if (typeof userAnswer === 'string' && typeof correctAnswer === 'string') {
-    return userAnswer.toUpperCase().trim() === correctAnswer.toUpperCase().trim();
-  }
-  return false;
-}
-
-function validateSummaryAnswer(userAnswer, correctAnswer) {
-  // Handle both array format and object format for summary completion
-  let isCorrect = false;
-  let processedAnswer = userAnswer;
-  let details = {};
-
-  if (Array.isArray(userAnswer) && Array.isArray(correctAnswer)) {
-    // Array format: ["energy", "food", "gardening", "obesity"]
-    isCorrect = userAnswer.length === correctAnswer.length &&
-      userAnswer.every((ans, index) =>
-        ans.toLowerCase().trim() === correctAnswer[index].toLowerCase().trim()
-      );
-    details = {
-      expected: correctAnswer,
-      provided: userAnswer,
-      type: 'summary_array'
-    };
-  } else if (typeof userAnswer === 'object' && typeof correctAnswer === 'object') {
-    // Object format: {1: "energy", 2: "food", 3: "gardening", 4: "obesity"}
-    const userKeys = Object.keys(userAnswer).sort();
-    const correctKeys = Object.keys(correctAnswer).sort();
-
-    isCorrect = JSON.stringify(userKeys) === JSON.stringify(correctKeys) &&
-      userKeys.every(key =>
-        userAnswer[key].toLowerCase().trim() === correctAnswer[key].toLowerCase().trim()
-      );
-    details = {
-      expected: correctAnswer,
-      provided: userAnswer,
-      type: 'summary_object'
-    };
-  }
-
-  return { isCorrect, processedAnswer, details };
-}
-
-function validateMultipleChoiceMultiple(userAnswer, correctAnswer, options) {
-  // For multiple choice with multiple answers
-  let isCorrect = false;
-  let processedAnswer = userAnswer;
-  let details = {};
-
-  if (Array.isArray(userAnswer) && Array.isArray(correctAnswer)) {
-    // Sort both arrays for comparison
-    const sortedUser = [...userAnswer].sort();
-    const sortedCorrect = [...correctAnswer].sort();
-
-    isCorrect = JSON.stringify(sortedUser) === JSON.stringify(sortedCorrect);
-
-    // Validate that all selected options are valid
-    const validOptions = options ? options.map(opt => opt.label) : [];
-    const invalidSelections = userAnswer.filter(ans => !validOptions.includes(ans));
-
-    details = {
-      expected: correctAnswer,
-      provided: userAnswer,
-      validOptions: validOptions,
-      invalidSelections: invalidSelections,
-      type: 'multiple_choice_multiple'
-    };
-  }
-
-  return { isCorrect, processedAnswer, details };
-}
-
-function validateMultipleChoiceSingle(userAnswer, correctAnswer, options) {
-  // For single choice questions
-  let isCorrect = false;
-  let processedAnswer = userAnswer;
-  let details = {};
-
-  if (typeof userAnswer === 'string' && typeof correctAnswer === 'string') {
-    isCorrect = userAnswer.toUpperCase().trim() === correctAnswer.toUpperCase().trim();
-
-    const validOptions = options ? options.map(opt => opt.label) : [];
-    const isValidOption = validOptions.includes(userAnswer);
-
-    details = {
-      expected: correctAnswer,
-      provided: userAnswer,
-      validOptions: validOptions,
-      isValidOption: isValidOption,
-      type: 'multiple_choice_single'
-    };
-  }
-
-  return { isCorrect, processedAnswer, details };
-}
-
-function validateTFNGAnswer(userAnswer, correctAnswer) {
-  // For True/False/Not Given or Yes/No/Not Given
-  const validAnswers = ['true', 'false', 'not given', 'yes', 'no', 'not given'];
-  const normalizedUser = String(userAnswer).toLowerCase().trim();
-  const normalizedCorrect = String(correctAnswer).toLowerCase().trim();
-
-  return validAnswers.includes(normalizedUser) &&
-    normalizedUser === normalizedCorrect;
 }
 
 function validateShortAnswer(userAnswer, correctAnswer) {
@@ -1087,37 +978,6 @@ async function generateTestAnalysis(sessionId) {
   };
 
   return analysis;
-}
-
-
-function generateRecommendations(session) {
-  const recommendations = [];
-
-  const weakAreas = session.responses
-    .filter(r => !r.isCorrect && !r.skipped)
-    .reduce((acc, response) => {
-      const type = response.questionId;
-      acc[type] = (acc[type] || 0) + 1;
-      return acc;
-    }, {});
-
-  Object.entries(weakAreas)
-    .sort(([, a], [, b]) => b - a)
-    .slice(0, 3)
-    .forEach(([type, count]) => {
-      recommendations.push(`Focus on improving your ${type.replace(/_/g, ' ')} skills`);
-    });
-
-  const avgTime = session.duration / session.responses.length;
-  if (avgTime > 90) {
-    recommendations.push('Practice time management to improve your speed');
-  }
-
-  if (session.responses.filter(r => r.skipped).length > 5) {
-    recommendations.push('Avoid skipping questions; attempt all questions');
-  }
-
-  return recommendations;
 }
 
 async function moveToPreviousQuestion(session) {

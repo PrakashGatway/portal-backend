@@ -25,6 +25,17 @@ const fileFilter = (req, file, cb) => {
   }
 };
 
+const audioFilter = (req, file, cb) => {
+  if (file.mimetype.startsWith("audio/")) {
+    cb(null, true);
+  } else {
+    cb(new Error("Only audio files are allowed!"), false);
+  }
+};
+
+export const uploadAudio = multer({ storage, fileFilter: audioFilter });
+
+
 // Upload middleware
 const upload = multer({
   storage,

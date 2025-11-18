@@ -18,6 +18,7 @@
   "author": "Study Platform Team",
   "license": "MIT",
   "dependencies": {
+    "@google/genai": "^1.29.1",
     "@google/generative-ai": "^0.24.1",
     "@vimeo/vimeo": "^3.0.3",
     "agenda": "^4.3.0",

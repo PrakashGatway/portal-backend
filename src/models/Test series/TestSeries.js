@@ -13,9 +13,9 @@ const testSeriesSchema = new Schema(
             enum: ['Full-Length', 'Mini-Series', 'Sectional'],
             required: true,
         },
-        subType:{
+        subType: {
             type: String,
-            enum:["reading","listening","speaking","writing"]
+            required: false
         },
         description: {
             type: String,

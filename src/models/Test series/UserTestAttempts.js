@@ -47,6 +47,7 @@ const UserSessionSchema = new Schema({
     sectionType: String,
     sectionId: Schema.Types.ObjectId,
     questionId: Schema.Types.ObjectId,
+    totalScore:String,
     questions: [UserResponseSchema]
   }],
   startTime: {

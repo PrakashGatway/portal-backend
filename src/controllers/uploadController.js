@@ -73,3 +73,24 @@ export const uploadImage = async (req, res) => {
     res.status(500).json({ error: "Cloudinary upload failed" });
   }
 };
+
+export const uploadSingleAudio = (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ success: false, message: "No audio file uploaded" });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Audio uploaded successfully",
+      file: {
+        filename: req.file.filename,
+        path: req.file.path,
+        mimetype: req.file.mimetype,
+        size: req.file.size,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
