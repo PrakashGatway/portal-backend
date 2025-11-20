@@ -60,7 +60,7 @@ export const sendOtp = async (req, res) => {
         "otp": otp
       });
     } catch (error) {
-       return res.status(200).json({ success: false, message: "Failed to send OTP" });
+      return res.status(200).json({ success: false, message: "Failed to send OTP" });
     }
 
     // await sendEmail({
@@ -159,6 +159,13 @@ export const verifyOtp = async (req, res) => {
       domain: "gatewayabroadeducations.com",
       maxAge: 7 * 24 * 60 * 60 * 1000
     });
+    // res.cookie("auth_token", accessToken, {
+    //   httpOnly: true,
+    //   secure: false,        // ❗ localhost is not HTTPS
+    //   sameSite: "Lax",      // ✔ works locally without HTTPS
+    //   domain: "localhost",  // or remove domain completely
+    //   maxAge: 7 * 24 * 60 * 60 * 1000
+    // });
 
     await session.commitTransaction();
     session.endSession();

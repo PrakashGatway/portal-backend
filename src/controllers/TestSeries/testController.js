@@ -233,7 +233,7 @@ export const submitAnswer = async (req, res) => {
       success: true,
       message: 'Answer submitted successfully',
       isTestCompleted: false,
-      nextQuestion,
+      currentQuestion:nextQuestion,
       progress: await getProgress(session),
       userAnswer: userAnswer ? userAnswer.questions.map(q => {
         return {

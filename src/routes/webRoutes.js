@@ -14,9 +14,26 @@ import {
   createArticle,
   updateArticle,
   deleteArticle,
-  toggleArticleStatus
+  toggleArticleStatus,
+  logReadTime
 } from '../controllers//Websites/blogController.js';
 import { Lead } from '../models/Leads.js';
+
+
+import {
+  createComment,
+  getArticleComments,
+  getAllComments,
+  approveComment,
+  rejectComment,
+  deleteComment,
+  reportComment,
+  likeComment,
+  dislikeComment,
+  getCommentStats
+} from '../controllers/Websites/commentsControllers.js';
+import { protect } from '../middleware/auth.js';
+
 
 const router = Router();
 
@@ -34,8 +51,22 @@ router.get('/blog/:slug', getArticle);
 
 router.post('/blog/', createArticle);
 router.put('/blog/:id', updateArticle);
+router.post('/blog/log/:id', logReadTime);
 router.delete('/blog/:id', deleteArticle);
 router.patch('/blog/:id/status', toggleArticleStatus);
+
+router.get('/comments/:articleId', getArticleComments);
+router.post('/comments/create', protect, createComment);
+router.post('/:commentId/like', protect, likeComment);
+router.post('/:commentId/dislike', protect, dislikeComment);
+router.post('/:commentId/report', protect, reportComment);
+
+// Admin routes
+router.get('/comments', protect, getAllComments);
+router.put('/:commentId/approve', protect, approveComment);
+router.put('/:commentId/reject', protect, rejectComment);
+router.delete('/:commentId', protect, deleteComment);
+router.get('/stats', protect, getCommentStats);
 
 router.get("/webhook", (req, res) => {
   const mode = req.query["hub.mode"];

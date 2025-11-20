@@ -79,6 +79,10 @@ const articleSchema = new mongoose.Schema(
             type: Number,
             default: 0,
         },
+        readTime: {
+            type: Number,
+            default:0
+        },
         createdBy: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'User'
@@ -96,4 +100,77 @@ articleSchema.index({ title: 'text', content: 'text' });
 
 const Article = secondDB.model('Article', articleSchema);
 
-export { Category, Article };
+
+const commentSchema = new mongoose.Schema(
+    {
+        content: {
+            type: String,
+            required: [true, 'Comment content is required'],
+            trim: true,
+            minlength: [3, 'Comment must be at least 3 characters long'],
+            maxlength: [1000, 'Comment cannot exceed 1000 characters']
+        },
+        article: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Article',
+            required: [true, 'Article reference is required']
+        },
+        author: {
+            name: String,
+            id: String
+        },
+        parent: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Comment',
+            default: null // null means it's a top-level comment
+        },
+        replies: [{
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'Comment'
+        }],
+        status: {
+            type: String,
+            enum: ['pending', 'approved', 'rejected'],
+            default: 'pending'
+        },
+        likes: [{
+            user: String
+        }],
+        dislikes: [{
+            user: String
+        }],
+        isApproved: {
+            type: Boolean,
+            default: false
+        },
+        ipAddress: {
+            type: String,
+            trim: true
+        },
+        userAgent: {
+            type: String,
+            trim: true
+        }
+    },
+    {
+        timestamps: true,
+        toJSON: { virtuals: true },
+        toObject: { virtuals: true }
+    }
+);
+
+commentSchema.virtual('nestedReplies', {
+    ref: 'Comment',
+    localField: '_id',
+    foreignField: 'parent',
+    options: { sort: { createdAt: -1 } }
+});
+
+commentSchema.index({ article: 1, createdAt: -1 });
+commentSchema.index({ parent: 1, createdAt: -1 });
+commentSchema.index({ author: 1, createdAt: -1 });
+
+const Comment = secondDB.model('Comment', commentSchema);
+
+
+export { Category, Article, Comment };

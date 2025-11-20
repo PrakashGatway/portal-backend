@@ -17,6 +17,7 @@ import { socketAuth } from './middleware/socketMiddleware.js';
 
 import chatController from "./controllers/chatController.js"
 
+
 import authRoutes from './routes/authRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import courseRoutes from './routes/courseRoutes.js';
