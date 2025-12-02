@@ -25,13 +25,15 @@ const SectionSchema = new Schema(
         totalQuestions: {
             type: Number,
             required: true,
-        }
+        },
+        order: {
+            type: Number,      // section order inside exam (1,2,3,...)
+            default: 1,
+        },
     },
     {
         timestamps: true,
     }
 );
-
-SectionSchema.index({ examId: 1, order: 1 });
 
 export const Section = model('Section', SectionSchema);

@@ -3,6 +3,7 @@ import mongoose, { Schema } from 'mongoose';
 
 const LEAD_STATUSES = [
     'new',
+    'viewed',
     'contacted',
     'interested',
     'notInterested',

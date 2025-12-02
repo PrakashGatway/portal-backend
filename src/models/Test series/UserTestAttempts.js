@@ -20,6 +20,27 @@ const UserResponseSchema = new Schema({
   evaluation: Schema.Types.Mixed
 }, { _id: true });
 
+
+const SectionStateSchema = new Schema({
+  sectionId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Section',
+    required: true
+  },
+  status: {
+    type: String,
+    enum: ['not_started', 'in_progress', 'completed'],
+    default: 'not_started'
+  },
+  startTime: Date,
+  endTime: Date,
+  timeSpent: {
+    type: Number, // seconds
+    default: 0
+  }
+}, { _id: false });
+
+
 const UserSessionSchema = new Schema({
   userId: {
     type: Schema.Types.ObjectId,
@@ -43,6 +64,7 @@ const UserSessionSchema = new Schema({
     type: Number,
     default: 0,
   },
+  sectionStates: [SectionStateSchema],
   responses: [{
     sectionType: String,
     sectionId: Schema.Types.ObjectId,

@@ -23,6 +23,16 @@ import {
     deleteTestSeries,
 } from '../controllers/TestSeries/testSeriesController.js';
 
+import {
+    getAllProducts,
+    getProductById,
+    createProduct,
+    updateProduct,
+    deleteProduct,
+    getProductsByExam,
+    searchProducts
+} from '../controllers/TestSeries/packageController.js';
+
 import * as ctrl from '../controllers/TestSeries/questionController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -33,7 +43,8 @@ import {
     skipQuestion,
     submitTest,
     getTestAnalysis,
-    getPreviousQuestion
+    getPreviousQuestion,
+    startSection
 } from '../controllers/TestSeries/testController.js';
 
 
@@ -80,21 +91,29 @@ router.route('/questions/:id')
 
 
 router.post('/start', protect, startTest);
-
 // router.get('/session/:sessionId/current-question', protect, getCurrentQuestion);
-
 router.post('/session/:sessionId/submit', protect, submitAnswer);
-
 router.get('/session/:sessionId/previous',
     protect,
     getPreviousQuestion
 );
-
+router.post('/session/:sessionId/start-section', protect, startSection);
 // router.post('/session/:sessionId/skip-question', protect, skipQuestion);
-
-router.post('/session/:sessionId/submit', protect, submitTest);
-
+// router.post('/session/:sessionId/submit', protect, submitTest);
 router.get('/session/:sessionId/analysis', protect, getTestAnalysis);
+
+
+router.route('/package')
+    .get(getAllProducts)
+    .post(createProduct);
+
+router.route('/package/search').get(searchProducts);
+router.route('/package/by-exam').get(getProductsByExam);
+
+router.route('/package/:id')
+    .get(getProductById)
+    .put(updateProduct)
+    .delete(deleteProduct);
 
 
 export default router;

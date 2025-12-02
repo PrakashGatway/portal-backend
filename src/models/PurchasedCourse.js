@@ -7,6 +7,17 @@ const purchasedCourseSchema = new mongoose.Schema({
         required: true,
         index: true
     },
+    itemType: {
+        type: String,
+        enum: ['course', 'package', 'testSeries'],
+        required: true
+    },
+    itemId: {
+        type: mongoose.Schema.Types.ObjectId,
+        required: true,
+        index: true,
+        refPath: 'itemType'
+    },
     course: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Course',
@@ -24,6 +35,7 @@ const purchasedCourseSchema = new mongoose.Schema({
             completedAt: { type: Date, default: Date.now }
         }]
     },
+    transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' },
     totalTimeSpent: { type: Number, default: 0 },
     lastAccessedAt: { type: Date },
     recentLessons: [{

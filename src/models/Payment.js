@@ -6,6 +6,9 @@ const TransactionSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
     course: { type: Schema.Types.ObjectId, ref: "Course" },
+    package: { type: Schema.Types.ObjectId, ref: "Package" },
+    testSeries: { type: Schema.Types.ObjectId, ref: "TestSeries" },
+
     type: {
       type: String,
       enum: [
@@ -16,6 +19,8 @@ const TransactionSchema = new Schema(
         "referral_bonus",
         "purchase_bonus",
         "course_purchase",
+        "package_purchase",
+        "test_series_purchase"
       ],
       required: true,
     },

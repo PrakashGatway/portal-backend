@@ -18,8 +18,7 @@ const examSchema = new Schema(
     },
     examType: {
       type: String,
-      enum: ['Language Proficiency', 'Undergraduate Admission', 'Graduate Admission'],
-      required: true,
+      enum: ['Language Proficiency', 'Undergraduate Admission', 'Graduate Admission']
     },
     sections: [
       {

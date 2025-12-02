@@ -29,7 +29,6 @@ export const getSections = async (req, res) => {
             sortBy = 'order',
             sortOrder = 'asc',
             isActive,
-            examId,
             search,
         } = req.query;
 

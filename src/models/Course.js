@@ -33,7 +33,9 @@ const courseSchema = new mongoose.Schema({
   },
   subcategory: {
     type: mongoose.Schema.ObjectId,
-    ref: 'Category'
+    ref: 'Category',
+    default: null,
+    required: false
   },
   instructors: [{
     type: mongoose.Schema.Types.ObjectId,

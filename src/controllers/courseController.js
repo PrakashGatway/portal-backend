@@ -403,7 +403,7 @@ const createCourse = [
       shortDescription,
       slug,
       category,
-      subcategory: subcategory ? subcategory : null,
+      subcategory: subcategory ? new mongoose.Types.ObjectId(subcategory) : null,
       instructors,
       level: level || 'beginner',
       language: language || 'English',

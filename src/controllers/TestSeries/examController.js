@@ -49,6 +49,15 @@ export const getExams = async (req, res) => {
                 $unwind: { path: '$category', preserveNullAndEmptyArrays: true },
             },
             {
+                $lookup: {
+                    from: 'sections',
+                    localField: 'sections',
+                    foreignField: '_id',
+                    as: 'sections',
+                    pipeline: [{ $project: { name: 1, duration: 1 } }],
+                }
+            },
+            {
                 $sort: { createdAt: -1 },
             },
         ];
