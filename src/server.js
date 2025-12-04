@@ -39,11 +39,13 @@ import aiRoutes from './services/speakingService.js'
 import supportRoutes from './routes/supportRoutes.js';
 import mcuRoutes from './routes/mcuRoutes.js';
 
-// import notificationRoutes from './routes/notificationRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
+
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
+import "./cronJob/leadAutoAssign.js"
+
 import { Question } from './models/GGSschema/questionSchema.js';
-// import analyticsRoutes from './routes/analyticsRoutes.js';
+
 
 setupWalletCronJob();
 

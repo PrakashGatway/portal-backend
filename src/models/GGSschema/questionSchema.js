@@ -123,8 +123,10 @@ const questionSchema = new Schema(
         "gre_verbal_text_completion",
         "gre_verbal_sentence_equivalence",
         "gre_verbal_reading_comp",
+        "gre_verbal_reading_multi",
         "gre_quantitative",
-
+        "gre_quantitative_multi",
+        "gre_quantitative_value",
         "sat_reading_writing",
         "sat_math_calculator",
         "sat_math_no_calculator",
@@ -147,7 +149,7 @@ const questionSchema = new Schema(
       type: String,
       required: true,
     },
-
+    typeSpecific: Schema.Types.Mixed, // additional fields based on questionType
     options: [optionSchema],   // MCQ options (optional for essay/numeric)
     correctAnswerText: String, // numeric or text answer (for non-MCQ types)
     dataInsights: dataInsightsSchema,
