@@ -229,10 +229,6 @@ export const startTestAttempt = async (req, res) => {
       });
     }
 
-    // OPTIONAL: if you want to restrict here:
-    // For SAT: template.exam.name === 'SAT', but in general we accept any exam.
-
-    // 1) If user already has an in_progress attempt for this test, resume it
     const existing = await TestAttempt.findOne({
       user: userId,
       testTemplate: testTemplateId,

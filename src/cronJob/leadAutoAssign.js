@@ -22,34 +22,53 @@ async function assignOldestLeadsOneToOne() {
 
   const leads = await Lead.find({
     $or: [
-        { assignedCounselor: { $exists: false } },
-        { assignedCounselor: null }
+      { assignedCounselor: { $exists: false } },
+      { assignedCounselor: null }
     ]
   })
     .sort({ createdAt: 1, _id: 1 }) // 🔥 oldest first
     .limit(counselors.length)
     .lean();
 
-    console.log(`ℹ️ Found ${leads.length} unassigned leads.`);
+  console.log(`ℹ️ Found ${leads.length} unassigned leads.`);
 
   if (!leads.length) {
     console.log("✔ No unassigned leads.");
     return 0;
   }
+  if (leads.length == 1) {
+    let lastAssigned = await Lead.findOne({ assignedCounselor: { $exists: true } }).sort({ createdAt: -1 });
+    console.log(counselors)
 
-  const ops = leads.map((lead, i) => ({
-    updateOne: {
-      filter: { _id: lead._id },
-      update: {
-        $set: {
-          assignedCounselor: counselors[i]._id
+    const lastId = lastAssigned.assignedCounselor.toString();
+
+    const assignTo = counselors.find(
+      (c) => c._id.toString() != lastId
+    );
+
+    console.log(assignTo)
+
+    await Lead.updateOne(
+      { _id: leads[0]._id },
+      { $set: { assignedCounselor: assignTo._id } }
+    );
+    return 1;
+  } else {
+    const ops = leads.map((lead, i) => ({
+      updateOne: {
+        filter: { _id: lead._id },
+        update: {
+          $set: {
+            assignedCounselor: counselors[i]._id
+          }
         }
       }
-    }
-  }));
+    }));
 
-  const result = await Lead.bulkWrite(ops);
-  return result.modifiedCount || ops.length;
+    const result = await Lead.bulkWrite(ops);
+    return result.modifiedCount || ops.length;
+
+  }
 }
 
 
