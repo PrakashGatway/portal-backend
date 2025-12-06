@@ -130,34 +130,30 @@ const questionSchema = new Schema(
         "sat_reading_writing",
         "sat_math_calculator",
         "sat_math_no_calculator",
-
+        "sat_value",
         "essay",
         "other",
       ],
     },
-
     difficulty: {
       type: String,
       enum: ["Easy", "Medium", "Hard"],
       default: "Medium",
     },
-
-    tags: [String],         // topics: "algebra", "probability", "rc-science", etc.
-
-    stimulus: String,       // passage, graph, scenario (optional)
+    tags: [String],
+    stimulus: String,
     questionText: {
       type: String,
       required: true,
     },
-    typeSpecific: Schema.Types.Mixed, // additional fields based on questionType
-    options: [optionSchema],   // MCQ options (optional for essay/numeric)
-    correctAnswerText: String, // numeric or text answer (for non-MCQ types)
+    typeSpecific: Schema.Types.Mixed,
+    options: [optionSchema],  
+    correctAnswerText: String,
     dataInsights: dataInsightsSchema,
     marks: { type: Number, default: 1 },
     negativeMarks: { type: Number, default: 0 },
-
     explanation: String,
-    source: String,        // "Official Guide", "Custom", etc.
+    source: String, 
   },
   { timestamps: true }
 );

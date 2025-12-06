@@ -16,8 +16,6 @@ async function assignOldestLeadsOneToOne() {
     console.log("⚠️ No counselors found.");
     return 0;
   }
-  console.log(`ℹ️ Found ${counselors.length} counselors.`);
-
 
 
   const leads = await Lead.find({
@@ -30,23 +28,18 @@ async function assignOldestLeadsOneToOne() {
     .limit(counselors.length)
     .lean();
 
-  console.log(`ℹ️ Found ${leads.length} unassigned leads.`);
 
   if (!leads.length) {
-    console.log("✔ No unassigned leads.");
     return 0;
   }
   if (leads.length == 1) {
     let lastAssigned = await Lead.findOne({ assignedCounselor: { $exists: true } }).sort({ createdAt: -1 });
-    console.log(counselors)
 
     const lastId = lastAssigned.assignedCounselor.toString();
 
     const assignTo = counselors.find(
       (c) => c._id.toString() != lastId
     );
-
-    console.log(assignTo)
 
     await Lead.updateOne(
       { _id: leads[0]._id },
