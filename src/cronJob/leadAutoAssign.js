@@ -2,7 +2,7 @@ import cron from "node-cron";
 import User from "../models/User.js";
 import { Lead } from "../models/Leads.js";
 
-const CRON_SCHEDULE = "*/20 * * * * *"; // every 5 min (change as needed)
+const CRON_SCHEDULE = "*/60 * * * * *"; // every 5 min (change as needed)
 const TIMEZONE = "Asia/Kolkata";
 
 
