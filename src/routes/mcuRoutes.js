@@ -51,11 +51,8 @@ router.get("/test/:id", /* requireAdmin, */ getTestTemplateById);
 router.put("/test/:id", /* requireAdmin, */ updateTestTemplate);
 router.delete("/test/:id", /* requireAdmin, */ deleteTestTemplate);
 
-// Public store-style listing
 router.get("/public/store", listStoreTests);
 
-
-// All routes assume user must be authenticated
 router.post("/start", protect, startTestAttempt);
 router.get("/attempts/:id", protect, getTestAttemptById);
 router.patch("/attempts/:id/save-progress", protect, saveTestProgress);

@@ -93,12 +93,12 @@ router.post("/webhook", async (req, res) => {
           console.log(leadId)
           try {
             const response = await fetch(
-              `https://graph.facebook.com/v19.0/${leadId}?access_token=EAA8w7TGqzLwBQP40nFukZC02lhVa7BcQFmmi5ZAtWkua8JYlJBGWZBopdz71DZAUMz6mf65BZBbvF77kjvP0rKYGgOPUXLPr5nVrAZAZAGbBi5UUZAkPZCao9li79i2UsujTEyVGq4h4xUpQ8RwvPU0ZAD3g9GbfZBxP7vVDR8mI0a526FCg3vq5GN5XS8SW4lC6EEpvKP6Yv6gpR8H1NEtMtviIhBLPxsG2cip`
+              `https://graph.facebook.com/v19.0/${leadId}?access_token=EAA8w7TGqzLwBQGPWeZCVRfyqC3u8wYtavfUjYFYKXBhfgMyO7zfTWRx90PJyg3DZBYM7LMvgJnoZChxu36wk25bBaWLQ2HPKIZB1KKZBocfg8U87yUjENG35ztO7Avs9UqY4rakzogMfSKF2Mq8FeIxkFZBcZCLdKqscZC2dKhGVs9pgOvHLT8pZA5jmV36ktIqf1E2gZD`
             );
             const leadData = await response.json();
 
             const formattedData = Object.fromEntries(
-              leadData.field_data.map(f => [f.name, f.values[0]])
+              leadData.field_data?.map(f => [f.name, f.values[0]])
             );
 
             const { full_name, email, phone_number, phone, city, ...extraDetails } = formattedData;
@@ -132,6 +132,8 @@ async function getLongLivedPageTokenSimple(appId, appSecret, userToken, pageId) 
     const pageToken = await axios.get(
       `${baseURL}/${pageId}?fields=access_token,name&access_token=${longUserToken.data.access_token}`
     );
+
+    // pageid ="221710514363587"
     return {
       pageAccessToken: pageToken.data.access_token,
       pageName: pageToken.data.name,

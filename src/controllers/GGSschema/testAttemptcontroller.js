@@ -5,11 +5,6 @@ import { TestAttempt } from "../../models/GGSschema/attemptSchema.js";
 
 const { Types } = mongoose;
 
-/**
- * Create sections + question list for a new attempt
- * Handles both fixed and random selection for full/sectional,
- * and quiz-style templates.
- */
 const buildSectionsForAttempt = async (template) => {
   const sectionsForAttempt = [];
 
@@ -144,9 +139,6 @@ const buildSectionsForAttempt = async (template) => {
   return sectionsForAttempt;
 };
 
-/**
- * Remove correct answers from question docs before sending to frontend.
- */
 const sanitizeQuestionsForClient = (questions) =>
   questions.map((q) => {
     const plain = q.toObject ? q.toObject() : q;
@@ -162,6 +154,11 @@ const sanitizeQuestionsForClient = (questions) =>
 
     // Numeric/text: remove correct answer text
     delete plain.correctAnswerText;
+    delete plain.explanation;
+    delete plain.negativeMarks;
+    delete plain.source;
+    delete plain.createdAt;
+    delete plain.updatedAt;
 
     // OPTIONAL: if you follow the dataInsights schema
     if (plain.dataInsights) {
@@ -192,7 +189,6 @@ const sanitizeQuestionsForClient = (questions) =>
       }
 
       if (di.twoPart?.correctByColumn) {
-        // don't send correctByColumn to client
         const { correctByColumn, ...rest } = di.twoPart;
         di.twoPart = rest;
       }
@@ -202,8 +198,6 @@ const sanitizeQuestionsForClient = (questions) =>
 
     return plain;
   });
-
-// req.user._id is assumed from auth middleware
 
 export const startTestAttempt = async (req, res) => {
   try {
@@ -232,7 +226,7 @@ export const startTestAttempt = async (req, res) => {
     const existing = await TestAttempt.findOne({
       user: userId,
       testTemplate: testTemplateId,
-      status: "in_progress",
+      // status: "in_progress",
     });
 
     if (existing) {
@@ -351,8 +345,6 @@ export const setGmatOrder = async (req, res) => {
   }
 };
 
-
-
 export const getTestAttemptById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -366,7 +358,7 @@ export const getTestAttemptById = async (req, res) => {
 
     const attempt = await TestAttempt.findOne({
       _id: id,
-      user: userId, // ensure user only sees own attempt
+      user: userId,
     })
       .populate("exam", "name description")
       .populate("testTemplate", "title description testType")
@@ -390,7 +382,8 @@ export const getTestAttemptById = async (req, res) => {
       _id: { $in: allQuestionIds },
     }).lean();
 
-    const sanitized = sanitizeQuestionsForClient(questionDocs);
+    const sanitized = attempt.status == "completed" ? questionDocs : sanitizeQuestionsForClient(questionDocs);
+
     const questionMap = {};
     sanitized.forEach((q) => {
       questionMap[String(q._id)] = q;
