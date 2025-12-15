@@ -130,15 +130,15 @@ async function processLeadsForMeta() {
 }
 const CRON_SCHEDULE = '0 22 * * *';
 
-cron.schedule(
-  CRON_SCHEDULE,
-  () => {
-    processLeadsForMeta().catch(err =>
-      console.error('❌ Cron Error:', err.message)
-    );
-  },
-  { scheduled: true, timezone: 'Asia/Kolkata' }
-);
+// cron.schedule(
+//   CRON_SCHEDULE,
+//   () => {
+//     processLeadsForMeta().catch(err =>
+//       console.error('❌ Cron Error:', err.message)
+//     );
+//   },
+//   { scheduled: true, timezone: 'Asia/Kolkata' }
+// );
 
 
 

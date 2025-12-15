@@ -137,8 +137,6 @@ const testAttemptSchema = new Schema(
 
     totalDurationMinutes: Number, // from TestTemplate
     totalTimeUsedSeconds: { type: Number, default: 0 },
-
-    // Sections with questions & answers
     sections: [attemptSectionSchema],
 
     // Overall scoring after submission

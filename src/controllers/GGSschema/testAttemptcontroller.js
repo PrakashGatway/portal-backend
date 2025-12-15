@@ -598,20 +598,13 @@ export const submitTestAttempt = async (req, res) => {
 
         totalQuestions += 1;
 
-        // Determine if user answered
-        const hasSelections =
-          aq.selections && aq.selections.size
-            ? aq.selections.size > 0
-            : false;
-        const hasDropdowns =
-          aq.dropdownSelections && aq.dropdownSelections.size
-            ? aq.dropdownSelections.size > 0
-            : false;
         const answered =
           (aq.answerOptionIndexes && aq.answerOptionIndexes.length > 0) ||
           (typeof aq.answerText === "string" && aq.answerText.trim().length > 0) ||
           hasSelections ||
           hasDropdowns;
+
+        console.log(aq.answerText)
 
         if (!answered) {
           secSkipped += 1;
@@ -622,48 +615,44 @@ export const submitTestAttempt = async (req, res) => {
         }
 
         totalAttempted += 1;
-
-        // Determine correct answers for MCQ from qDoc.options
         let isCorrect = false;
         let marks = qDoc.marks ?? 1;
         let negative = qDoc.negativeMarks ?? 0;
 
         if (qDoc.questionType === "gmat_data_insights" && qDoc.dataInsights) {
           const di = qDoc.dataInsights;
+          const jsonAnswer = JSON.parse(aq.answerText);
 
           switch (di.subtype) {
             case "multi_source_reasoning": {
-              // each statement id → "yes"/"no"
               isCorrect = di.multiSource.statements.every((st) => {
                 const sel =
-                  aq.selections && aq.selections.get
-                    ? aq.selections.get(st.id)
-                    : aq.selections?.[st.id];
+                  jsonAnswer && jsonAnswer.multiSource.get
+                    ? jsonAnswer.multiSource.get(st.id)
+                    : jsonAnswer.multiSource?.[st.id];
                 return sel === st.correct;
               });
               break;
             }
-
             case "two_part_analysis": {
               const correctMap = di.twoPart.correctByColumn || {};
               isCorrect = Object.entries(correctMap).every(
                 ([colId, correctOptId]) => {
                   const sel =
-                    aq.selections && aq.selections.get
-                      ? aq.selections.get(colId)
-                      : aq.selections?.[colId];
+                    jsonAnswer && jsonAnswer.twoPart.get
+                      ? jsonAnswer.twoPart.get(colId)
+                      : jsonAnswer.twoPart?.[colId];
                   return sel === correctOptId;
                 }
               );
               break;
             }
-
             case "table_analysis": {
               isCorrect = di.tableAnalysis.statements.every((st) => {
                 const sel =
-                  aq.selections && aq.selections.get
-                    ? aq.selections.get(st.id)
-                    : aq.selections?.[st.id];
+                  jsonAnswer && jsonAnswer.tableAnalysis.get
+                    ? jsonAnswer.tableAnalysis.get(st.id)
+                    : jsonAnswer.tableAnalysis?.[st.id];
                 return sel === st.correct;
               });
               break;
@@ -672,9 +661,9 @@ export const submitTestAttempt = async (req, res) => {
             case "graphics_interpretation": {
               isCorrect = di.graphics.dropdowns.every((dd) => {
                 const sel =
-                  aq.dropdownSelections && aq.dropdownSelections.get
-                    ? aq.dropdownSelections.get(dd.id)
-                    : aq.dropdownSelections?.[dd.id];
+                  jsonAnswer && jsonAnswer.graphics.get
+                    ? jsonAnswer.graphics.get(dd.id)
+                    : jsonAnswer.graphics?.[dd.id];
                 return typeof sel === "number" && sel === dd.correctIndex;
               });
               break;
@@ -683,6 +672,8 @@ export const submitTestAttempt = async (req, res) => {
             default:
               isCorrect = false;
           }
+        }else if (qDoc.questionType === "gre_analytical_writing"){
+          isCorrect = true
         } else if (qDoc.options && qDoc.options.length) {
           const correctIndexes = [];
           qDoc.options.forEach((opt, idx) => {
@@ -701,12 +692,10 @@ export const submitTestAttempt = async (req, res) => {
             isCorrect = false;
           }
         } else {
-          // Non-MCQ (e.g., numeric/text) – simple normalized comparison
           const correct = (qDoc.correctAnswerText || "").trim().toLowerCase();
           const user = (aq.answerText || "").trim().toLowerCase();
           isCorrect = correct && user && correct === user;
         }
-
         if (isCorrect) {
           secCorrect += 1;
           totalCorrect += 1;
@@ -761,3 +750,29 @@ export const submitTestAttempt = async (req, res) => {
     });
   }
 };
+
+// let jsonAn = `{ "twoPart": { "5b64d44f-35ff-4565-9e32-b126e13d8a59": "88003da6-0f19-42ac-9668-efa8ccb38501", "c730eb97-7f88-4e93-bf90-83b397ca0b10": "446357a3-43da-497a-9b15-08122cb29c48" } }`
+// let jsonAnswer = JSON.parse(jsonAn);
+// console.log(jsonAnswer)
+
+// function isCorrectAnswer() {
+//   let correctByColumn = {
+//     "c730eb97-7f88-4e93-bf90-83b397ca0b10": "446357a3-43da-497a-9b15-08122cb29c48",
+//       "5b64d44f-35ff-4565-9e32-b126e13d8a59": "88003da6-0f19-42ac-9668-efa8ccb38501"
+//   }
+//   let isCorrect;
+//   const correctMap = correctByColumn || {};
+//   isCorrect = Object.entries(correctMap).every(
+//     ([colId, correctOptId]) => {
+//       const sel =
+//         jsonAnswer && jsonAnswer.twoPart.get
+//           ? jsonAnswer.twoPart.get(colId)
+//           : jsonAnswer.twoPart?.[colId];
+//       return sel === correctOptId;
+//     }
+//   );
+//   console.log(isCorrect)
+// }
+// isCorrectAnswer()
+
+
