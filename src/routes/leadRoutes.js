@@ -7,9 +7,10 @@ import {
     deleteLead,
     getLeadStats,
     addNoteToLead,
-    bulkAddLeads
+    bulkAddLeads,
+    bulkDeleteLeads
 } from '../controllers/leadController.js';
-import { protect } from '../middleware/auth.js';
+import { authorize, protect } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -20,14 +21,17 @@ router.route('/')
 router.route('/stats')
     .get(protect, getLeadStats);
 
-router.route('/:id/notes').post(protect,addNoteToLead)
+router.route('/:id/notes').post(protect, addNoteToLead)
 
 router.route('/:id')
     .get(protect, getLeadById)
     .put(protect, updateLead)
-    .delete(protect, deleteLead);
+    .delete(protect, authorize('admin', 'super_admin'), deleteLead);
 
 router.route('/bulk')
-    .post(protect, bulkAddLeads);
+    .post(protect, authorize('admin', 'super_admin'), bulkAddLeads)
+    
+router.route('/bulk/delete')
+    .delete(protect, authorize('admin', 'super_admin'), bulkDeleteLeads)
 
 export default router;

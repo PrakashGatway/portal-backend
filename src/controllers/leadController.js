@@ -399,3 +399,28 @@ export const bulkAddLeads = async (req, res) => {
   }
 };
 
+
+export const bulkDeleteLeads = async (req, res) => {
+  try {
+    const { ids } = req.body;
+    // Validate input
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ message: "Request body must contain a non-empty array of IDs." });
+    }
+
+    const isValid = ids.every(id => mongoose.Types.ObjectId.isValid(id));
+    if (!isValid) {
+      return res.status(400).json({ message: "One or more IDs are invalid." });
+    }
+
+    const result = await Lead.deleteMany({ _id: { $in: ids } }); // Assumes your model is named 'Lead'
+
+    res.status(200).json({ message: `${result.deletedCount} lead(s) deleted successfully.`, deletedCount: result.deletedCount });
+
+  } catch (error) {
+    console.error("Bulk delete error:", error);
+    res.status(500).json({ message: "Server error during bulk deletion.", error: error.message });
+  }
+};
+
+
