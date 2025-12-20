@@ -133,7 +133,7 @@ export const startTest = async (req, res) => {
           answer: q.answer
         }
       }) : [],
-      timeRemaining: testSeries.duration * 60
+      timeRemaining: testSeries.duration * 60 - session.sectionStates[session.currentSectionIndex]?.timeSpent
     });
 
   } catch (error) {
@@ -200,7 +200,7 @@ export const startSection = async (req, res) => {
       currentSectionIndex: sectionIndex,
       currentQuestion: firstQuestion,
       progress: await getProgress(session),
-      sectionTimeRemaining: section.duration // frontend can use this
+      sectionTimeRemaining: section.duration - session.sectionStates[sectionIndex].timeSpent
     });
   } catch (error) {
     console.error('Start section error:', error);
@@ -357,9 +357,9 @@ export const submitAnswer = async (req, res) => {
     if (!sessionValidation.success) {
       return res.status(sessionValidation.status).json(sessionValidation);
     }
-
     const session = sessionValidation.data;
-
+    const sectionState = session.sectionStates[session.currentSectionIndex];
+    sectionState.timeSpent += timeSpent;
     const currentQuestion = await getCurrentQuestionForEvaluation(session);
 
     if (!currentQuestion) {
@@ -429,7 +429,6 @@ export const submitAnswer = async (req, res) => {
     const testSeries = await TestSeries.findById(session.testSeriesId)
       .populate('sections.sectionId');
 
-    // Case 1: Full-Length, section finished but test not fully done
     if (testSeries.type === 'Full-Length' && !isCompleted && session.currentSectionIndex === -1) {
       const sections = testSeries.sections.map((sec, index) => {
         const state = session.sectionStates?.find(
@@ -699,61 +698,6 @@ export const getPreviousQuestion = async (req, res) => {
   }
 };
 
-export const goToQuestion = async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { questionIndex, sectionIndex } = req.body;
-    const userId = req.user._id;
-
-    const sessionValidation = await validateSession(sessionId, userId);
-    if (!sessionValidation.success) {
-      return res.status(sessionValidation.status).json(sessionValidation);
-    }
-
-    const session = sessionValidation.data;
-    const testSeries = await TestSeries.findById(session.testSeriesId);
-
-    // Validate the requested position
-    if (sectionIndex < 0 || sectionIndex >= testSeries.sections.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid section index'
-      });
-    }
-
-    const targetSection = testSeries.sections[sectionIndex];
-    if (questionIndex < 0 || questionIndex >= targetSection.questionIds.length) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid question index'
-      });
-    }
-
-    // Update session position
-    session.currentSectionIndex = sectionIndex;
-    session.currentQuestionIndex = questionIndex;
-    await session.save();
-
-    // Get the question data
-    const questionData = await getCurrentQuestionData(session);
-
-    res.status(200).json({
-      success: true,
-      message: 'Navigated to question',
-      question: questionData,
-      progress: await getProgress(session)
-    });
-
-  } catch (error) {
-    console.error('Go to question error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Internal server error',
-      error: error.message
-    });
-  }
-};
-
 async function validateSession(sessionId, userId) {
   const session = await UserSession.findById(sessionId);
 
@@ -817,7 +761,6 @@ async function getCurrentQuestionData(session) {
 
   return question;
 }
-
 
 async function getCurrentQuestionForEvaluation(session) {
   const testSeries = await TestSeries.findById(session.testSeriesId);
@@ -924,7 +867,6 @@ async function triggerSpeakingEvaluationInBackground({ sessionId, questionId, qu
     console.error('Background speaking evaluation failed', err);
   }
 }
-
 
 async function processGroupedQuestions(questionGroup, answers, totalTimeSpent) {
   const results = [];

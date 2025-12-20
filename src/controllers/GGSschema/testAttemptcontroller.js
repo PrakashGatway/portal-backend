@@ -421,7 +421,6 @@ export const getTestAttemptById = async (req, res) => {
   }
 };
 
-
 export const saveTestProgress = async (req, res) => {
   try {
     const { id } = req.params;
@@ -536,7 +535,6 @@ export const saveTestProgress = async (req, res) => {
   }
 };
 
-
 export const submitTestAttempt = async (req, res) => {
   try {
     const { id } = req.params;
@@ -600,11 +598,7 @@ export const submitTestAttempt = async (req, res) => {
 
         const answered =
           (aq.answerOptionIndexes && aq.answerOptionIndexes.length > 0) ||
-          (typeof aq.answerText === "string" && aq.answerText.trim().length > 0) ||
-          hasSelections ||
-          hasDropdowns;
-
-        console.log(aq.answerText)
+          (typeof aq.answerText === "string" && aq.answerText.trim().length > 0) 
 
         if (!answered) {
           secSkipped += 1;
@@ -712,7 +706,6 @@ export const submitTestAttempt = async (req, res) => {
           aq.marksAwarded = -negative;
         }
       }
-
       sec.stats = {
         correct: secCorrect,
         incorrect: secIncorrect,

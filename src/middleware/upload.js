@@ -11,6 +11,16 @@ const storage = multer.diskStorage({
   },
 });
 
+const storageforAudio = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, "uploads/audio/"); // folder where files will be stored
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + path.extname(file.originalname)); // add extension
+  },
+});
+
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|svg|gif/;
   const extname = allowedTypes.test(
@@ -33,10 +43,10 @@ const audioFilter = (req, file, cb) => {
   }
 };
 
-export const uploadAudio = multer({ storage, fileFilter: audioFilter });
+export const uploadAudio = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
 
+export const uploadAnswers = multer({ storageforAudio, limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: audioFilter });
 
-// Upload middleware
 const upload = multer({
   storage,
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit

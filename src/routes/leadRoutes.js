@@ -6,7 +6,8 @@ import {
     updateLead,
     deleteLead,
     getLeadStats,
-    addNoteToLead
+    addNoteToLead,
+    bulkAddLeads
 } from '../controllers/leadController.js';
 import { protect } from '../middleware/auth.js';
 
@@ -25,5 +26,8 @@ router.route('/:id')
     .get(protect, getLeadById)
     .put(protect, updateLead)
     .delete(protect, deleteLead);
+
+router.route('/bulk')
+    .post(protect, bulkAddLeads);
 
 export default router;

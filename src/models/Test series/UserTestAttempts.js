@@ -35,7 +35,7 @@ const SectionStateSchema = new Schema({
   startTime: Date,
   endTime: Date,
   timeSpent: {
-    type: Number, // seconds
+    type: Number,
     default: 0
   }
 }, { _id: false });
@@ -69,7 +69,7 @@ const UserSessionSchema = new Schema({
     sectionType: String,
     sectionId: Schema.Types.ObjectId,
     questionId: Schema.Types.ObjectId,
-    totalScore:String,
+    totalScore: String,
     questions: [UserResponseSchema]
   }],
   startTime: {

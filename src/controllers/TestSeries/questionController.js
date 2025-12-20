@@ -8,17 +8,29 @@ const getAllQuestions = async (req, res, next) => {
             page = 1,
             limit = 20,
             sectionId,
+            examId,
             questionType,
             difficulty,
             tag,
-            isActive = 'true',
+            isActive,
+            search
         } = req.query;
 
-        const matchFilter = { isActive: isActive == 'true' };
+        const matchFilter = {};
         if (sectionId && mongoose.Types.ObjectId.isValid(sectionId)) matchFilter.sectionId = new mongoose.Types.ObjectId(sectionId);
         if (questionType) matchFilter.questionType = questionType;
         if (difficulty) matchFilter.difficulty = difficulty;
         if (tag) matchFilter.tags = { $in: [tag] };
+        if (isActive) matchFilter.isActive = isActive === 'true' ? true : false;
+
+        if (search && search.trim()) {
+            matchFilter.$or = [
+                { title: { $regex: search, $options: "i" } },
+                { exam: { $regex: search, $options: "i" } },
+                { questionCategory: { $regex: search, $options: "i" } },
+                { source: { $regex: search, $options: "i" } }
+            ];
+        }
 
         const skip = (parseInt(page) - 1) * parseInt(limit);
         const pipeline = [];
@@ -59,7 +71,9 @@ const getAllQuestions = async (req, res, next) => {
                 isActive: 1,
                 createdAt: 1,
                 updatedAt: 1,
+                isQuestionGroup: 1,
                 questionGroup: 1,
+                source: 1,
                 section: {
                     _id: '$section._id',
                     title: '$section.name'

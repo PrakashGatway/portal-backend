@@ -325,3 +325,77 @@ export const addNoteToLead = async (req, res) => {
         res.status(500).json({ error: 'Failed to add note' });
     }
 };
+
+export const bulkAddLeads = async (req, res) => {
+  const session = await mongoose.startSession();
+
+  try {
+    const { leads } = req.body;
+
+    if (!Array.isArray(leads) || leads.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Leads array is required",
+      });
+    }
+
+    session.startTransaction();
+
+    const validLeads = [];
+
+    for (let i = 0; i < leads.length; i++) {
+      const lead = leads[i];
+
+      if (!lead.status) {
+        throw new Error(`Row ${i + 1}: Invalid status ${lead.status}`);
+      }
+      if (!lead.source) {
+        throw new Error(`Row ${i + 1}: Invalid source ${lead.source}`);
+      }
+      validLeads.push({
+        fullName: lead.fullName?.trim(),
+        email: lead.email?.toLowerCase().trim(),
+        phone: lead.phone?.trim(),
+        countryOfResidence: lead.countryOfResidence,
+        city: lead.city,
+        coursePreference: lead.coursePreference,
+        intendedIntake: lead.intendedIntake
+          ? new Date(lead.intendedIntake)
+          : undefined,
+        status: lead.status || "new",
+        source: lead.source,
+        extraDetails: lead.extraDetails || {},
+      });
+    }
+
+    if (!validLeads.length) {
+      throw new Error("No valid leads found");
+    }
+
+    const insertedLeads = await Lead.insertMany(validLeads, {
+      ordered: true,
+      session,
+    });
+
+    await session.commitTransaction();
+    session.endSession();
+
+    return res.status(201).json({
+      success: true,
+      message: "Bulk leads uploaded successfully",
+      insertedCount: insertedLeads.length,
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    session.endSession();
+
+    console.error("Bulk lead upload aborted:", error.message);
+
+    return res.status(400).json({
+      success: false,
+      message: "Bulk upload failed. No leads were inserted.",
+      error: error.message,
+    });
+  }
+};
+

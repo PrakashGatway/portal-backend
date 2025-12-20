@@ -1,6 +1,30 @@
 // question.model.ts
 import { Schema, model } from "mongoose";
 
+let pteType = [
+  { value: "read_aloud", label: "PTE-Read Aloud" },
+  { value: "repeat_sentence", label: "PTE-Repeat Sentence" },
+  { value: "describe_image", label: "PTE-Describe Image" },
+  { value: "retell_lesson", label: "PTE-Retell Lesson" },
+  { value: "short_answer", label: "PTE-Short Answer" },
+  { value: "pte_summarize_writing", label: "PTE-Summarize Writing" },
+  { value: "pte_situational", label: "PTE-Situational" },
+  { value: "pte_writing", label: "PTE-Writing" },
+  { value: "pte_fill_in_blanks", label: "PTE-Fill in the Blanks" },
+  { value: "pte_mcq_multiple", label: "PTE-MCQ (Multiple Choice)" },
+  { value: "pte_reorder", label: "PTE-Reorder" },
+  { value: "pte_fill_drag", label: "PTE-Fill and Drag" },
+  { value: "pte_mcq_single", label: "PTE-MCQ (Single Choice)" },
+  { value: "pte_summarize_spoken", label: "PTE-Summarize Spoken" },
+  { value: "pte_mcq_multiple_listening", label: "PTE-MCQ (Multiple Choice) listening" },
+  { value: "pte_fill_listening", label: "PTE-Fill listening" },
+  { value: "pte_highlight", label: "PTE-Highlight" },
+  { value: "pte_mcq_single_listening", label: "PTE-MCQ (Single Choice) listening" },
+  { value: "pte_summarize_listening", label: "PTE-Summarize listening" },
+  { value: "pte_writing_listening", label: "PTE-Writing listening" },
+]
+
+
 const optionSchema = new Schema({
   label: String,      // "A", "B", "C" (optional)
   text: String,       // option text
@@ -19,18 +43,17 @@ const dataInsightsSchema = new Schema(
       ],
       required: true,
     },
-
     multiSource: {
       tabs: [
         {
-          id: String,          // "tab1"
-          title: String,       // "Decision Criteria"
-          contentHtml: String, // passage, rules, etc.
+          id: String,
+          title: String,
+          contentHtml: String,
         },
       ],
       statements: [
         {
-          id: String,           // "pair_tony_rahul"
+          id: String,
           text: String,         // "Tony and Rahul"
           yesLabel: { type: String, default: "Yes" },
           noLabel: { type: String, default: "No" },
@@ -111,14 +134,13 @@ const questionSchema = new Schema(
     questionType: {
       type: String,
       required: true,
-      enum: [
+      enum: [...pteType.map(item => item.value),
         "gmat_quant_problem_solving",
         "gmat_quant_data_sufficiency",
         "gmat_verbal_sc",
         "gmat_verbal_cr",
         "gmat_verbal_rc",
         "gmat_data_insights",
-
         "gre_analytical_writing",
         "gre_verbal_text_completion",
         "gre_verbal_sentence_equivalence",
@@ -147,13 +169,13 @@ const questionSchema = new Schema(
       required: true,
     },
     typeSpecific: Schema.Types.Mixed,
-    options: [optionSchema],  
+    options: [optionSchema],
     correctAnswerText: String,
     dataInsights: dataInsightsSchema,
     marks: { type: Number, default: 1 },
     negativeMarks: { type: Number, default: 0 },
     explanation: String,
-    source: String, 
+    source: String,
   },
   { timestamps: true }
 );

@@ -20,7 +20,8 @@ const LEAD_SOURCES = [
     'metaAds',
     'social_media',
     'partner',
-    'facebook'
+    'facebook',
+    "excel"
 ];
 
 const leadSchema = new Schema(
@@ -51,7 +52,6 @@ const leadSchema = new Schema(
         },
         coursePreference: {
             type: String,
-            required: [true, 'course is required'],
         },
         status: {
             type: String,

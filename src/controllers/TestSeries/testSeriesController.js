@@ -3,6 +3,7 @@ import Exam from '../../models/Test series/Exams.js';
 import { Section } from '../../models/Test series/Sections.js';
 import Category from '../../models/Category.js';
 import { Question } from '../../models/Test series/Questions.js';
+import mongoose from 'mongoose';
 
 export const getTestSeries = async (req, res) => {
     try {
@@ -20,7 +21,7 @@ export const getTestSeries = async (req, res) => {
         } = req.query;
 
         const matchStage = {};
-        if (examId) matchStage.examId = examId;
+        if (examId) matchStage.examId = new mongoose.Types.ObjectId(examId) || examId;
         if (type) matchStage.type = type;
         if (isPaid !== undefined) matchStage.isPaid = isPaid === 'true';
         if (difficultyLevel) matchStage.difficultyLevel = difficultyLevel;
@@ -49,10 +50,23 @@ export const getTestSeries = async (req, res) => {
                         { $limit: Number(limit) },
                         {
                             $lookup: {
-                                from: 'sections',
-                                localField: 'sections.sectionId',
+                                from: 'exams',
+                                localField: 'examId',
                                 foreignField: '_id',
-                                as: 'populatedSections',
+                                as: 'populatedExams',
+                                pipeline: [
+                                    {
+                                        $project: {
+                                            name: 1,
+                                        },
+                                    },
+                                ]
+                            }
+                        },
+                        {
+                            $unwind: {
+                                path: "$populatedExams",
+                                preserveNullAndEmptyArrays: true,
                             },
                         },
                         {
@@ -67,23 +81,11 @@ export const getTestSeries = async (req, res) => {
                                             duration: '$$sec.duration',
                                             totalQuestions: '$$sec.totalQuestions',
                                             questionIds: '$$sec.questionIds',
-                                            sectionDetails: {
-                                                $arrayElemAt: [
-                                                    {
-                                                        $filter: {
-                                                            input: '$populatedSections',
-                                                            cond: { $eq: ['$$this._id', '$$sec.sectionId'] },
-                                                        },
-                                                    },
-                                                    0,
-                                                ],
-                                            },
                                         },
                                     },
                                 },
                             },
                         },
-                        { $project: { populatedSections: 0 } },
                     ],
                 },
             },
