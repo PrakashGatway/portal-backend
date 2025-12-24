@@ -1,5 +1,12 @@
 import multer from "multer";
 import path from "path";
+import fs from "fs";
+
+const ensureDir = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -13,11 +20,37 @@ const storage = multer.diskStorage({
 
 const storageforAudio = multer.diskStorage({
   destination: (req, file, cb) => {
+    const dir = "uploads/audio";
+    ensureDir(dir);
     cb(null, "uploads/audio/"); // folder where files will be stored
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(null, uniqueSuffix + path.extname(file.originalname)); // add extension
+  },
+});
+
+const pteAnswerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = "uploads/pteAnswers";
+    ensureDir(dir);
+    cb(null, "uploads/pteAnswers/");
+  },
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, unique + path.extname(file.originalname));
+  },
+});
+
+const iletsAnswerStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const dir = "uploads/iletsAnswers";
+    ensureDir(dir);
+    cb(null, "uploads/iletsAnswers/");
+  },
+  filename: (req, file, cb) => {
+    const unique = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, unique + path.extname(file.originalname));
   },
 });
 
@@ -43,9 +76,18 @@ const audioFilter = (req, file, cb) => {
   }
 };
 
-export const uploadAudio = multer({ storage, limits: { fileSize: 20 * 1024 * 1024 } });
+export const uploadAudio = multer({ storage: storageforAudio, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: audioFilter });
 
-export const uploadAnswers = multer({ storageforAudio, limits: { fileSize: 20 * 1024 * 1024 }, fileFilter: audioFilter });
+export const uploadPteAnswerAudio = multer({
+  storage: pteAnswerStorage,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: audioFilter,
+});
+
+export const uploadIeltsAnswerAudio = multer({
+  storage: iletsAnswerStorage,
+  limits: { fileSize: 20 * 1024 * 1024 }
+});
 
 const upload = multer({
   storage,

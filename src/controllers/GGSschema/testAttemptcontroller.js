@@ -668,7 +668,11 @@ export const submitTestAttempt = async (req, res) => {
           }
         }else if (qDoc.questionType === "gre_analytical_writing"){
           isCorrect = true
-        } else if (qDoc.options && qDoc.options.length) {
+        }else if (qDoc.questionType === "pte_fill_drag"){
+          
+
+          isCorrect = true
+        }else if (qDoc.options && qDoc.options.length) {
           const correctIndexes = [];
           qDoc.options.forEach((opt, idx) => {
             if (opt.isCorrect) correctIndexes.push(idx);
@@ -690,6 +694,8 @@ export const submitTestAttempt = async (req, res) => {
           const user = (aq.answerText || "").trim().toLowerCase();
           isCorrect = correct && user && correct === user;
         }
+
+
         if (isCorrect) {
           secCorrect += 1;
           totalCorrect += 1;

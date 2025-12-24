@@ -153,6 +153,7 @@ const questionSchema = new Schema(
         "sat_math_calculator",
         "sat_math_no_calculator",
         "sat_value",
+        "summarize_group_discussions",
         "essay",
         "other",
       ],

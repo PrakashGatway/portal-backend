@@ -42,7 +42,7 @@ import mcuRoutes from './routes/mcuRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
-import "./cronJob/leadAutoAssign.js"
+// import "./cronJob/leadAutoAssign.js"
 
 import { Question } from './models/GGSschema/questionSchema.js';
 
@@ -57,7 +57,7 @@ app.use("/uploads", express.static("uploads"));
 
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "https://dashboard.gatewayabroadeducations.com",
     methods: ["GET", "POST"]
   },
   credentials: true

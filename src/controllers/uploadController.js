@@ -82,7 +82,7 @@ export const uploadSingleAudio = (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Audio uploaded successfully",
+      message: "uploaded successfully",
       file: {
         filename: req.file.filename,
         path: req.file.path,
