@@ -598,7 +598,7 @@ export const submitTestAttempt = async (req, res) => {
 
         const answered =
           (aq.answerOptionIndexes && aq.answerOptionIndexes.length > 0) ||
-          (typeof aq.answerText === "string" && aq.answerText.trim().length > 0) 
+          (typeof aq.answerText === "string" && aq.answerText.trim().length > 0)
 
         if (!answered) {
           secSkipped += 1;
@@ -651,7 +651,6 @@ export const submitTestAttempt = async (req, res) => {
               });
               break;
             }
-
             case "graphics_interpretation": {
               isCorrect = di.graphics.dropdowns.every((dd) => {
                 const sel =
@@ -662,17 +661,44 @@ export const submitTestAttempt = async (req, res) => {
               });
               break;
             }
-
             default:
               isCorrect = false;
           }
-        }else if (qDoc.questionType === "gre_analytical_writing"){
+        } else if (qDoc.questionType === "gre_analytical_writing") {
           isCorrect = true
-        }else if (qDoc.questionType === "pte_fill_drag"){
-          
+        } else if (qDoc.questionType === "pte_fill_drag" || qDoc.questionType === "pte_fill_in_blanks" || qDoc.questionType === "pte_fill_listening") {
+          const jsonAnswer = JSON.parse(aq.answerText);
 
-          isCorrect = true
-        }else if (qDoc.options && qDoc.options.length) {
+          const userAnswers = Object.values(jsonAnswer).map(v =>
+            v.trim().toLowerCase()
+          );
+
+          const correctAnswers = qDoc.correctAnswerText
+            ? qDoc.correctAnswerText.split(",").map(v => v.trim().toLowerCase())
+            : [];
+
+          isCorrect = false;
+
+          if (userAnswers.length == correctAnswers.length) {
+            isCorrect = correctAnswers.every(ans =>
+              userAnswers.includes(ans)
+            );
+          }
+
+        } else if (qDoc.questionType === "pte_reorder") {
+          const jsonAnswer = JSON.parse(aq.answerText);
+
+          const correctAnswers = qDoc.correctAnswerText
+            ? qDoc.correctAnswerText.split("||").map(v => v.trim().toLowerCase())
+            : [];
+          isCorrect = false;
+          if (jsonAnswer.length == correctAnswers.length) {
+            isCorrect = correctAnswers.every((ans, idx) =>
+              ans == jsonAnswer[idx].trim().toLowerCase()
+            );
+          }
+        }
+        else if (qDoc.options && qDoc.options.length) {
           const correctIndexes = [];
           qDoc.options.forEach((opt, idx) => {
             if (opt.isCorrect) correctIndexes.push(idx);

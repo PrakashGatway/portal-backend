@@ -7,7 +7,7 @@ const TIMEZONE = "Asia/Kolkata";
 
 
 async function assignOldestLeadsOneToOne() {
-  const counselors = await User.find({ role: "counselor" })
+  const counselors = await User.find({ role: "counselor", isActive: true })
     .select("_id")
     .sort({ _id: 1 })
     .lean();
@@ -24,10 +24,9 @@ async function assignOldestLeadsOneToOne() {
       { assignedCounselor: null }
     ]
   })
-    .sort({ createdAt: 1, _id: 1 }) // 🔥 oldest first
+    .sort({ createdAt: 1, _id: 1 })
     .limit(counselors.length)
     .lean();
-
 
   if (!leads.length) {
     return 0;
@@ -63,7 +62,6 @@ async function assignOldestLeadsOneToOne() {
 
   }
 }
-
 
 cron.schedule(
   CRON_SCHEDULE,
