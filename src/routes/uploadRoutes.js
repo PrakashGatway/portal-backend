@@ -1,5 +1,5 @@
 import express from "express";
-import upload, {  uploadAudio, uploadIeltsAnswerAudio, uploadPteAnswerAudio } from "../middleware/upload.js";
+import upload, { uploadAudio, uploadIeltsAnswerAudio, uploadPteAnswerAudio } from "../middleware/upload.js";
 import { uploadSingleImage, uploadMultipleImages, uploadImage, uploadSingleAudio } from "../controllers/uploadController.js";
 import multer from "multer";
 import { protect } from "../middleware/auth.js";

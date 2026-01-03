@@ -8,7 +8,8 @@ import {
     getLeadStats,
     addNoteToLead,
     bulkAddLeads,
-    bulkDeleteLeads
+    bulkDeleteLeads,
+    getLeadStatusStats
 } from '../controllers/leadController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
@@ -19,7 +20,7 @@ router.route('/')
     .post(createLead);
 
 router.route('/stats')
-    .get(protect, getLeadStats);
+    .get(protect, getLeadStatusStats);
 
 router.route('/:id/notes').post(protect, addNoteToLead)
 

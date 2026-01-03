@@ -3,12 +3,17 @@ import mongoose, { Schema } from 'mongoose';
 
 const LEAD_STATUSES = [
     'new',
+    'notReachable',
+    'followup',
     'viewed',
     'contacted',
     'interested',
     'notInterested',
     'enrolled',
     'rejected',
+    'junk',
+    'visitDone',
+    'visitSchedule',
     'inactive'
 ];
 
@@ -21,7 +26,8 @@ const LEAD_SOURCES = [
     'social_media',
     'partner',
     'facebook',
-    "excel"
+    "excel",
+    "other"
 ];
 
 const leadSchema = new Schema(

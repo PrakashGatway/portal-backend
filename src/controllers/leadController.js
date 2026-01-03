@@ -10,6 +10,130 @@ const parseDateRange = (dateStr) => {
     };
 };
 
+
+const LEAD_STATUSES = [
+    'new',
+    'notReachable',
+    'followup',
+    'viewed',
+    'contacted',
+    'interested',
+    'notInterested',
+    'enrolled',
+    'rejected',
+    'junk',
+    'visitDone',
+    'visitSchedule',
+    'inactive'
+];
+
+export const getLeadStatusStats = async (req, res) => {
+    try {
+        const {
+            sort = -1 // only createdAt allowed
+        } = req.query;
+
+        const user = req.user;
+        const match = {};
+
+        if (user.role === "counselor") {
+            match.assignedCounselor = user._id;
+        } 
+
+        const pipeline = [
+            { $match: match },
+            { $sort: { createdAt: sort == 1 ? 1 : -1 } },
+            {
+                $facet: {
+                    counts: [
+                        {
+                            $group: {
+                                _id: "$status",
+                                count: { $sum: 1 }
+                            }
+                        }
+                    ],
+                    total: [
+                        { $count: "count" }
+                    ]
+                }
+            },
+            {
+                $project: {
+                    total: {
+                        $ifNull: [{ $arrayElemAt: ["$total.count", 0] }, 0]
+                    },
+                    counts: 1
+                }
+            },
+            {
+                $project: {
+                    stats: {
+                        $concatArrays: [
+                            [
+                                {
+                                    status: "all",
+                                    count: "$total"
+                                }
+                            ],
+                            {
+                                $map: {
+                                    input: LEAD_STATUSES,
+                                    as: "status",
+                                    in: {
+                                        status: "$$status",
+                                        count: {
+                                            $ifNull: [
+                                                {
+                                                    $let: {
+                                                        vars: {
+                                                            matched: {
+                                                                $arrayElemAt: [
+                                                                    {
+                                                                        $filter: {
+                                                                            input: "$counts",
+                                                                            as: "c",
+                                                                            cond: {
+                                                                                $eq: ["$$c._id", "$$status"]
+                                                                            }
+                                                                        }
+                                                                    },
+                                                                    0
+                                                                ]
+                                                            }
+                                                        },
+                                                        in: "$$matched.count"
+                                                    }
+                                                },
+                                                0
+                                            ]
+                                        }
+                                    }
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+        ];
+
+        const [result] = await Lead.aggregate(pipeline);
+
+        res.json({
+            success: true,
+            stats: result?.stats || []
+        });
+
+    } catch (error) {
+        console.error("Lead status stats error:", error);
+        res.status(500).json({
+            success: false,
+            message: "Failed to fetch lead status stats"
+        });
+    }
+};
+
+
 export const getAllLeads = async (req, res) => {
     try {
         const {
@@ -327,100 +451,100 @@ export const addNoteToLead = async (req, res) => {
 };
 
 export const bulkAddLeads = async (req, res) => {
-  const session = await mongoose.startSession();
+    const session = await mongoose.startSession();
 
-  try {
-    const { leads } = req.body;
+    try {
+        const { leads } = req.body;
 
-    if (!Array.isArray(leads) || leads.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: "Leads array is required",
-      });
+        if (!Array.isArray(leads) || leads.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: "Leads array is required",
+            });
+        }
+
+        session.startTransaction();
+
+        const validLeads = [];
+
+        for (let i = 0; i < leads.length; i++) {
+            const lead = leads[i];
+
+            if (!lead.status) {
+                throw new Error(`Row ${i + 1}: Invalid status ${lead.status}`);
+            }
+            if (!lead.source) {
+                throw new Error(`Row ${i + 1}: Invalid source ${lead.source}`);
+            }
+            validLeads.push({
+                fullName: lead.fullName?.trim(),
+                email: lead.email?.toLowerCase().trim(),
+                phone: lead.phone?.trim(),
+                countryOfResidence: lead.countryOfResidence,
+                city: lead.city,
+                coursePreference: lead.coursePreference,
+                intendedIntake: lead.intendedIntake
+                    ? new Date(lead.intendedIntake)
+                    : undefined,
+                status: lead.status || "new",
+                source: lead.source,
+                extraDetails: lead.extraDetails || {},
+            });
+        }
+
+        if (!validLeads.length) {
+            throw new Error("No valid leads found");
+        }
+
+        const insertedLeads = await Lead.insertMany(validLeads, {
+            ordered: true,
+            session,
+        });
+
+        await session.commitTransaction();
+        session.endSession();
+
+        return res.status(201).json({
+            success: true,
+            message: "Bulk leads uploaded successfully",
+            insertedCount: insertedLeads.length,
+        });
+    } catch (error) {
+        await session.abortTransaction();
+        session.endSession();
+
+        console.error("Bulk lead upload aborted:", error.message);
+
+        return res.status(400).json({
+            success: false,
+            message: "Bulk upload failed. No leads were inserted.",
+            error: error.message,
+        });
     }
-
-    session.startTransaction();
-
-    const validLeads = [];
-
-    for (let i = 0; i < leads.length; i++) {
-      const lead = leads[i];
-
-      if (!lead.status) {
-        throw new Error(`Row ${i + 1}: Invalid status ${lead.status}`);
-      }
-      if (!lead.source) {
-        throw new Error(`Row ${i + 1}: Invalid source ${lead.source}`);
-      }
-      validLeads.push({
-        fullName: lead.fullName?.trim(),
-        email: lead.email?.toLowerCase().trim(),
-        phone: lead.phone?.trim(),
-        countryOfResidence: lead.countryOfResidence,
-        city: lead.city,
-        coursePreference: lead.coursePreference,
-        intendedIntake: lead.intendedIntake
-          ? new Date(lead.intendedIntake)
-          : undefined,
-        status: lead.status || "new",
-        source: lead.source,
-        extraDetails: lead.extraDetails || {},
-      });
-    }
-
-    if (!validLeads.length) {
-      throw new Error("No valid leads found");
-    }
-
-    const insertedLeads = await Lead.insertMany(validLeads, {
-      ordered: true,
-      session,
-    });
-
-    await session.commitTransaction();
-    session.endSession();
-
-    return res.status(201).json({
-      success: true,
-      message: "Bulk leads uploaded successfully",
-      insertedCount: insertedLeads.length,
-    });
-  } catch (error) {
-    await session.abortTransaction();
-    session.endSession();
-
-    console.error("Bulk lead upload aborted:", error.message);
-
-    return res.status(400).json({
-      success: false,
-      message: "Bulk upload failed. No leads were inserted.",
-      error: error.message,
-    });
-  }
 };
 
 
 export const bulkDeleteLeads = async (req, res) => {
-  try {
-    const { ids } = req.body;
-    // Validate input
-    if (!ids || !Array.isArray(ids) || ids.length === 0) {
-      return res.status(400).json({ message: "Request body must contain a non-empty array of IDs." });
+    try {
+        const { ids } = req.body;
+        // Validate input
+        if (!ids || !Array.isArray(ids) || ids.length === 0) {
+            return res.status(400).json({ message: "Request body must contain a non-empty array of IDs." });
+        }
+
+        const isValid = ids.every(id => mongoose.Types.ObjectId.isValid(id));
+        if (!isValid) {
+            return res.status(400).json({ message: "One or more IDs are invalid." });
+        }
+
+        const result = await Lead.deleteMany({ _id: { $in: ids } }); // Assumes your model is named 'Lead'
+
+        res.status(200).json({ message: `${result.deletedCount} lead(s) deleted successfully.`, deletedCount: result.deletedCount });
+
+    } catch (error) {
+        console.error("Bulk delete error:", error);
+        res.status(500).json({ message: "Server error during bulk deletion.", error: error.message });
     }
-
-    const isValid = ids.every(id => mongoose.Types.ObjectId.isValid(id));
-    if (!isValid) {
-      return res.status(400).json({ message: "One or more IDs are invalid." });
-    }
-
-    const result = await Lead.deleteMany({ _id: { $in: ids } }); // Assumes your model is named 'Lead'
-
-    res.status(200).json({ message: `${result.deletedCount} lead(s) deleted successfully.`, deletedCount: result.deletedCount });
-
-  } catch (error) {
-    console.error("Bulk delete error:", error);
-    res.status(500).json({ message: "Server error during bulk deletion.", error: error.message });
-  }
 };
 
 

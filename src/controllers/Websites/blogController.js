@@ -6,7 +6,7 @@ export const getArticles = async (req, res) => {
         const { page = 1, limit = 10, status, category, search,from } = req.query;
 
         const filter = {};
-        if (status !== undefined && status !== '' && status !== null) filter.status = status === 'true';
+        if (status !== undefined && status !== '' && status !== null){ filter.status = status === 'true'}else{ filter.status = true}
         if (category && category !== '') filter.category = category;
 
         if (search) {

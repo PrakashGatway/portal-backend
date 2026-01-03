@@ -206,7 +206,6 @@ export const listQuestions = async (req, res) => {
           "exam.description": 0,
           "section.description": 0,
           "section.instructions": 0,
-          explanation: 0, // you can keep/remove depending on your UI
         },
       },
       { $sort: sort },

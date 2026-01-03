@@ -16,8 +16,9 @@ const attemptQuestionSchema = new Schema(
     },
     dropdownSelections: {
       type: Map,
-      of: Number, // index of option chosen for each dropdown.id
-    },       // for numeric/text/essay
+      of: Number,
+    },
+    evaluationMeta: Schema.Types.Mixed,
     isAnswered: { type: Boolean, default: false },
     markedForReview: { type: Boolean, default: false },
     timeSpentSeconds: { type: Number, default: 0 },
@@ -37,26 +38,16 @@ const attemptSectionSchema = new Schema(
       ref: "Section",
       required: false,
     },
-
-
     name: String,
-
-    // Timing
     durationMinutes: Number,
     startedAt: Date,
     endedAt: Date,
-
-    // Status
     status: {
       type: String,
       enum: ["not_started", "in_progress", "completed"],
       default: "not_started",
     },
-
-    // Questions
     questions: [attemptQuestionSchema],
-
-    // Scoring summary per section
     stats: {
       correct: { type: Number, default: 0 },
       incorrect: { type: Number, default: 0 },
@@ -75,8 +66,6 @@ const testAttemptSchema = new Schema(
       required: true,
       index: true,
     },
-
-
     gmatMeta: {
       type: {
         orderChosen: { type: Boolean, default: false },
@@ -123,15 +112,16 @@ const testAttemptSchema = new Schema(
       enum: ["full_length", "sectional", "quiz"],
       required: true,
     },
-
-    // Attempt lifecycle
     status: {
       type: String,
       enum: ["in_progress", "completed", "cancelled", "expired"],
       default: "in_progress",
       index: true,
     },
-
+    analysisStatus: {
+      type: Boolean,
+      default: false
+    },
     startedAt: { type: Date, default: Date.now },
     completedAt: Date,
 
@@ -139,7 +129,6 @@ const testAttemptSchema = new Schema(
     totalTimeUsedSeconds: { type: Number, default: 0 },
     sections: [attemptSectionSchema],
 
-    // Overall scoring after submission
     overallStats: {
       totalQuestions: { type: Number, default: 0 },
       totalAttempted: { type: Number, default: 0 },
@@ -147,7 +136,6 @@ const testAttemptSchema = new Schema(
       totalIncorrect: { type: Number, default: 0 },
       totalSkipped: { type: Number, default: 0 },
       rawScore: { type: Number, default: 0 },
-      // you can later add scaledScore, percentiles, etc. especially for SAT
     },
   },
   { timestamps: true }

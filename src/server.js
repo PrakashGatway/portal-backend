@@ -43,10 +43,13 @@ import paymentRoutes from './routes/paymentRoutes.js';
 
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
 import "./cronJob/leadAutoAssign.js"
+// import "./cronJob/pteCronJob.js";
+
 
 import { Question } from './models/GGSschema/questionSchema.js';
 
 // setupWalletCronJob();
+
 
 dotenv.config();
 connectDB();
@@ -82,6 +85,7 @@ const allowedOrigins = [
   "https://6dtmqkkr-5173.inc1.devtunnels.ms",
   "https://portal-virid-eta.vercel.app"
 ];
+// app.use(cors());
 
 app.use(cors({
   origin: function (origin, callback) {
@@ -207,8 +211,6 @@ async function checkStatus(id) {
       }
     });
 
-    console.log(res.data);
-
     if (res.data.result_url) {
       console.log("VIDEO READY:", res.data.result_url);
     }
@@ -252,8 +254,6 @@ async function createVideo() {
   }
 }
 // createVideo();
-
-
 
 
 export default app;

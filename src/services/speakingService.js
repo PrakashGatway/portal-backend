@@ -9,7 +9,6 @@ import { GoogleGenAI, createUserContent, createPartFromUri } from "@google/genai
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
-// init client (use env in production)
 const ai = new GoogleGenAI({ apiKey: "AIzaSyB2I63SukyULf98Rh3SR0IYDcGFaNGBaEY" });
 
 router.post("/evaluate", upload.single("file"), async (req, res) => {
@@ -73,12 +72,7 @@ STRICT RULES:
             model: "gemini-2.0-flash",
             contents
         });
-
-        // ==== INLINE extraction logic (no separate function) ====
-        // Try several possible locations for the model text
         let rawText = "";
-
-        // 1) top-level .text() if available
         if (!rawText && typeof response?.text === "function") {
             try { rawText = response.text(); } catch (e) { /* ignore */ }
         }

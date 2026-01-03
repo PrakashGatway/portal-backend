@@ -2,6 +2,9 @@ import mongoose from "mongoose";
 import { TestTemplate } from "../../models/GGSschema/testTemplate.js";
 import { Question } from "../../models/GGSschema/questionSchema.js";
 import { TestAttempt } from "../../models/GGSschema/attemptSchema.js";
+import { load } from "cheerio";
+import { evaluateGreAnalyticalWriting } from "../../cronJob/greCronJob.js";
+
 
 const { Types } = mongoose;
 
@@ -226,7 +229,7 @@ export const startTestAttempt = async (req, res) => {
     const existing = await TestAttempt.findOne({
       user: userId,
       testTemplate: testTemplateId,
-      status: "in_progress",
+      // status: "in_progress",
     });
 
     if (existing) {
@@ -249,6 +252,7 @@ export const startTestAttempt = async (req, res) => {
       exam: template.exam._id,
       testTemplate: template._id,
       testType: template.testType,
+      analysisStatus: false,
       totalDurationMinutes: template.totalDurationMinutes,
       sections: sectionsForAttempt,
       overallStats: {
@@ -665,7 +669,17 @@ export const submitTestAttempt = async (req, res) => {
               isCorrect = false;
           }
         } else if (qDoc.questionType === "gre_analytical_writing") {
-          isCorrect = true
+          const result = await evaluateGreAnalyticalWriting({
+            answerText: aq.answerText,
+            questionText1: qDoc.stimulus,
+            questionText2: qDoc.questionText
+          });
+          isCorrect = result.isCorrect;
+          aq.evaluationMeta = {
+            score: result.score,
+            feedback: result.feedback,
+            evaluatedAt: new Date()
+          };
         } else if (qDoc.questionType === "pte_fill_drag" || qDoc.questionType === "pte_fill_in_blanks" || qDoc.questionType === "pte_fill_listening") {
           const jsonAnswer = JSON.parse(aq.answerText);
 
@@ -684,7 +698,6 @@ export const submitTestAttempt = async (req, res) => {
               userAnswers.includes(ans)
             );
           }
-
         } else if (qDoc.questionType === "pte_reorder") {
           const jsonAnswer = JSON.parse(aq.answerText);
 
@@ -695,6 +708,24 @@ export const submitTestAttempt = async (req, res) => {
           if (jsonAnswer.length == correctAnswers.length) {
             isCorrect = correctAnswers.every((ans, idx) =>
               ans == jsonAnswer[idx].trim().toLowerCase()
+            );
+          }
+        } else if (qDoc.questionType === "pte_highlight") {
+          const $ = load(aq.answerText);
+
+          const userAnswers = $(".pte-highlight")
+            .map((_, el) => $(el).text().trim().toLowerCase())
+            .get();
+
+          const correctAnswers = qDoc.correctAnswerText
+            ? qDoc.correctAnswerText.split(",").map(v => v.trim().toLowerCase())
+            : [];
+
+          isCorrect = false;
+
+          if (userAnswers.length === correctAnswers.length) {
+            isCorrect = correctAnswers.every(ans =>
+              userAnswers.includes(ans)
             );
           }
         }
