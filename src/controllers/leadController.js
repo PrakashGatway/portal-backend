@@ -30,15 +30,38 @@ const LEAD_STATUSES = [
 export const getLeadStatusStats = async (req, res) => {
     try {
         const {
-            sort = -1 // only createdAt allowed
+            source,
+            assignedCounselor,
+            sort = -1,
+            dateRange,
+            search
         } = req.query;
 
         const user = req.user;
         const match = {};
 
+        if (source) match.source = source;
+
         if (user.role === "counselor") {
             match.assignedCounselor = user._id;
-        } 
+        } else {
+            if (assignedCounselor) match.assignedCounselor = new mongoose.Types.ObjectId(assignedCounselor);
+        }
+
+        if (dateRange) {
+            const dateFilter = parseDateRange(dateRange);
+            if (dateFilter) match.createdAt = dateFilter;
+        }
+
+        if (search && search != null) {
+            const searchRegex = { $regex: search, $options: 'i' };
+            match.$or = [
+                { fullName: searchRegex },
+                { email: searchRegex },
+                { phone: searchRegex }
+            ];
+        }
+
 
         const pipeline = [
             { $match: match },
