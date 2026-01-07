@@ -50,7 +50,7 @@ const leadSchema = new Schema(
             trim: true
         },
         intendedIntake: {
-            type: Date,
+            type: String
         },
         city: {
             type: String,

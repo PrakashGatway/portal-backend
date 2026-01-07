@@ -158,6 +158,7 @@ export const listTestTemplates = async (req, res) => {
       limit = 10,
       sortBy = "createdAt",
       sortOrder = "desc",
+      isActive = "true",
     } = req.query;
 
     const pageNum = Number(page) || 1;

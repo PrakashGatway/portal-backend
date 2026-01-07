@@ -303,12 +303,9 @@ export const updateLead = async (req, res) => {
     try {
         const lead = await Lead.findByIdAndUpdate(
             req.params.id,
-            { ...req.body, intendedIntake: req?.body?.intendedIntake ? intendedIntake : null },
+            { ...req.body, intendedIntake: req?.body?.intendedIntake ?  req?.body?.intendedIntake : null },
             { new: true, runValidators: true }
-        ).populate({
-            path: 'assignedCounselor',
-            select: '-password'
-        });
+        )
 
         if (!lead) {
             return res.status(404).json({ error: 'Lead not found' });
@@ -507,7 +504,7 @@ export const bulkAddLeads = async (req, res) => {
                 city: lead.city,
                 coursePreference: lead.coursePreference,
                 intendedIntake: lead.intendedIntake
-                    ? new Date(lead.intendedIntake)
+                    ? lead.intendedIntake
                     : undefined,
                 status: lead.status || "new",
                 source: lead.source,
@@ -545,7 +542,6 @@ export const bulkAddLeads = async (req, res) => {
         });
     }
 };
-
 
 export const bulkDeleteLeads = async (req, res) => {
     try {

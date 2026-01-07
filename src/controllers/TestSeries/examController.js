@@ -10,6 +10,7 @@ export const getExams = async (req, res) => {
             examType,
             isActive,
             search,
+            method,
             page = 1,
             limit = 10,
         } = req.query;
@@ -17,7 +18,7 @@ export const getExams = async (req, res) => {
         const matchConditions = {};
 
         if (category) {
-            matchConditions.category = category;
+            matchConditions.category = new mongoose.Types.ObjectId(category);
         }
 
         if (examType) {
@@ -25,7 +26,7 @@ export const getExams = async (req, res) => {
         }
 
         if (isActive !== undefined) {
-            matchConditions.isActive = isActive === 'true';
+            matchConditions.isActive = isActive == 'true';
         }
 
         if (search) {
@@ -36,9 +37,12 @@ export const getExams = async (req, res) => {
         const pipeline = [
             { $match: matchConditions },
             { $skip: skip }, { $limit: Number(limit) },
-            {
+
+        ];
+        if (!method) {
+            pipeline.push(...[{
                 $lookup: {
-                    from: 'categories', // collection name of Category model
+                    from: 'categories',
                     localField: 'category',
                     foreignField: '_id',
                     as: 'category',
@@ -59,11 +63,13 @@ export const getExams = async (req, res) => {
             },
             {
                 $sort: { createdAt: -1 },
-            },
-        ];
+            },]);
+        }
 
-        const exams = await Exam.aggregate(pipeline);
-        const total = await Exam.countDocuments(matchConditions);
+        const [exams, total] = await Promise.all([
+            Exam.aggregate(pipeline),
+            Exam.countDocuments(matchConditions),
+        ])
 
         res.status(200).json({
             success: true,
