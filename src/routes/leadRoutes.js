@@ -9,7 +9,8 @@ import {
     addNoteToLead,
     bulkAddLeads,
     bulkDeleteLeads,
-    getLeadStatusStats
+    getLeadStatusStats,
+    bulkAssignCounselor
 } from '../controllers/leadController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
@@ -34,5 +35,8 @@ router.route('/bulk')
     
 router.route('/bulk/delete')
     .delete(protect, authorize('admin', 'super_admin'), bulkDeleteLeads)
+
+router.route('/bulk/assign')
+    .put(protect, authorize('admin', 'super_admin'), bulkAssignCounselor)
 
 export default router;

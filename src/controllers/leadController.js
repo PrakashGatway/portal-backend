@@ -566,4 +566,27 @@ export const bulkDeleteLeads = async (req, res) => {
     }
 };
 
+export const bulkAssignCounselor = async (req, res) => {
+  const { counselorId, leadIds } = req.body;
 
+  if (!counselorId || !Array.isArray(leadIds) || leadIds.length === 0) {
+    return res.status(400).json({
+      success: false,
+      message: "Counselor ID and lead IDs are required",
+    });
+  }
+
+  const result = await Lead.updateMany(
+    { _id: { $in: leadIds } },
+    {
+      $set: {
+        assignedCounselor: counselorId
+      },
+    }
+  );
+
+  res.json({
+    success: true,
+    modifiedCount: result.modifiedCount,
+  });
+};

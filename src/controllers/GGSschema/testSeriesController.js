@@ -14,6 +14,7 @@ export const createTestSeries = async (req, res) => {
       defaultTestType,
       tests = [],
       pricing,
+      exam
     } = req.body;
 
     if (!title || !category || !defaultTestType) {
@@ -29,6 +30,7 @@ export const createTestSeries = async (req, res) => {
       category,
       defaultTestType,
       tests,
+      exam,
       totalTests: tests.length,
       pricing,
     });
@@ -59,7 +61,7 @@ export const getAllTestSeriesAdmin = async (req, res) => {
 
     const match = {};
     if (category) match.category = objectId(category);
-    if (isActive !== undefined) match.isActive = isActive === "true";
+    if (isActive && isActive !== undefined) match.isActive = isActive === "true";
     if (isPublished !== undefined) match.isPublished = isPublished === "true";
 
     const pipeline = [
@@ -76,22 +78,23 @@ export const getAllTestSeriesAdmin = async (req, res) => {
           localField: "exam",
           foreignField: "_id",
           as: "exam",
+          pipeline: [{ $project: { name: 1, examType: 1 } }],
         },
       },
       { $unwind: "$exam" },
-      {
-        $lookup: {
-          from: "testtemplates",
-          localField: "tests.test",
-          foreignField: "_id",
-          as: "testsData",
-        },
-      },
-      {
-        $addFields: {
-          totalTests: { $size: "$tests" },
-        },
-      },
+      // {
+      //   $lookup: {
+      //     from: "testtemplates",
+      //     localField: "tests.test",
+      //     foreignField: "_id",
+      //     as: "testsData",
+      //   },
+      // },
+      // {
+      //   $addFields: {
+      //     totalTests: { $size: "$tests" },
+      //   },
+      // },
     ];
 
     const [data, total] = await Promise.all([
@@ -215,7 +218,7 @@ export const getTestSeriesById = async (req, res) => {
     const { id } = req.params;
 
     const pipeline = [
-      { $match: { _id: objectId(id) } },
+      { $match: { _id: new mongoose.Types.ObjectId(id) } },
 
       {
         $lookup: {
