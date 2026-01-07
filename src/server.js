@@ -42,14 +42,13 @@ import mcuRoutes from './routes/mcuRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
-import "./cronJob/leadAutoAssign.js"
+// import "./cronJob/leadAutoAssign.js"
 // import "./cronJob/pteCronJob.js";
 
 
 import { Question } from './models/GGSschema/questionSchema.js';
 
 // setupWalletCronJob();
-
 
 dotenv.config();
 connectDB();

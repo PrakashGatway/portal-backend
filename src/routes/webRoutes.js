@@ -33,6 +33,7 @@ import {
   getCommentStats
 } from '../controllers/Websites/commentsControllers.js';
 import { protect } from '../middleware/auth.js';
+import axios from 'axios';
 
 
 const router = Router();
@@ -90,10 +91,11 @@ router.post("/webhook", async (req, res) => {
           const leadId = change.value.leadgen_id;
           const formId = change.value.form_id;
           const pageId = change.value.page_id;
-          console.log(leadId)
+          const token = "EAA8w7TGqzLwBQfRmsh3U0Cdm31wRic9YmNU7L5qXRoJKCBspZBheUjcxr93BPMvtZCmA4gkNvY6gEZCA9nsbCnaysBBATSJblbH87N7tF64FQliJJzUTnfIZANBk4sMBPxSYKQZAb1hno4DyPTXGcb2bHDiiAFBQSFuVZASEfmPBzLL7ZADh7stIdVeVShg1OW6pZBPQSrAZD"
+
           try {
             const response = await fetch(
-              `https://graph.facebook.com/v19.0/${leadId}?access_token=EAA8w7TGqzLwBQGPWeZCVRfyqC3u8wYtavfUjYFYKXBhfgMyO7zfTWRx90PJyg3DZBYM7LMvgJnoZChxu36wk25bBaWLQ2HPKIZB1KKZBocfg8U87yUjENG35ztO7Avs9UqY4rakzogMfSKF2Mq8FeIxkFZBcZCLdKqscZC2dKhGVs9pgOvHLT8pZA5jmV36ktIqf1E2gZD`
+              `https://graph.facebook.com/v19.0/${leadId}?access_token=${token}`
             );
             const leadData = await response.json();
 
@@ -123,6 +125,8 @@ router.post("/webhook", async (req, res) => {
   res.status(200).send("EVENT_RECEIVED");
 });
 
+// getLongLivedPageTokenSimple(4275919949319356,"979cfdbbb1418fb29c2a25c122d06668","EAA8w7TGqzLwBQdRwAJgRwTZAljeuE2sPGYkr0pFcvAAGw7FjgT3nTSh0w84jojc2CNdws4J9mHu1umgllU8NuoWkZBXZCxastgP0Viz0XxcWv0gcRVQc1xZCFjrkXzuGg229UFZBRpK5uhY7WmVoYr302XoZBaltIDu9xPqYnyV6L3UZArUzquFTGnZAHTE3sYSSXXh8aA03YWwZCgpciIaWje1RJk6ZCTVAFXC3RlDQ2M5Xx3CdHNLZA2d9vMgCIEnZCNpQNimOGZAZAvwQeSC3HNOcBO",221710514363587)
+
 async function getLongLivedPageTokenSimple(appId, appSecret, userToken, pageId) {
   const baseURL = 'https://graph.facebook.com/v24.0';
   try {
@@ -134,6 +138,12 @@ async function getLongLivedPageTokenSimple(appId, appSecret, userToken, pageId) 
     );
 
     // pageid ="221710514363587"
+
+    console.log({
+      pageAccessToken: pageToken.data.access_token,
+      pageName: pageToken.data.name,
+      expiresIn: '60 days'
+    })
     return {
       pageAccessToken: pageToken.data.access_token,
       pageName: pageToken.data.name,

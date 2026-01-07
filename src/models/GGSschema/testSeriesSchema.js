@@ -37,10 +37,14 @@ const testSeriesSchema = new Schema(
       ref: "Exam",
       required: true,
     },
-
+    category: {
+      type: Schema.Types.ObjectId,
+      ref: "Category",
+      required: true,
+    },
     defaultTestType: {
       type: String,
-      enum: ["full_length", "sectional", "quiz"],
+      enum: ["full_length", "sectional", "quiz","mixed"],
       required: true,
     },
     tests: [seriesTestItemSchema],
