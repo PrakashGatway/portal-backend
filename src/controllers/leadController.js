@@ -1,3 +1,4 @@
+import { Leadlogs } from '../models/leadLogs.js';
 import { Lead } from '../models/Leads.js';
 import mongoose from 'mongoose';
 
@@ -589,4 +590,19 @@ export const bulkAssignCounselor = async (req, res) => {
     success: true,
     modifiedCount: result.modifiedCount,
   });
+};
+
+
+export const logsPush = async (req, res) => {
+  const query = req.query;
+
+  const logs = await Leadlogs.create({
+    phone: query?.phone,
+    callerId: query?.callerId,
+    recordingData: query?.recordingData,
+    duration: query?.duration,
+    status: query?.status,
+    extraDetails: query,
+  });
+  res.send("GODBLESSYOU")
 };
