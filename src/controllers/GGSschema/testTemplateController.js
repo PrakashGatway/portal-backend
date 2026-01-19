@@ -60,7 +60,6 @@ const buildTestTemplateMatch = (query) => {
   return match;
 };
 
-// compute total duration & questions from body
 const computeTotals = (body) => {
   let totalDurationMinutes = 0;
   let totalQuestions = 0;
@@ -94,9 +93,6 @@ const computeTotals = (body) => {
   return { totalDurationMinutes, totalQuestions };
 };
 
-// ----------------------
-// CREATE – POST /api/tests
-// ----------------------
 export const createTestTemplate = async (req, res) => {
   try {
     const body = req.body;
@@ -145,10 +141,6 @@ export const createTestTemplate = async (req, res) => {
   }
 };
 
-// ----------------------
-// LIST – GET /api/tests
-// with filters + pagination (aggregation)
-// ----------------------
 export const listTestTemplates = async (req, res) => {
   try {
     const match = buildTestTemplateMatch(req.query);
@@ -239,10 +231,6 @@ export const listTestTemplates = async (req, res) => {
   }
 };
 
-// ----------------------
-// DETAIL – GET /api/tests/:id
-// with exam + series + some summary
-// ----------------------
 export const getTestTemplateById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -299,9 +287,7 @@ export const getTestTemplateById = async (req, res) => {
   }
 };
 
-// ----------------------
-// UPDATE – PUT /api/tests/:id
-// ----------------------
+
 export const updateTestTemplate = async (req, res) => {
   try {
     const { id } = req.params;
@@ -356,9 +342,6 @@ export const updateTestTemplate = async (req, res) => {
   }
 };
 
-// ----------------------
-// DELETE – DELETE /api/tests/:id
-// ----------------------
 export const deleteTestTemplate = async (req, res) => {
   try {
     const { id } = req.params;
@@ -389,10 +372,6 @@ export const deleteTestTemplate = async (req, res) => {
   }
 };
 
-// ----------------------
-// OPTIONAL: PUBLIC STORE LIST – GET /api/tests/store
-// only active & sellable tests, with minimal fields
-// ----------------------
 export const listStoreTests = async (req, res) => {
   try {
     const match = {
@@ -417,7 +396,7 @@ export const listStoreTests = async (req, res) => {
           localField: "exam",
           foreignField: "_id",
           as: "exam",
-        },
+        }, 
       },
       { $unwind: "$exam" },
       {

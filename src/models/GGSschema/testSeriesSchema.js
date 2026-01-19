@@ -31,12 +31,14 @@ const testSeriesSchema = new Schema(
   {
     title: { type: String, required: true },
     description: String,
-
+    slug: { type: String, unique: true ,index: true, lowercase: true, trim: true, required: true },
+    thumbnailPic: String,
     exam: {
       type: Schema.Types.ObjectId,
       ref: "Exam",
       required: true,
     },
+    overview: String,
     category: {
       type: Schema.Types.ObjectId,
       ref: "Category",

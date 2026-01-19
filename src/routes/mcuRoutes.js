@@ -71,6 +71,6 @@ router.get("/series/:id",protect, getTestSeriesById);
 router.put("/series/:id",protect, updateTestSeries);
 router.delete("/series/:id",protect, deleteTestSeries);
 router.patch("/series/:id/toggle",protect, togglePublishSeries);
-router.get("/series/", protect, getPublicTestSeries);
+router.get("/series", protect, getPublicTestSeries);
 
 export default router;

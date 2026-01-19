@@ -10,6 +10,9 @@ export const createTestSeries = async (req, res) => {
     const {
       title,
       description,
+      slug,
+      overview,
+      thumbnailPic,
       category,
       defaultTestType,
       tests = [],
@@ -28,6 +31,9 @@ export const createTestSeries = async (req, res) => {
       title,
       description,
       category,
+      slug,
+      overview,
+      thumbnailPic,
       defaultTestType,
       tests,
       exam,
@@ -48,8 +54,10 @@ export const createTestSeries = async (req, res) => {
 export const getAllTestSeriesAdmin = async (req, res) => {
   try {
     const {
+      search,
       category,
       isActive,
+      exam,
       isPublished,
       page = 1,
       limit = 10,
@@ -60,9 +68,11 @@ export const getAllTestSeriesAdmin = async (req, res) => {
     const skip = (pageNum - 1) * limitNum;
 
     const match = {};
-    if (category) match.category = objectId(category);
+    if (category) match.category = new mongoose.Types.ObjectId(category);
+    if (exam) match.exam = new mongoose.Types.ObjectId(exam);
     if (isActive && isActive !== undefined) match.isActive = isActive === "true";
     if (isPublished !== undefined) match.isPublished = isPublished === "true";
+    if (search) match.title = { $regex: search, $options: "i" };
 
     const pipeline = [
       { $match: match },
@@ -120,8 +130,6 @@ export const getAllTestSeriesAdmin = async (req, res) => {
   }
 };
 
-
-
 export const getPublicTestSeries = async (req, res) => {
   try {
     const {
@@ -150,6 +158,15 @@ export const getPublicTestSeries = async (req, res) => {
 
       { $skip: skip },
       { $limit: limitNum },
+      {
+        $lookup: {
+          from: "categories",
+          localField: "category",
+          foreignField: "_id",
+          as: "category",
+        },
+      },
+      { $unwind: "$category" },
 
       {
         $lookup: {
@@ -179,6 +196,12 @@ export const getPublicTestSeries = async (req, res) => {
           description: 1,
           defaultTestType: 1,
           totalTests: { $size: "$tests" },
+          thumbnailPic: 1,
+          slug: 1,
+          category: {
+            _id: 1,
+            name: 1,
+          },
           exam: {
             _id: 1,
             name: 1,
@@ -217,15 +240,74 @@ export const getTestSeriesById = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const pipeline = [
-      { $match: { _id: new mongoose.Types.ObjectId(id) } },
+    const matchStage = mongoose.Types.ObjectId.isValid(id)
+      ? {
+        $match: {
+          $or: [
+            { _id: new mongoose.Types.ObjectId(id) },
+            { slug: id }
+          ]
+        }
+      }
+      : {
+        $match: { slug: id }
+      };
 
+    const pipeline = [
+      matchStage,
+
+      // 🔹 Populate TestTemplate data
       {
         $lookup: {
           from: "testtemplates",
           localField: "tests.test",
           foreignField: "_id",
           as: "testsData",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                title: 1,
+                description: 1,
+                testType: 1,
+                difficultyLabel: 1,
+                totalQuestions: 1,
+                totalDurationMinutes: 1,
+              },
+            },
+          ],
+        },
+      },
+
+      // 🔹 Lookup user attempts for these tests
+      {
+        $lookup: {
+          from: "testattempts",
+          let: {
+            testIds: "$tests.test",
+            userId: new mongoose.Types.ObjectId(req.user?._id),
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    { $eq: ["$user", "$$userId"] },
+                    { $in: ["$testTemplate", "$$testIds"] },
+                  ],
+                },
+              },
+            },
+            {
+              $project: {
+                _id: 0,
+                testTemplate: 1,
+                status: 1,
+                startedAt: 1,
+              },
+            },
+          ],
+          as: "attempts",
         },
       },
 
@@ -235,9 +317,103 @@ export const getTestSeriesById = async (req, res) => {
           localField: "category",
           foreignField: "_id",
           as: "category",
+          pipeline: [
+            {
+              $project: {
+                _id: 1,
+                name: 1,
+              },
+            }
+          ]
         },
       },
       { $unwind: "$category" },
+
+      // 🔹 Merge test + testData + attemptStatus
+      {
+        $addFields: {
+          tests: {
+            $map: {
+              input: "$tests",
+              as: "t",
+              in: {
+                $mergeObjects: [
+                  "$$t",
+
+                  // attach test details
+                  {
+                    testData: {
+                      $arrayElemAt: [
+                        {
+                          $filter: {
+                            input: "$testsData",
+                            as: "td",
+                            cond: { $eq: ["$$td._id", "$$t.test"] },
+                          },
+                        },
+                        0,
+                      ],
+                    },
+                  },
+
+                  // attach attempt status
+                  {
+                    attemptStatus: {
+                      $let: {
+                        vars: {
+                          attempt: {
+                            $arrayElemAt: [
+                              {
+                                $filter: {
+                                  input: "$attempts",
+                                  as: "a",
+                                  cond: {
+                                    $eq: [
+                                      "$$a.testTemplate",
+                                      "$$t.test",
+                                    ],
+                                  },
+                                },
+                              },
+                              0,
+                            ],
+                          },
+                        },
+                        in: {
+                          $cond: [
+                            { $eq: ["$$attempt.status", "in_progress"] },
+                            "RESUME",
+                            {
+                              $cond: [
+                                {
+                                  $eq: [
+                                    "$$attempt.status",
+                                    "completed",
+                                  ],
+                                },
+                                "COMPLETED",
+                                "START",
+                              ],
+                            },
+                          ],
+                        },
+                      },
+                    },
+                  },
+                ],
+              },
+            },
+          },
+        },
+      },
+
+      // 🔹 Cleanup
+      {
+        $project: {
+          testsData: 0,
+          attempts: 0,
+        },
+      },
     ];
 
     const result = await TestSeries.aggregate(pipeline);
@@ -251,6 +427,7 @@ export const getTestSeriesById = async (req, res) => {
 
     res.json({ success: true, data: result[0] });
   } catch (err) {
+    console.error("getTestSeriesById error:", err);
     res.status(500).json({ success: false, message: err.message });
   }
 };

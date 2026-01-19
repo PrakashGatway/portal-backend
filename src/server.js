@@ -82,7 +82,8 @@ const allowedOrigins = [
   "http://localhost:8000",
   "http://localhost:5173",
   "https://6dtmqkkr-5173.inc1.devtunnels.ms",
-  "https://portal-virid-eta.vercel.app"
+  "https://portal-virid-eta.vercel.app",
+  "https://m8j3lq9z-5173.inc1.devtunnels.ms"
 ];
 // app.use(cors());
 
@@ -100,7 +101,7 @@ app.use(cors({
 
 app.use(cookieParser());
 app.use(compression());
-app.use(morgan('dev'));
+// app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 

@@ -10,12 +10,13 @@ import {
     bulkAddLeads,
     bulkDeleteLeads,
     getLeadStatusStats,
-    bulkAssignCounselor
+    bulkAssignCounselor,
+    logsPush
 } from '../controllers/leadController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
 const router = express.Router();
-
+router.get('/callreport', logsPush);
 router.route('/')
     .get(protect, getAllLeads)
     .post(createLead);
@@ -39,4 +40,5 @@ router.route('/bulk/delete')
 router.route('/bulk/assign')
     .put(protect, authorize('admin', 'super_admin'), bulkAssignCounselor)
 
+router.get('/callreport', logsPush);
 export default router;
