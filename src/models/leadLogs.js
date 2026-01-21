@@ -7,6 +7,10 @@ const leadlogsSchema = new Schema(
             type: String,
             trim: true,
         },
+        masterCallNumber: {
+            type: String,
+            trim: true
+        },
         callerId: {
             type: String,
             trim: true
@@ -25,7 +29,14 @@ const leadlogsSchema = new Schema(
         extraDetails: {
             type: Schema.Types.Mixed,
             default: {}
-        }
+        },
+        ivrSTime: {
+            type: Date,
+        },
+        ivrETime: {
+            type: Date,
+        },
+
     },
     {
         timestamps: true,

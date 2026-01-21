@@ -1,3 +1,4 @@
+import axios from 'axios';
 import { Leadlogs } from '../models/leadLogs.js';
 import { Lead } from '../models/Leads.js';
 import mongoose from 'mongoose';
@@ -249,6 +250,31 @@ export const getAllLeads = async (req, res) => {
                     path: '$assignedCounselor',
                     preserveNullAndEmptyArrays: true
                 }
+            },
+            {
+                $lookup: {
+                    from: "leadlogs",
+                    localField: "phone10",
+                    foreignField: "phone",
+                    pipeline: [
+                        {
+                            $group: {
+                                _id: null,
+                                answeredCalls: {
+                                    $sum: {
+                                        $cond: [{ $eq: ["$status", "3"] }, 1, 0]
+                                    }
+                                },
+                                notConnectedCalls: {
+                                    $sum: {
+                                        $cond: [{ $ne: ["$status", "3"] }, 1, 0]
+                                    }
+                                }
+                            }
+                        }
+                    ],
+                    as: "callStats"
+                }
             }
         );
 
@@ -304,7 +330,7 @@ export const updateLead = async (req, res) => {
     try {
         const lead = await Lead.findByIdAndUpdate(
             req.params.id,
-            { ...req.body, intendedIntake: req?.body?.intendedIntake ?  req?.body?.intendedIntake : null },
+            { ...req.body, intendedIntake: req?.body?.intendedIntake ? req?.body?.intendedIntake : null },
             { new: true, runValidators: true }
         )
 
@@ -568,41 +594,269 @@ export const bulkDeleteLeads = async (req, res) => {
 };
 
 export const bulkAssignCounselor = async (req, res) => {
-  const { counselorId, leadIds } = req.body;
+    const { counselorId, leadIds } = req.body;
 
-  if (!counselorId || !Array.isArray(leadIds) || leadIds.length === 0) {
-    return res.status(400).json({
-      success: false,
-      message: "Counselor ID and lead IDs are required",
-    });
-  }
-
-  const result = await Lead.updateMany(
-    { _id: { $in: leadIds } },
-    {
-      $set: {
-        assignedCounselor: counselorId
-      },
+    if (!counselorId || !Array.isArray(leadIds) || leadIds.length === 0) {
+        return res.status(400).json({
+            success: false,
+            message: "Counselor ID and lead IDs are required",
+        });
     }
-  );
 
-  res.json({
-    success: true,
-    modifiedCount: result.modifiedCount,
-  });
+    const result = await Lead.updateMany(
+        { _id: { $in: leadIds } },
+        {
+            $set: {
+                assignedCounselor: counselorId
+            },
+        }
+    );
+
+    res.json({
+        success: true,
+        modifiedCount: result.modifiedCount,
+    });
 };
 
-
 export const logsPush = async (req, res) => {
-  const query = req.query;
+    const query = req.body;
+    if (!query) {
+        res.send("GODBLESSYOU")
+    }
+    let { cNumber, cNumber10, callId,masterAgentNumber, recordings, talkDuration, callStatus, ivrSTime, ivrETime, ...rest } = query;
 
-  const logs = await Leadlogs.create({
-    phone: query?.phone,
-    callerId: query?.callerId,
-    recordingData: query?.recordingData,
-    duration: query?.duration,
-    status: query?.status,
-    extraDetails: query,
-  });
-  res.send("GODBLESSYOU")
+    await Leadlogs.create({
+        phone: cNumber10 || cNumber,
+        callerId: callId,
+        recordingData: recordings,
+        duration: talkDuration,
+        status: callStatus,
+        ivrSTime: ivrSTime,
+        ivrETime: ivrETime,
+        masterCallNumber: masterAgentNumber,
+        extraDetails: { ...rest },
+    });
+
+    res.send("GODBLESSYOU")
+};
+
+export const bulkSaveCallLogs = async (callLogs = []) => {
+    try {
+        if (!Array.isArray(callLogs) || callLogs.length === 0) {
+            return { insertedCount: 0, skippedCount: 0 };
+        }
+
+        // 1️⃣ Collect callIds to avoid duplicates
+        const callIds = callLogs.map((log) => log.callId).filter(Boolean);
+
+        const existingLogs = await Leadlogs.find(
+            { callerId: { $in: callIds } },
+            { callerId: 1 }
+        );
+
+        const existingCallIds = new Set(
+            existingLogs.map((log) => log.callerId)
+        );
+
+        // 2️⃣ Prepare docs for insert
+        const docsToInsert = callLogs
+            .filter((log) => !existingCallIds.has(log.callId))
+            .map((log) => {
+                return {
+                    phone: log.cNumber,
+                    callerId: log.callId,
+                    masterCallNumber: "9887120429",
+                    recordingData: log.recordings,
+                    duration: Number(log.talkDuration) || 0,
+                    status: log.callStatus,
+                    ivrSTime: log.ivrSTime,
+                    ivrETime: log.ivrETime,
+                    extraDetails: {
+                        hungupby: 1
+                    },
+                };
+            });
+
+        // 3️⃣ Insert many
+        if (docsToInsert.length > 0) {
+            await Leadlogs.insertMany(docsToInsert, { ordered: false });
+        }
+
+        return {
+            insertedCount: docsToInsert.length,
+            skippedCount: callLogs.length - docsToInsert.length,
+        };
+    } catch (error) {
+        console.error("❌ Bulk insert failed:", error);
+        throw error;
+    }
+};
+
+// console.log("🚀 Bulk insert function:", bulkSaveCallLogs());
+
+
+const normalizeIndianPhone = (number) => {
+    if (!number) return null;
+    let phone = String(number).trim();
+
+    if (phone.startsWith("+91")) {
+        phone = phone.slice(3);
+    }
+    if (phone.startsWith("91")) {
+        phone = phone.slice(2);
+    }
+    if (phone.startsWith("0")) {
+        phone = phone.slice(1);
+    }
+    phone = phone.replace(/\D/g, "");
+
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+        return null;
+    }
+
+    return phone;
+};
+
+export const clickToCall = async (req, res) => {
+    try {
+
+        const { masterNumber } = req.query;
+
+        const lead = await Lead.findById(req.params.id)
+            .populate({
+                path: 'assignedCounselor',
+                select: '-password'
+            });
+
+        if (!lead) {
+            return res.status(404).json({ error: 'Lead not found' });
+        }
+
+        if (!lead.phone) {
+            return res.status(400).json({ error: 'Lead phone number not found' });
+        }
+
+        let masterNum;
+
+        if (lead.assignedCounselor && lead.assignedCounselor.phoneNumber) {
+            masterNum = lead.assignedCounselor.phoneNumber;
+        }
+        if (masterNumber) {
+            masterNum = masterNumber;
+        }
+        console.log(normalizeIndianPhone(masterNum), lead.phone);
+        try {
+            const clickToCallResponse = await axios.get(`https://w.digiskyweb.com/v2/clickToCall/para?user_id=28882897&token=NHzuuPAMM6S0cfwsAg7i&from=${normalizeIndianPhone(masterNum)}&to=${normalizeIndianPhone(lead.phone)}`)
+
+            if (clickToCallResponse.status !== 200) {
+                return res.status(500).json({ error: 'Failed to initiate click-to-call' });
+            }
+            res.json(clickToCallResponse?.data);
+        } catch (error) {
+            return res.json({ error });
+        }
+
+    } catch (error) {
+        res.status(500).json({ error: 'Error to initiate click-to-call' });
+    }
+};
+
+export const getCallLogsByPhone = async (req, res) => {
+    try {
+        const {
+            phone,
+            page = 1,
+            limit = 20,
+            status,
+            masterCallNumber,
+            startDate,
+            endDate,
+            sort = "-ivrSTime",
+        } = req.query;
+
+        if (!phone) {
+            return res.status(400).json({ error: "Phone is required" });
+        }
+
+        const phone10 = normalizeIndianPhone(phone);
+        if (!phone10) {
+            return res.status(400).json({ error: "Invalid phone number" });
+        }
+
+        /* ---------------- MATCH FILTER ---------------- */
+        const matchStage = {
+            phone: { $regex: `${phone10}$` }, // safe fallback
+        };
+
+        if (status) {
+            if (status === "answered") {
+                matchStage.status = "3";
+            } else if (status === "notConnected") {
+                matchStage.status = { $ne: "3" };
+            } else {
+                matchStage.status = status;
+            }
+        }
+
+        if (masterCallNumber) {
+            matchStage.masterCallNumber = {
+                $regex: masterCallNumber,
+                $options: "i",
+            };
+        }
+
+        // Date filter (ivrSTime / ivrETime)
+        if (startDate || endDate) {
+            matchStage.ivrSTime = {};
+            if (startDate) {
+                matchStage.ivrSTime.$gte = new Date(`${startDate}T00:00:00.000Z`);
+            }
+            if (endDate) {
+                matchStage.ivrSTime.$lte = new Date(`${endDate}T23:59:59.999Z`);
+            }
+        }
+
+        /* ---------------- AGGREGATION ---------------- */
+        const pipeline = [
+            { $match: matchStage },
+
+            {
+                $addFields: {
+                    isAnswered: { $eq: ["$status", "3"] },
+                },
+            },
+
+            { $sort: { [sort.replace("-", "")]: sort.startsWith("-") ? -1 : 1 } },
+
+            { $skip: (Number(page) - 1) * Number(limit) },
+            { $limit: Number(limit) },
+        ];
+
+        const countPipeline = [
+            { $match: matchStage },
+            { $count: "total" },
+        ];
+
+        const [logs, countResult] = await Promise.all([
+            Leadlogs.aggregate(pipeline),
+            Leadlogs.aggregate(countPipeline),
+        ]);
+
+        const total = countResult[0]?.total || 0;
+
+        /* ---------------- RESPONSE ---------------- */
+        res.json({
+            success: true,
+            data: logs,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (error) {
+        console.error("❌ Fetch call logs error:", error);
+        res.status(500).json({ error: "Failed to fetch call logs" });
+    }
 };
