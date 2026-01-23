@@ -623,7 +623,7 @@ export const logsPush = async (req, res) => {
     if (!query) {
         res.send("GODBLESSYOU")
     }
-    let { cNumber, cNumber10, callId,masterAgentNumber, recordings, talkDuration, callStatus, ivrSTime, ivrETime, ...rest } = query;
+    let { cNumber, cNumber10, callId, masterAgentNumber, recordings, talkDuration, callStatus, ivrSTime, ivrETime,HangupBySourceDetected,masterNumCTC  } = query;
 
     await Leadlogs.create({
         phone: cNumber10 || cNumber,
@@ -633,8 +633,8 @@ export const logsPush = async (req, res) => {
         status: callStatus,
         ivrSTime: ivrSTime,
         ivrETime: ivrETime,
-        masterCallNumber: masterAgentNumber,
-        extraDetails: { ...rest },
+        masterCallNumber: masterAgentNumber || masterNumCTC,
+        extraDetails: {HangupBySourceDetected},
     });
 
     res.send("GODBLESSYOU")
@@ -699,6 +699,10 @@ const normalizeIndianPhone = (number) => {
     if (!number) return null;
     let phone = String(number).trim();
 
+    if (phone.length == 10 && /^[6-9]\d{9}$/.test(phone)) {
+        return phone;
+    }
+
     if (phone.startsWith("+91")) {
         phone = phone.slice(3);
     }
@@ -744,7 +748,6 @@ export const clickToCall = async (req, res) => {
         if (masterNumber) {
             masterNum = masterNumber;
         }
-        console.log(normalizeIndianPhone(masterNum), lead.phone);
         try {
             const clickToCallResponse = await axios.get(`https://w.digiskyweb.com/v2/clickToCall/para?user_id=28882897&token=NHzuuPAMM6S0cfwsAg7i&from=${normalizeIndianPhone(masterNum)}&to=${normalizeIndianPhone(lead.phone)}`)
 
