@@ -830,8 +830,7 @@ export const getCallLogsByPhone = async (req, res) => {
             limit = 20,
             status,
             masterCallNumber,
-            startDate,
-            endDate,
+            dateRange,
             sort = "-ivrSTime",
         } = req.query;
 
@@ -866,16 +865,19 @@ export const getCallLogsByPhone = async (req, res) => {
             };
         }
 
-        // Date filter (ivrSTime / ivrETime)
-        if (startDate || endDate) {
-            matchStage.ivrSTime = {};
-            if (startDate) {
-                matchStage.ivrSTime.$gte = new Date(`${startDate}T00:00:00.000Z`);
+        if (dateRange) {
+            const [startDate, endDate] = dateRange.split("_");
+
+            if (!startDate || !endDate) {
+                return res.status(400).json({ error: "Invalid dateRange format. Use YYYY-MM-DD_YYYY-MM-DD" });
             }
-            if (endDate) {
-                matchStage.ivrSTime.$lte = new Date(`${endDate}T23:59:59.999Z`);
-            }
+
+            matchStage.ivrSTime = {
+                $gte: new Date(`${startDate}T00:00:00.000Z`),
+                $lte: new Date(`${endDate}T23:59:59.999Z`)
+            };
         }
+
 
         /* ---------------- AGGREGATION ---------------- */
         const pipeline = [
