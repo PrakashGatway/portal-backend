@@ -623,7 +623,7 @@ export const logsPush = async (req, res) => {
     if (!query) {
         res.send("GODBLESSYOU")
     }
-    let { cNumber, cNumber10, callId, masterAgentNumber, recordings, talkDuration, callStatus, ivrSTime, ivrETime,HangupBySourceDetected,masterNumCTC  } = query;
+    let { cNumber, cNumber10, callId, masterAgentNumber, recordings, talkDuration, callStatus, ivrSTime, ivrETime, HangupBySourceDetected, masterNumCTC, firstAttended, cType, CTC, did } = query;
 
     await Leadlogs.create({
         phone: cNumber10 || cNumber,
@@ -634,11 +634,69 @@ export const logsPush = async (req, res) => {
         ivrSTime: ivrSTime,
         ivrETime: ivrETime,
         masterCallNumber: masterAgentNumber || masterNumCTC,
-        extraDetails: {HangupBySourceDetected},
+        extraDetails: { HangupBySourceDetected, firstAttended, cType, CTC, did },
     });
 
     res.send("GODBLESSYOU")
 };
+
+export const addLogsNotes = async (req, res) => {
+    try {
+        const {
+            activityId,
+            leadId,
+            leadName,
+            notes,
+            callType,
+            callPurpose,
+            followUpDate
+        } = req.body;
+
+        if (!activityId) {
+            return res.status(400).json({
+                success: false,
+                message: "activityId is required"
+            });
+        }
+
+        const updatedLog = await Leadlogs.findByIdAndUpdate(
+            activityId,
+            {
+                $set: {
+                    "extraDetails.callType": callType,
+                    "extraDetails.callPurpose": callPurpose,
+                    "extraDetails.followUpDate": followUpDate,
+                    "extraDetails.leadId": leadId,
+                    "extraDetails.leadName": leadName,
+                    "extraDetails.notes": notes,
+                }
+            },
+            { new: true, runValidators: true }
+        );
+
+        if (!updatedLog) {
+            return res.status(404).json({
+                success: false,
+                message: "Log not found"
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: "Log updated successfully"
+        });
+
+    } catch (error) {
+        console.error("addLogsNotes error:", error);
+        return res.status(500).json({
+            success: false,
+            message: "Internal server error",
+            error: error.message
+        });
+    }
+};
+
+
 
 export const bulkSaveCallLogs = async (callLogs = []) => {
     try {

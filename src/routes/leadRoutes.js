@@ -13,12 +13,15 @@ import {
     bulkAssignCounselor,
     logsPush,
     clickToCall,
-    getCallLogsByPhone
+    getCallLogsByPhone,
+    addLogsNotes
 } from '../controllers/leadController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
 const router = express.Router();
 router.post('/callreport', logsPush);
+
+router.post('/activity/update', protect, addLogsNotes);
 
 router.get('/call/:id', protect, clickToCall);
 
@@ -40,7 +43,7 @@ router.route('/:id')
 
 router.route('/bulk')
     .post(protect, authorize('admin', 'super_admin'), bulkAddLeads)
-    
+
 router.route('/bulk/delete')
     .delete(protect, authorize('admin', 'super_admin'), bulkDeleteLeads)
 
