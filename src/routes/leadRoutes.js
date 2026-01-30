@@ -14,7 +14,8 @@ import {
     logsPush,
     clickToCall,
     getCallLogsByPhone,
-    addLogsNotes
+    addLogsNotes,
+    getIncomingCalls
 } from '../controllers/leadController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
@@ -26,6 +27,8 @@ router.post('/activity/update', protect, addLogsNotes);
 router.get('/call/:id', protect, clickToCall);
 
 router.get('/activity', protect, getCallLogsByPhone);
+router.get('/activity/incoming', protect, getIncomingCalls);
+
 
 router.route('/')
     .get(protect, getAllLeads)

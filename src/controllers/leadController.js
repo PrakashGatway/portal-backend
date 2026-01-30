@@ -833,7 +833,6 @@ export const getCallLogsByPhone = async (req, res) => {
             dateRange,
             sort = "-ivrSTime",
         } = req.query;
-
         if (!phone) {
             return res.status(400).json({ error: "Phone is required" });
         }
@@ -908,6 +907,109 @@ export const getCallLogsByPhone = async (req, res) => {
         const total = countResult[0]?.total || 0;
 
         /* ---------------- RESPONSE ---------------- */
+        res.json({
+            success: true,
+            data: logs,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+                total,
+                totalPages: Math.ceil(total / limit),
+            },
+        });
+    } catch (error) {
+        console.error("❌ Fetch call logs error:", error);
+        res.status(500).json({ error: "Failed to fetch call logs" });
+    }
+};
+
+export const getIncomingCalls = async (req, res) => {
+    try {
+        const {
+            phone,
+            page = 1,
+            limit = 20,
+            masterCallNumber,
+            dateRange,
+            sort = "-ivrSTime",
+        } = req.query;
+
+        // if (!phone) {
+        //     return res.status(400).json({ error: "Phone is required" });
+        // }
+
+        // const phone10 = normalizeIndianPhone(phone);
+        // if (!phone10) {
+        //     return res.status(400).json({ error: "Invalid phone number" });
+        // }
+
+        const matchStage = {};
+
+
+        matchStage["extraDetails.cType"] = "IBD"
+
+        matchStage["extraDetails.did"] = "07557122813"
+
+
+        // if (masterCallNumber) {
+        //     matchStage.masterCallNumber = {
+        //         $regex: masterCallNumber,
+        //         $options: "i",
+        //     };
+        // }
+
+        // if (dateRange) {
+        //     const [startDate, endDate] = dateRange.split("_");
+
+        //     if (!startDate || !endDate) {
+        //         return res.status(400).json({ error: "Invalid dateRange format. Use YYYY-MM-DD_YYYY-MM-DD" });
+        //     }
+
+        //     matchStage.ivrSTime = {
+        //         $gte: new Date(`${startDate}T00:00:00.000Z`),
+        //         $lte: new Date(`${endDate}T23:59:59.999Z`)
+        //     };
+        // }
+
+        const pipeline = [
+            { $match: matchStage },
+
+            { $sort: { [sort.replace("-", "")]: sort.startsWith("-") ? -1 : 1 } },
+
+            { $skip: (Number(page) - 1) * Number(limit) },
+            { $limit: Number(limit) },
+            {
+                $lookup: {
+                    from: "leads",
+                    localField: "phone",
+                    foreignField: "phone10",
+                    as: "leadinfo",
+                    pipeline: [
+                        {
+                            $project: {
+                                phone10: 1,
+                                fullName: 1,
+                                email: 1,
+                                status: 1
+                            },
+                        },
+                    ],
+                }
+            },
+            { $unwind: { path: "$leadinfo", preserveNullAndEmptyArrays: true } },
+        ];
+
+        const countPipeline = [
+            { $match: matchStage },
+            { $count: "total" },
+        ];
+
+        const [logs, countResult] = await Promise.all([
+            Leadlogs.aggregate(pipeline),
+            Leadlogs.aggregate(countPipeline),
+        ]);
+
+        const total = countResult[0]?.total || 0;
         res.json({
             success: true,
             data: logs,
