@@ -948,8 +948,9 @@ export const getIncomingCalls = async (req, res) => {
 
         matchStage["extraDetails.cType"] = "IBD"
 
-        matchStage["extraDetails.did"] = "07557122813"
-
+        if (req.user.role == "counselor") {
+            matchStage["extraDetails.did"] = req.user._id == "68e9fe2e2291b0f5bcfcc1f6" ? "07557122814" : req.user._id == "68fb4accfb893677bc9fcc45" ? "07557122813" : ""
+        }
 
         // if (masterCallNumber) {
         //     matchStage.masterCallNumber = {
