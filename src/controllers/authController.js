@@ -107,6 +107,7 @@ export const verifyOtp = async (req, res) => {
     if (user) {
       accessToken = generateAccessToken(user._id);
     } else {
+      return res.status(400).json({ success: false, message: "User not found" });
       let referredBy = null;
       if (referCode) {
         const referrerWallet = await Wallet.findOne({ referralCode: referCode })
