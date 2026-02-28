@@ -23,6 +23,7 @@ export const getUsers = async (req, res) => {
     if (isVerified !== undefined) matchStage.isVerified = isVerified === 'true';
     if (subscriptionType) matchStage['subscription.type'] = subscriptionType;
 
+    if(req.user?.role === 'leader') matchStage.leader = req.user?._id;
     if (search) {
       matchStage.$or = [
         { name: { $regex: search, $options: 'i' } },

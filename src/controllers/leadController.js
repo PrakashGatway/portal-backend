@@ -44,10 +44,47 @@ export const getLeadStatusStats = async (req, res) => {
 
         if (source) match.source = source;
 
-        if (user.role === "counselor") {
-            match.assignedCounselor = user._id;
-        } else {
-            if (assignedCounselor) match.assignedCounselor = new mongoose.Types.ObjectId(assignedCounselor);
+        // if (user.role === "counselor") {
+        //     match.assignedCounselor = user._id;
+        // } else {
+        //     if (assignedCounselor) match.assignedCounselor = new mongoose.Types.ObjectId(assignedCounselor);
+        // }
+
+        //         if (user.role === "counselor") {
+        //     matchStage.assignedCounselor = user._id;
+        // }
+
+        else if (user.role === "leader") {
+
+            const counselors = await mongoose.model('User').find(
+                { leader: user._id, role: "counselor" },
+                { _id: 1 }
+            );
+            const counselorIds = counselors.map(c => c._id);
+            match.assignedCounselor = { $in: counselorIds };
+
+            if (assignedCounselor && counselorIds.includes(assignedCounselor)) {
+                if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
+                    return res.status(400).json({ error: 'Invalid counselor ID' });
+                }
+                match.assignedCounselor = new mongoose.Types.ObjectId(assignedCounselor);
+            }
+        }
+
+        else if (assignedCounselor && user.role === "admin") {
+            if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
+                return res.status(400).json({ error: 'Invalid counselor ID' });
+            }
+            match.assignedCounselor =
+                new mongoose.Types.ObjectId(assignedCounselor);
+        }
+
+        else if (assignedCounselor && user.role === "manager") {
+            if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
+                return res.status(400).json({ error: 'Invalid counselor ID' });
+            }
+            match.assignedCounselor =
+                new mongoose.Types.ObjectId(assignedCounselor);
         }
 
         if (dateRange) {
@@ -158,7 +195,6 @@ export const getLeadStatusStats = async (req, res) => {
     }
 };
 
-
 export const getAllLeads = async (req, res) => {
     try {
         const {
@@ -193,11 +229,41 @@ export const getAllLeads = async (req, res) => {
         if (coursePreference) matchStage.coursePreference = coursePreference;
         if (countryOfResidence) matchStage.countryOfResidence = countryOfResidence;
 
-        if (assignedCounselor || user.role == "counselor") {
-            if (!mongoose.Types.ObjectId.isValid(assignedCounselor) && user.role == "admin") {
+        // if (assignedCounselor || user.role == "counselor") {
+        //     if (!mongoose.Types.ObjectId.isValid(assignedCounselor) && user.role == "admin") {
+        //         return res.status(400).json({ error: 'Invalid counselor ID' });
+        //     }
+        //     matchStage.assignedCounselor = user.role == "counselor" ? user._id : new mongoose.Types.ObjectId(assignedCounselor);
+        // }
+
+
+        if (user.role === "counselor") {
+            matchStage.assignedCounselor = user._id;
+        }
+
+        else if (user.role === "leader") {
+
+            const counselors = await mongoose.model('User').find(
+                { leader: user._id, role: "counselor" },
+                { _id: 1 }
+            );
+            const counselorIds = counselors.map(c => c._id);
+            matchStage.assignedCounselor = { $in: counselorIds };
+
+            if (assignedCounselor && counselorIds.includes(assignedCounselor)) {
+                if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
+                    return res.status(400).json({ error: 'Invalid counselor ID' });
+                }
+                matchStage.assignedCounselor = new mongoose.Types.ObjectId(assignedCounselor);
+            }
+        }
+
+        else if (assignedCounselor && (user.role === "admin" || user.role === "manager")) {
+            if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
                 return res.status(400).json({ error: 'Invalid counselor ID' });
             }
-            matchStage.assignedCounselor = user.role == "counselor" ? user._id : new mongoose.Types.ObjectId(assignedCounselor);
+            matchStage.assignedCounselor =
+                new mongoose.Types.ObjectId(assignedCounselor);
         }
 
         if (dateRange) {
@@ -278,6 +344,49 @@ export const getAllLeads = async (req, res) => {
             }
         );
 
+        pipeline.push(
+            {
+                $addFields: {
+                    phone: {
+                        $cond: [
+                            { $ifNull: ["$phone10", false] },
+                            {
+                                $concat: [
+                                    { $substr: ["$phone10", 0, 2] },
+                                    "******",
+                                    { $substr: ["$phone10", 8, 2] }
+                                ]
+                            },
+                            null
+                        ]
+                    },
+                    email: {
+                        $cond: [
+                            { $ifNull: ["$email", false] },
+                            {
+                                $concat: [
+                                    { $substr: ["$email", 0, 2] },
+                                    "****",
+                                    {
+                                        $substr: [
+                                            "$email",
+                                            { $indexOfBytes: ["$email", "@"] },
+                                            -1
+                                        ]
+                                    }
+                                ]
+                            },
+                            null
+                        ]
+                    }
+                }
+            },
+            {
+                $project: {
+                    phone10: 0
+                }
+            }
+        );
         const leads = await Lead.aggregate(pipeline);
 
         res.json({
@@ -620,12 +729,12 @@ export const bulkAssignCounselor = async (req, res) => {
 
 
 function toTenDigitNumber(phone) {
-  const cleaned = phone.replace(/\D/g, '');
+    const cleaned = phone.replace(/\D/g, '');
 
-  if (cleaned.length > 10 && cleaned.startsWith('91')) {
+    if (cleaned.length > 10 && cleaned.startsWith('91')) {
+        return cleaned.slice(-10);
+    }
     return cleaned.slice(-10);
-  }
-  return cleaned.slice(-10);
 }
 
 export const logsPush = async (req, res) => {
@@ -635,20 +744,20 @@ export const logsPush = async (req, res) => {
     }
     //     // \"SourceNumber\":\"".$SourceNumber."\",\"DestinationNumber\":\"".$DestinationNumber."\",\"DisplayNumber\":\"".$DisplayNumber."\",\"StartTime\":\"".$StartTime."\",\"EndTime\":\"".$EndTime."\",\"Status\":\"".$Status."\",\"ResourceURL\":\"".$ResourceURL."\",\"Direction\":\"".$Direction."\",\"CallSessionId\":\"".$CallSessionId."\",\"CallDuration\":\"".$CallDuration."\"
 
-    let { DestinationNumber: cNumber, CallSessionId: callId, SourceNumber: masterAgentNumber, ResourceURL: recordings, CallDuration: talkDuration, Status: callStatus, StartTime: ivrSTime, EndTime: ivrETime, Direction } = query;
+    let { DestinationNumber: cNumber, CallSessionId: callId, SourceNumber: masterAgentNumber, ResourceURL: recordings, CallDuration: talkDuration, Status: callStatus, StartTime: ivrSTime, EndTime: ivrETime, Direction, cType } = query;
 
     // firstAttended, cType, CTC, did,HangupBySourceDetected,masterNumCTC
 
     await Leadlogs.create({
-        phone: toTenDigitNumber(cNumber),
+        phone: Direction == "In" ? toTenDigitNumber(masterAgentNumber) : toTenDigitNumber(cNumber),
         callerId: callId,
         recordingData: recordings,
         duration: talkDuration,
         status: callStatus,
         ivrSTime: ivrSTime,
         ivrETime: ivrETime,
-        masterCallNumber: masterAgentNumber,
-        extraDetails: { Direction },
+        masterCallNumber: Direction == "In" ? toTenDigitNumber(cNumber) : toTenDigitNumber(masterAgentNumber),
+        extraDetails: { Direction, cType: cType == "In" ? "IBD" : "CTC" },
     });
 
     res.send("Done")
@@ -709,8 +818,6 @@ export const addLogsNotes = async (req, res) => {
         });
     }
 };
-
-
 
 export const bulkSaveCallLogs = async (callLogs = []) => {
     try {
@@ -853,14 +960,14 @@ export const getCallLogsByPhone = async (req, res) => {
             return res.status(400).json({ error: "Phone is required" });
         }
 
-        const phone10 = normalizeIndianPhone(phone);
-        if (!phone10) {
+        const leadDetails = await Lead.findById(phone);
+        if (!leadDetails) {
             return res.status(400).json({ error: "Invalid phone number" });
         }
 
         /* ---------------- MATCH FILTER ---------------- */
         const matchStage = {
-            phone: { $regex: `${phone10}$` }, // safe fallback
+            phone: { $regex: `${leadDetails.phone10}$` }, // safe fallback
         };
 
         if (status) {
@@ -963,9 +1070,9 @@ export const getIncomingCalls = async (req, res) => {
 
 
         matchStage["extraDetails.cType"] = "IBD"
-
+        // console.log(req.user.phoneNumber)
         if (req.user.role == "counselor") {
-            matchStage["extraDetails.did"] = req.user._id == "68e9fe2e2291b0f5bcfcc1f6" ? "07557122814" : req.user._id == "68fb4accfb893677bc9fcc45" ? "07557122813" : ""
+            matchStage.masterCallNumber = req.user.phoneNumber
         }
 
         // if (masterCallNumber) {

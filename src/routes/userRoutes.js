@@ -13,7 +13,7 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
-  .get(authorize('admin', 'super_admin'), getUsers);
+  .get(authorize('admin', 'super_admin', "manager", "leader"), getUsers);
 
 router.route('/:id')
   .get(authorize('admin', 'super_admin'), getUser)

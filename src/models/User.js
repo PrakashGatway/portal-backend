@@ -13,8 +13,13 @@ const userSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'teacher', 'admin', 'super_admin', 'editor', "manager", "counselor"],
+    enum: ['user', 'teacher', 'admin', 'super_admin', 'editor', "manager", "counselor", "leader"],
     default: 'user'
+  },
+  leader: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    default: null
   },
   phoneNumber: {
     type: String,

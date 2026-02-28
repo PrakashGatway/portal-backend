@@ -7,10 +7,8 @@ const normalizeIndianPhone = (number) => {
 
     let phone = String(number).trim();
 
-    // Remove all non-digits
     phone = phone.replace(/\D/g, "");
 
-    // Remove country code / leading prefixes
     if (phone.startsWith("91") && phone.length > 10) {
         phone = phone.slice(-10);
     }
@@ -19,7 +17,6 @@ const normalizeIndianPhone = (number) => {
         phone = phone.slice(-10);
     }
 
-    // Validate Indian mobile number
     if (!/^[6-9]\d{9}$/.test(phone)) {
         return null;
     }
