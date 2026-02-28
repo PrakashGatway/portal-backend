@@ -618,26 +618,40 @@ export const bulkAssignCounselor = async (req, res) => {
     });
 };
 
+
+function toTenDigitNumber(phone) {
+  const cleaned = phone.replace(/\D/g, '');
+
+  if (cleaned.length > 10 && cleaned.startsWith('91')) {
+    return cleaned.slice(-10);
+  }
+  return cleaned.slice(-10);
+}
+
 export const logsPush = async (req, res) => {
     const query = req.body;
     if (!query) {
-        res.send("GODBLESSYOU")
+        res.send("No data found");
     }
-    let { cNumber, cNumber10, callId, masterAgentNumber, recordings, talkDuration, callStatus, ivrSTime, ivrETime, HangupBySourceDetected, masterNumCTC, firstAttended, cType, CTC, did } = query;
+    //     // \"SourceNumber\":\"".$SourceNumber."\",\"DestinationNumber\":\"".$DestinationNumber."\",\"DisplayNumber\":\"".$DisplayNumber."\",\"StartTime\":\"".$StartTime."\",\"EndTime\":\"".$EndTime."\",\"Status\":\"".$Status."\",\"ResourceURL\":\"".$ResourceURL."\",\"Direction\":\"".$Direction."\",\"CallSessionId\":\"".$CallSessionId."\",\"CallDuration\":\"".$CallDuration."\"
+
+    let { DestinationNumber: cNumber, CallSessionId: callId, SourceNumber: masterAgentNumber, ResourceURL: recordings, CallDuration: talkDuration, Status: callStatus, StartTime: ivrSTime, EndTime: ivrETime, Direction } = query;
+
+    // firstAttended, cType, CTC, did,HangupBySourceDetected,masterNumCTC
 
     await Leadlogs.create({
-        phone: cNumber10 || cNumber,
+        phone: toTenDigitNumber(cNumber),
         callerId: callId,
         recordingData: recordings,
         duration: talkDuration,
         status: callStatus,
         ivrSTime: ivrSTime,
         ivrETime: ivrETime,
-        masterCallNumber: masterAgentNumber || masterNumCTC,
-        extraDetails: { HangupBySourceDetected, firstAttended, cType, CTC, did },
+        masterCallNumber: masterAgentNumber,
+        extraDetails: { Direction },
     });
 
-    res.send("GODBLESSYOU")
+    res.send("Done")
 };
 
 export const addLogsNotes = async (req, res) => {
@@ -807,7 +821,9 @@ export const clickToCall = async (req, res) => {
             masterNum = masterNumber;
         }
         try {
-            const clickToCallResponse = await axios.get(`https://w.digiskyweb.com/v2/clickToCall/para?user_id=28882897&token=NHzuuPAMM6S0cfwsAg7i&from=${normalizeIndianPhone(masterNum)}&to=${normalizeIndianPhone(lead.phone)}`)
+            // const clickToCallResponse = await axios.get(`https://w.digiskyweb.com/v2/clickToCall/para?user_id=28882897&token=NHzuuPAMM6S0cfwsAg7i&from=${normalizeIndianPhone(masterNum)}&to=${normalizeIndianPhone(lead.phone)}`)
+
+            const clickToCallResponse = await axios.get(`https://api.dndfilter.com/api/clickToCall/generateCall?apiKey=dgUS8Dq2KZZESlHsCGQCmg&executiveContact=${normalizeIndianPhone(masterNum)}&clientContact=${normalizeIndianPhone(lead.phone)}&executiveEmailId=${req?.user?.email}`)
 
             if (clickToCallResponse.status !== 200) {
                 return res.status(500).json({ error: 'Failed to initiate click-to-call' });
