@@ -51,6 +51,6 @@ router.route('/bulk/delete')
     .delete(protect, authorize('admin', 'super_admin'), bulkDeleteLeads)
 
 router.route('/bulk/assign')
-    .put(protect, authorize('admin', 'super_admin'), bulkAssignCounselor)
+    .put(protect, authorize('admin','leader', 'super_admin'), bulkAssignCounselor)
 
 export default router;

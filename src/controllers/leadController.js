@@ -44,15 +44,9 @@ export const getLeadStatusStats = async (req, res) => {
 
         if (source) match.source = source;
 
-        // if (user.role === "counselor") {
-        //     match.assignedCounselor = user._id;
-        // } else {
-        //     if (assignedCounselor) match.assignedCounselor = new mongoose.Types.ObjectId(assignedCounselor);
-        // }
-
-        //         if (user.role === "counselor") {
-        //     matchStage.assignedCounselor = user._id;
-        // }
+        if (user.role === "counselor") {
+            match.assignedCounselor = user._id;
+        } 
 
         else if (user.role === "leader") {
 
@@ -344,7 +338,7 @@ export const getAllLeads = async (req, res) => {
             }
         );
 
-        pipeline.push(
+        if (user.role != "admin") pipeline.push(
             {
                 $addFields: {
                     phone: {
@@ -387,6 +381,7 @@ export const getAllLeads = async (req, res) => {
                 }
             }
         );
+
         const leads = await Lead.aggregate(pipeline);
 
         res.json({
@@ -727,7 +722,6 @@ export const bulkAssignCounselor = async (req, res) => {
     });
 };
 
-
 function toTenDigitNumber(phone) {
     const cleaned = phone.replace(/\D/g, '');
 
@@ -871,8 +865,6 @@ export const bulkSaveCallLogs = async (callLogs = []) => {
     }
 };
 
-// console.log("🚀 Bulk insert function:", bulkSaveCallLogs());
-
 
 const normalizeIndianPhone = (number) => {
     if (!number) return null;
@@ -967,18 +959,18 @@ export const getCallLogsByPhone = async (req, res) => {
 
         /* ---------------- MATCH FILTER ---------------- */
         const matchStage = {
-            phone: { $regex: `${leadDetails.phone10}$` }, // safe fallback
+            phone: { $regex: `${leadDetails.phone10}$` },
         };
 
-        if (status) {
-            if (status === "answered") {
-                matchStage.status = "3";
-            } else if (status === "notConnected") {
-                matchStage.status = { $ne: "3" };
-            } else {
-                matchStage.status = status;
-            }
-        }
+        // if (status) {
+        //     if (status === "answered") {
+        //         matchStage.status = "3";
+        //     } else if (status === "notConnected") {
+        //         matchStage.status = { $ne: "3" };
+        //     } else {
+        //         matchStage.status = status;
+        //     }
+        // }
 
         if (masterCallNumber) {
             matchStage.masterCallNumber = {
