@@ -12,7 +12,6 @@ const parseDateRange = (dateStr) => {
     };
 };
 
-
 const LEAD_STATUSES = [
     'new',
     'notReachable',
@@ -432,24 +431,59 @@ export const createLead = async (req, res) => {
     }
 };
 
+// export const updateLead = async (req, res) => {
+//     const updateData = { ...req.body };
+
+//     try {
+//         const lead = await Lead.findByIdAndUpdate(
+//             req.params.id,
+//             { ...req.body, intendedIntake: req?.body?.intendedIntake ? req?.body?.intendedIntake : null },
+//             { new: true, runValidators: true }
+//         )
+
+//         if (!lead) {
+//             return res.status(404).json({ error: 'Lead not found' });
+//         }
+
+//         res.json({ success: true, data: lead });
+//     } catch (error) {
+//         if (error.code === 11000) {
+//             return res.status(400).json({ error: 'Email already in use.' });
+//         }
+//         res.status(400).json({ error: error.message || 'Update failed' });
+//     }
+// };
+
 export const updateLead = async (req, res) => {
     try {
+        const existingLead = await Lead.findById(req.params.id);
+        if (!existingLead) {
+            return res.status(404).json({ error: "Lead not found" });
+        }
+
+        const updateData = { ...req.body };
+
+        if (existingLead.secondaryStatus) {
+            updateData.secondaryStatus = updateData.status;
+            delete updateData.status;
+        }
+
+        updateData.intendedIntake = req.body.intendedIntake ?? null;
+
         const lead = await Lead.findByIdAndUpdate(
             req.params.id,
-            { ...req.body, intendedIntake: req?.body?.intendedIntake ? req?.body?.intendedIntake : null },
+            updateData,
             { new: true, runValidators: true }
-        )
-
-        if (!lead) {
-            return res.status(404).json({ error: 'Lead not found' });
-        }
+        );
 
         res.json({ success: true, data: lead });
+
     } catch (error) {
         if (error.code === 11000) {
-            return res.status(400).json({ error: 'Email already in use.' });
+            return res.status(400).json({ error: "Email already in use." });
         }
-        res.status(400).json({ error: error.message || 'Update failed' });
+
+        res.status(400).json({ error: error.message || "Update failed" });
     }
 };
 
@@ -714,7 +748,7 @@ export const bulkAssignCounselor = async (req, res) => {
         {
             $set: {
                 assignedCounselor: counselorId,
-                ...(withNew && { status: "new" })
+                ...(withNew && { secondaryStatus: "new" })
             },
         }
     );

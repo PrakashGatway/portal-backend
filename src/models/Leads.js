@@ -95,6 +95,13 @@ const leadSchema = new Schema(
             default: 'new',
             required: true
         },
+        secondaryStatus: {
+            type: String,
+            enum: {
+                values: LEAD_STATUSES,
+                message: 'Invalid lead status: {VALUE}'
+            }
+        },
         source: {
             type: String,
             enum: {
