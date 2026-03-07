@@ -46,7 +46,7 @@ export const getLeadStatusStats = async (req, res) => {
 
         if (user.role === "counselor") {
             match.assignedCounselor = user._id;
-        } 
+        }
 
         else if (user.role === "leader") {
 
@@ -57,7 +57,7 @@ export const getLeadStatusStats = async (req, res) => {
             const counselorIds = counselors.map(c => c._id);
             match.assignedCounselor = { $in: counselorIds };
 
-            if (assignedCounselor && counselorIds.includes(assignedCounselor)) {
+            if (assignedCounselor) {
                 if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
                     return res.status(400).json({ error: 'Invalid counselor ID' });
                 }
@@ -205,6 +205,7 @@ export const getAllLeads = async (req, res) => {
             intakeDateRange // format: "YYYY-MM-DD_YYYY-MM-DD"
         } = req.query;
 
+
         const user = req.user;
 
         const matchStage = {};
@@ -235,7 +236,7 @@ export const getAllLeads = async (req, res) => {
             matchStage.assignedCounselor = user._id;
         }
 
-        else if (user.role === "leader") {
+        else if (user.role == "leader") {
 
             const counselors = await mongoose.model('User').find(
                 { leader: user._id, role: "counselor" },
@@ -244,7 +245,8 @@ export const getAllLeads = async (req, res) => {
             const counselorIds = counselors.map(c => c._id);
             matchStage.assignedCounselor = { $in: counselorIds };
 
-            if (assignedCounselor && counselorIds.includes(assignedCounselor)) {
+            if (assignedCounselor) {
+
                 if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
                     return res.status(400).json({ error: 'Invalid counselor ID' });
                 }
