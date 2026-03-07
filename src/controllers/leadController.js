@@ -700,7 +700,7 @@ export const bulkDeleteLeads = async (req, res) => {
 };
 
 export const bulkAssignCounselor = async (req, res) => {
-    const { counselorId, leadIds } = req.body;
+    const { counselorId, leadIds, withNew } = req.body;
 
     if (!counselorId || !Array.isArray(leadIds) || leadIds.length === 0) {
         return res.status(400).json({
@@ -713,7 +713,8 @@ export const bulkAssignCounselor = async (req, res) => {
         { _id: { $in: leadIds } },
         {
             $set: {
-                assignedCounselor: counselorId
+                assignedCounselor: counselorId,
+                ...(withNew && { status: "new" })
             },
         }
     );
