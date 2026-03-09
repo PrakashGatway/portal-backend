@@ -923,6 +923,12 @@ const normalizeIndianPhone = (number) => {
     phone = phone.replace(/\D/g, "");
 
     if (!/^[6-9]\d{9}$/.test(phone)) {
+        if (phone.length > 10) {
+            phone = phone.slice(-10);
+        }
+    }
+
+    if (!/^[6-9]\d{9}$/.test(phone)) {
         return null;
     }
 
@@ -958,7 +964,7 @@ export const clickToCall = async (req, res) => {
         }
         try {
             // const clickToCallResponse = await axios.get(`https://w.digiskyweb.com/v2/clickToCall/para?user_id=28882897&token=NHzuuPAMM6S0cfwsAg7i&from=${normalizeIndianPhone(masterNum)}&to=${normalizeIndianPhone(lead.phone)}`)
-
+            console.log(masterNum, normalizeIndianPhone(lead.phone))
             const clickToCallResponse = await axios.get(`https://api.dndfilter.com/api/clickToCall/generateCall?apiKey=dgUS8Dq2KZZESlHsCGQCmg&executiveContact=${normalizeIndianPhone(masterNum)}&clientContact=${normalizeIndianPhone(lead.phone)}&executiveEmailId=${req?.user?.email}`)
 
             if (clickToCallResponse.status !== 200) {
