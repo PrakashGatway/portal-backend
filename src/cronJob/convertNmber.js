@@ -21,6 +21,12 @@ const normalizeIndianPhone = (number) => {
         phone = phone.slice(-10);
     }
 
+    if (!/^[6-9]\d{9}$/.test(phone)) {
+        if (phone.length > 10) {
+            phone = phone.slice(-10);
+        }
+    }
+
     // Validate Indian mobile number
     if (!/^[6-9]\d{9}$/.test(phone)) {
         return null;
