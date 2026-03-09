@@ -339,49 +339,49 @@ export const getAllLeads = async (req, res) => {
             }
         );
 
-        if (user.role != "admin") pipeline.push(
-            {
-                $addFields: {
-                    phone: {
-                        $cond: [
-                            { $ifNull: ["$phone10", false] },
-                            {
-                                $concat: [
-                                    { $substr: ["$phone10", 0, 2] },
-                                    "******",
-                                    { $substr: ["$phone10", 8, 2] }
-                                ]
-                            },
-                            null
-                        ]
-                    },
-                    email: {
-                        $cond: [
-                            { $ifNull: ["$email", false] },
-                            {
-                                $concat: [
-                                    { $substr: ["$email", 0, 2] },
-                                    "****",
-                                    {
-                                        $substr: [
-                                            "$email",
-                                            { $indexOfBytes: ["$email", "@"] },
-                                            -1
-                                        ]
-                                    }
-                                ]
-                            },
-                            null
-                        ]
-                    }
-                }
-            },
-            {
-                $project: {
-                    phone10: 0
-                }
-            }
-        );
+        // if (user.role != "admin") pipeline.push(
+        //     {
+        //         $addFields: {
+        //             phone: {
+        //                 $cond: [
+        //                     { $ifNull: ["$phone10", false] },
+        //                     {
+        //                         $concat: [
+        //                             { $substr: ["$phone10", 0, 2] },
+        //                             "******",
+        //                             { $substr: ["$phone10", 8, 2] }
+        //                         ]
+        //                     },
+        //                     null
+        //                 ]
+        //             },
+        //             email: {
+        //                 $cond: [
+        //                     { $ifNull: ["$email", false] },
+        //                     {
+        //                         $concat: [
+        //                             { $substr: ["$email", 0, 2] },
+        //                             "****",
+        //                             {
+        //                                 $substr: [
+        //                                     "$email",
+        //                                     { $indexOfBytes: ["$email", "@"] },
+        //                                     -1
+        //                                 ]
+        //                             }
+        //                         ]
+        //                     },
+        //                     null
+        //                 ]
+        //             }
+        //         }
+        //     },
+        //     {
+        //         $project: {
+        //             phone10: 0
+        //         }
+        //     }
+        // );
 
         const leads = await Lead.aggregate(pipeline);
 
