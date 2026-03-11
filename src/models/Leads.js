@@ -141,6 +141,14 @@ const leadSchema = new Schema(
         extraDetails: {
             type: Schema.Types.Mixed,
             default: {}
+        },
+        leadRecivedAt: {
+            type: Date,
+            default: () => new Date()
+        },
+        createdAt: {
+            type: Date,
+            default: () => new Date()
         }
     },
     {

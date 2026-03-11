@@ -743,13 +743,20 @@ export const bulkAssignCounselor = async (req, res) => {
         });
     }
 
+    console.log(`Assigning leads ${leadIds} to counselor ${counselorId}`);
     const result = await Lead.updateMany(
         { _id: { $in: leadIds } },
         {
             $set: {
                 assignedCounselor: counselorId,
-                ...(withNew && { secondaryStatus: "new" })
-            },
+                ...(withNew && { secondaryStatus: "new" }),
+                ...(withNew && {
+                    createdAt: new Date()
+                })
+            }
+        },
+        {
+            timestamps: false // IMPORTANT
         }
     );
 
