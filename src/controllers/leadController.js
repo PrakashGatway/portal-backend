@@ -743,7 +743,6 @@ export const bulkAssignCounselor = async (req, res) => {
         });
     }
 
-    console.log(`Assigning leads ${leadIds} to counselor ${counselorId}`);
     const result = await Lead.updateMany(
         { _id: { $in: leadIds } },
         {
