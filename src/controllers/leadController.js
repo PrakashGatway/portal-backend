@@ -5,11 +5,24 @@ import mongoose from 'mongoose';
 
 const parseDateRange = (dateStr) => {
     if (!dateStr) return null;
+
     const [start, end] = dateStr.split('_');
-    return {
-        $gte: start ? new Date(start) : undefined,
-        $lte: end ? new Date(end) : undefined
-    };
+
+    const range = {};
+
+    if (start) {
+        const startDate = new Date(start);
+        startDate.setHours(0, 0, 0, 0); // start of day
+        range.$gte = startDate;
+    }
+
+    if (end) {
+        const endDate = new Date(end);
+        endDate.setHours(23, 59, 59, 999); // end of day
+        range.$lte = endDate;
+    }
+
+    return range;
 };
 
 const LEAD_STATUSES = [
@@ -18,14 +31,18 @@ const LEAD_STATUSES = [
     'followup',
     'viewed',
     'contacted',
+    'futureLeads',
     'interested',
     'notInterested',
+    'vcBooked',
+    'vcConducted',
     'enrolled',
     'rejected',
     'junk',
+    'closed',
     'visitDone',
     'visitSchedule',
-    'inactive'
+    'reenquired'
 ];
 
 export const getLeadStatusStats = async (req, res) => {
@@ -1189,4 +1206,233 @@ export const getIncomingCalls = async (req, res) => {
         console.error("❌ Fetch call logs error:", error);
         res.status(500).json({ error: "Failed to fetch call logs" });
     }
+};
+
+export const getCounselorCallingAnalysis = async (req, res) => {
+  try {
+    const { startDate, endDate, counselorId } = req.query;
+
+    const match = {};
+
+    let start = startDate;
+    let end = endDate;
+
+    if (!start || !end) {
+      end = new Date();
+      start = new Date();
+      start.setDate(start.getDate() - 7);
+    }
+
+    match.createdAt = {
+      $gte: new Date(start),
+      $lte: new Date(end)
+    };
+
+    let allowedCounselors = [];
+
+    if (req.user.role === "leader") {
+      const associates = await User.find(
+        { leaderId: req.user._id },
+        { _id: 1 }
+      );
+
+      allowedCounselors = associates.map(a => a._id);
+    }
+
+    if (req.user.role === "counselor") {
+      allowedCounselors = [req.user._id];
+    }
+
+    const pipeline = [
+      { $match: match },
+
+      {
+        $lookup: {
+          from: "leads",
+          localField: "phone",
+          foreignField: "phone10",
+          as: "lead"
+        }
+      },
+
+      { $unwind: "$lead" },
+
+      ...(counselorId
+        ? [
+            {
+              $match: {
+                "lead.assignedCounselor": new mongoose.Types.ObjectId(
+                  counselorId
+                )
+              }
+            }
+          ]
+        : []),
+
+      ...(allowedCounselors.length
+        ? [
+            {
+              $match: {
+                "lead.assignedCounselor": { $in: allowedCounselors }
+              }
+            }
+          ]
+        : []),
+
+      {
+        $group: {
+          _id: "$lead.assignedCounselor",
+
+          totalCalls: { $sum: 1 },
+
+          outboundCalls: {
+            $sum: {
+              $cond: [{ $eq: ["$extraDetails.cType", "CTC"] }, 1, 0]
+            }
+          },
+
+          inboundCalls: {
+            $sum: {
+              $cond: [{ $eq: ["$extraDetails.cType", "IBD"] }, 1, 0]
+            }
+          },
+
+          connectedCalls: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "Answer"] }, 1, 0]
+            }
+          },
+
+          missedCalls: {
+            $sum: {
+              $cond: [{ $eq: ["$status", "Missed"] }, 1, 0]
+            }
+          },
+
+          outboundDuration: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$extraDetails.cType", "CTC"] },
+                    { $eq: ["$status", "Answer"] }
+                  ]
+                },
+                "$duration",
+                0
+              ]
+            }
+          },
+
+          inboundDuration: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$extraDetails.cType", "IBD"] },
+                    { $eq: ["$status", "Answer"] }
+                  ]
+                },
+                "$duration",
+                0
+              ]
+            }
+          },
+
+          outboundConnected: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$extraDetails.cType", "CTC"] },
+                    { $eq: ["$status", "Answer"] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+
+          inboundConnected: {
+            $sum: {
+              $cond: [
+                {
+                  $and: [
+                    { $eq: ["$extraDetails.cType", "IBD"] },
+                    { $eq: ["$status", "Answer"] }
+                  ]
+                },
+                1,
+                0
+              ]
+            }
+          },
+
+          totalDuration: { $sum: "$duration" }
+        }
+      },
+
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "counselor"
+        }
+      },
+
+      { $unwind: "$counselor" },
+
+      {
+        $project: {
+          counselorName: "$counselor.name",
+          totalCalls: 1,
+          outboundCalls: 1,
+          inboundCalls: 1,
+          missedCalls: 1,
+          connectedCalls: 1,
+          outboundDuration: 1,
+          inboundDuration: 1,
+          outboundConnected: 1,
+          inboundConnected: 1,
+          totalDuration: 1,
+
+          avgOutboundDuration: {
+            $cond: [
+              { $eq: ["$outboundConnected", 0] },
+              0,
+              { $divide: ["$outboundDuration", "$outboundConnected"] }
+            ]
+          },
+
+          avgInboundDuration: {
+            $cond: [
+              { $eq: ["$inboundConnected", 0] },
+              0,
+              { $divide: ["$inboundDuration", "$inboundConnected"] }
+            ]
+          },
+
+          avgDuration: {
+            $cond: [
+              { $eq: ["$connectedCalls", 0] },
+              0,
+              { $divide: ["$totalDuration", "$connectedCalls"] }
+            ]
+          }
+        }
+      }
+    ];
+
+    const result = await Leadlogs.aggregate(pipeline);
+
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false });
+  }
 };

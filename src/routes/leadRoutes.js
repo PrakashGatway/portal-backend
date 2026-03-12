@@ -15,20 +15,20 @@ import {
     clickToCall,
     getCallLogsByPhone,
     addLogsNotes,
-    getIncomingCalls
+    getIncomingCalls,
+    getCounselorCallingAnalysis
 } from '../controllers/leadController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
 const router = express.Router();
 router.post('/callreport', logsPush);
-
 router.post('/activity/update', protect, addLogsNotes);
-
 router.get('/call/:id', protect, clickToCall);
-
 router.get('/activity', protect, getCallLogsByPhone);
 router.get('/activity/incoming', protect, getIncomingCalls);
 
+router.route('/reports')
+    .get(protect,getCounselorCallingAnalysis);
 
 router.route('/')
     .get(protect, getAllLeads)
@@ -51,6 +51,7 @@ router.route('/bulk/delete')
     .delete(protect, authorize('admin', 'super_admin'), bulkDeleteLeads)
 
 router.route('/bulk/assign')
-    .put(protect, authorize('admin','leader', 'super_admin'), bulkAssignCounselor)
+    .put(protect, authorize('admin', 'leader', 'super_admin'), bulkAssignCounselor)
+
 
 export default router;

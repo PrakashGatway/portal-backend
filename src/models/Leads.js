@@ -36,14 +36,18 @@ const LEAD_STATUSES = [
     'followup',
     'viewed',
     'contacted',
+    'futureLeads',
     'interested',
     'notInterested',
+    'vcBooked',
+    'vcConducted',
     'enrolled',
     'rejected',
     'junk',
+    'closed',
     'visitDone',
     'visitSchedule',
-    'inactive'
+    'reenquired'
 ];
 
 const LEAD_SOURCES = [
