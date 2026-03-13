@@ -112,7 +112,12 @@ router.post("/webhook", async (req, res) => {
               city,
               coursePreference: 'unfilled',
               source: 'metaAds',
-              extraDetails,
+              extraDetails:{
+                formId,
+                pageId,
+                ...extraDetails,
+                leadData : JSON.stringify(leadData)
+              },
             });
 
           } catch (error) {

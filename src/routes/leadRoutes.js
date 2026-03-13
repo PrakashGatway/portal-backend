@@ -28,7 +28,7 @@ router.get('/activity', protect, getCallLogsByPhone);
 router.get('/activity/incoming', protect, getIncomingCalls);
 
 router.route('/reports')
-    .get(protect,getCounselorCallingAnalysis);
+    .get(protect, getCounselorCallingAnalysis);
 
 router.route('/')
     .get(protect, getAllLeads)
