@@ -35,7 +35,6 @@ const LEAD_STATUSES = [
     'notReachable',
     'followup',
     'viewed',
-    'contacted',
     'futureLeads',
     'interested',
     'notInterested',
