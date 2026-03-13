@@ -47,7 +47,8 @@ const LEAD_STATUSES = [
     'closed',
     'visitDone',
     'visitSchedule',
-    'reenquired'
+    'reenquired',
+    'inactive'
 ];
 
 const LEAD_SOURCES = [
@@ -142,6 +143,20 @@ const leadSchema = new Schema(
                 }
             }
         ],
+        adsDetails:{
+            formId: {
+                type: String
+            },
+            campaign_id: {
+                type: String
+            },
+            leadId:{
+                type: String
+            },
+            ad_name:{
+                type: String
+            }
+        },
         extraDetails: {
             type: Schema.Types.Mixed,
             default: {}

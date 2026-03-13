@@ -93,9 +93,11 @@ router.post("/webhook", async (req, res) => {
           const pageId = change.value.page_id;
           const token = "EAA8w7TGqzLwBQfRmsh3U0Cdm31wRic9YmNU7L5qXRoJKCBspZBheUjcxr93BPMvtZCmA4gkNvY6gEZCA9nsbCnaysBBATSJblbH87N7tF64FQliJJzUTnfIZANBk4sMBPxSYKQZAb1hno4DyPTXGcb2bHDiiAFBQSFuVZASEfmPBzLL7ZADh7stIdVeVShg1OW6pZBPQSrAZD"
 
+          // `https://graph.facebook.com/v19.0/${leadId}?access_token=${token}`
+
           try {
             const response = await fetch(
-              `https://graph.facebook.com/v19.0/${leadId}?access_token=${token}`
+              `https://graph.facebook.com/v19.0/${leadId}?fields=id,created_time,ad_id,ad_name,adset_id,adset_name,campaign_id,custom_disclaimer_responses,field_data,form_id&access_token=${token}`
             );
             const leadData = await response.json();
 
@@ -112,12 +114,13 @@ router.post("/webhook", async (req, res) => {
               city,
               coursePreference: 'unfilled',
               source: 'metaAds',
-              extraDetails:{
+              adsDetails: {
                 formId,
-                pageId,
-                ...extraDetails,
-                leadData : JSON.stringify(leadData)
+                campaign_id: leadData.campaign_id,
+                leadId,
+                ad_name: leadData.ad_name
               },
+              extraDetails
             });
 
           } catch (error) {
@@ -129,6 +132,21 @@ router.post("/webhook", async (req, res) => {
   }
   res.status(200).send("EVENT_RECEIVED");
 });
+
+async function leadDetail() {
+  const token = "EAA8w7TGqzLwBQfRmsh3U0Cdm31wRic9YmNU7L5qXRoJKCBspZBheUjcxr93BPMvtZCmA4gkNvY6gEZCA9nsbCnaysBBATSJblbH87N7tF64FQliJJzUTnfIZANBk4sMBPxSYKQZAb1hno4DyPTXGcb2bHDiiAFBQSFuVZASEfmPBzLL7ZADh7stIdVeVShg1OW6pZBPQSrAZD"
+  const leadId = "786768460745024";
+
+  const response = await fetch(
+    `https://graph.facebook.com/v19.0/${leadId}?fields=id,created_time,ad_id,ad_name,adset_id,adset_name,campaign_id,custom_disclaimer_responses,field_data,form_id&access_token=${token}`
+  );
+
+  const leadData = await response.json();
+  console.log(leadData);
+}
+
+// leadDetail();
+
 
 // getLongLivedPageTokenSimple(4275919949319356,"979cfdbbb1418fb29c2a25c122d06668","EAA8w7TGqzLwBQdRwAJgRwTZAljeuE2sPGYkr0pFcvAAGw7FjgT3nTSh0w84jojc2CNdws4J9mHu1umgllU8NuoWkZBXZCxastgP0Viz0XxcWv0gcRVQc1xZCFjrkXzuGg229UFZBRpK5uhY7WmVoYr302XoZBaltIDu9xPqYnyV6L3UZArUzquFTGnZAHTE3sYSSXXh8aA03YWwZCgpciIaWje1RJk6ZCTVAFXC3RlDQ2M5Xx3CdHNLZA2d9vMgCIEnZCNpQNimOGZAZAvwQeSC3HNOcBO",221710514363587)
 

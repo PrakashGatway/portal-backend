@@ -636,6 +636,1031 @@ let leads = [
   }
 ]
 
+const NewLeads = [
+  {
+    "name": "Dinesh S N",
+    "email": "dinesh.n7639@gmail.com",
+    "phone_number": "+916379173860"
+  },
+  {
+    "name": "Satish",
+    "email": "",
+    "phone_number": "+919566877020"
+  },
+  {
+    "name": "David",
+    "email": "",
+    "phone_number": "+918056105824"
+  },
+  {
+    "name": "Harni",
+    "email": "",
+    "phone_number": "+919626818515"
+  },
+  {
+    "name": "Abhishek ",
+    "email": "",
+    "phone_number": "+917010994839"
+  },
+  {
+    "name": "Preeti ",
+    "email": "",
+    "phone_number": "+918086937000"
+  },
+  {
+    "name": "Jai",
+    "email": "jaihari8804@gmail.com",
+    "phone_number": "+916369314762"
+  },
+  {
+    "name": "Arvind",
+    "email": "xarvindsrinix@gmail.com",
+    "phone_number": "+918778504907"
+  },
+  {
+    "name": "Louis Varun",
+    "email": "louis.varun2005@gmail.com",
+    "phone_number": "+919499961379"
+  },
+  {
+    "name": "varsha ",
+    "email": "",
+    "phone_number": "+918098077999"
+  },
+  {
+    "name": "Reshma",
+    "email": "",
+    "phone_number": "+919940201499"
+  },
+  {
+    "name": "M BALACHANDRAN",
+    "email": "maniias@gov.in",
+    "phone_number": "+919411176033"
+  },
+  {
+    "name": "Subhashini G",
+    "email": "gksubha06@gmail.com",
+    "phone_number": "+916382605861"
+  },
+  {
+    "name": "Srinivasan subramanian",
+    "email": "srini.classikplywoods@gmail.com",
+    "phone_number": "+919884470089"
+  },
+  {
+    "name": "karthic G",
+    "email": "gkarthicgnanam@gmail.com",
+    "phone_number": "+919790804605"
+  },
+  {
+    "name": "Sreelakshmi",
+    "email": "venkateshjamuna09@gmail.com",
+    "phone_number": "+918072818917"
+  },
+  {
+    "name": "shanthosh",
+    "email": "nala38207@gmail.com",
+    "phone_number": "+19123555802"
+  },
+  {
+    "name": "Mrithyum Jai",
+    "email": "mrithyumjaimp@gmail.com",
+    "phone_number": "+918248771076"
+  },
+  {
+    "name": "Reenu",
+    "email": "",
+    "phone_number": "+919952006312"
+  },
+  {
+    "name": "Akash",
+    "email": "asbroakash@gmail.com",
+    "phone_number": "+919003009664"
+  },
+  {
+    "name": "Shrisai Amruthaa",
+    "email": "",
+    "phone_number": "+919940088052"
+  },
+  {
+    "name": "Krishika",
+    "email": "krishikabudhani28@gmail.com",
+    "phone_number": "+919322161236"
+  },
+  {
+    "name": "Chandra Shekhar",
+    "email": "shekar232002@gmail.com",
+    "phone_number": "+919342643695"
+  },
+  {
+    "name": "Aswin",
+    "email": "achuaswin11@gmail.com",
+    "phone_number": "+917907361218"
+  },
+  {
+    "name": "Sanjana",
+    "email": "",
+    "phone_number": "+917358311425"
+  },
+  {
+    "name": "Lavanya V",
+    "email": "lavanyatamil8204@gmail.com",
+    "phone_number": "+917358911494"
+  },
+  {
+    "name": "Ramyaa",
+    "email": "c05219325@gmail.com",
+    "phone_number": "+918925493778"
+  },
+  {
+    "name": "SANDHIYA.... ....",
+    "email": "sandhiya2005621@gmail.com",
+    "phone_number": "+918122156297"
+  },
+  {
+    "name": "V.Hari Haran",
+    "email": "vhatiharanicf@gmail.com",
+    "phone_number": "+917418646367"
+  },
+  {
+    "name": "Aditya",
+    "email": "asmurugaian123@gmail.com",
+    "phone_number": "+918788394509"
+  },
+  {
+    "name": "hassana",
+    "email": "fathimahassana46@gmail.com",
+    "phone_number": "+918807709085"
+  },
+  {
+    "name": "Anees",
+    "email": "Aneesfathima@hotmail.com",
+    "phone_number": "+919791750056"
+  },
+  {
+    "name": "A'bee",
+    "email": "abinayamadhavan16@gmail.com",
+    "phone_number": "+917339585703"
+  },
+  {
+    "name": "🆂🅼",
+    "email": "samlawrence.n2005@icloud.com",
+    "phone_number": "+918072198637"
+  },
+  {
+    "name": "Karan Baskaran",
+    "email": "",
+    "phone_number": "+917305982066"
+  },
+  {
+    "name": "Ramana Moorthy ",
+    "email": "ramana110805@gmail.com",
+    "phone_number": "+91 8925925565"
+  },
+  {
+    "name": "Jagadish",
+    "email": "naikjagadish7075@gmail.com",
+    "phone_number": "+917993184551"
+  },
+  {
+    "name": "Avinash Vs",
+    "email": "avinashvs209@gmail.com",
+    "phone_number": "+919176140682"
+  },
+  {
+    "name": "Navee____",
+    "email": "samsaninaveen122@gmail.com",
+    "phone_number": "+919182767910"
+  },
+  {
+    "name": "Shakti Purni",
+    "email": "",
+    "phone_number": "+918925246657"
+  },
+  {
+    "name": "Mohamad Nibraz",
+    "email": "",
+    "phone_number": "+919840575226"
+  },
+  {
+    "name": "Abhishek",
+    "email": "",
+    "phone_number": "+919360598115"
+  },
+  {
+    "name": "Amritha",
+    "email": "amrithav2803@gmail.com",
+    "phone_number": "+917550007010"
+  },
+  {
+    "name": "Thrisha K",
+    "email": "thrishakabilan@gmail.com",
+    "phone_number": "+917305343075"
+  },
+  {
+    "name": "Jatin",
+    "email": "jatin.johnny007@gmail.com",
+    "phone_number": "+918700496400"
+  },
+  {
+    "name": "EATHAMUKKALA SOWMYA",
+    "email": "e.sowmya91@gmail.com",
+    "phone_number": "+919346801892"
+  },
+  {
+    "name": "NAGENDRAN ",
+    "email": "nareshakshaya007@gmail.com",
+    "phone_number": "+919884825199"
+  },
+  {
+    "name": "Abdullah",
+    "email": "abdull55726@gmail.com",
+    "phone_number": "+919150995724"
+  },
+  {
+    "name": "Nishanth Reddy Siddavatam",
+    "email": "nishanthreddysiddavatam@gmail.com",
+    "phone_number": "+919490103424"
+  },
+  {
+    "name": "vimaleasan",
+    "email": "",
+    "phone_number": "+918667436656"
+  },
+  {
+    "name": "Priyadarshani",
+    "email": "",
+    "phone_number": "+918608515275"
+  },
+  {
+    "name": "kameshkanna srinivasan",
+    "email": "rajnivas28@gmail.com",
+    "phone_number": "+918124667147"
+  },
+  {
+    "name": "Pooja Vinayagamoorthy",
+    "email": "poojavinayagamoorthy@gmail.com",
+    "phone_number": "+918883575404"
+  },
+  {
+    "name": "Abi Shek",
+    "email": "abishekdharshan@karunya.edu.in",
+    "phone_number": "+919345569453"
+  },
+  {
+    "name": "Harshita",
+    "email": "",
+    "phone_number": "+919755645798"
+  },
+  {
+    "name": "Yoshitha ",
+    "email": "yoshithamakkina@gmail.com",
+    "phone_number": "+919390883805"
+  },
+  {
+    "name": "Harshita Pant",
+    "email": "pantharshita16@gmail.com",
+    "phone_number": "+919165405111"
+  },
+  {
+    "name": "Sriram",
+    "email": "julakarthu@gmail.com",
+    "phone_number": "+919597762122"
+  },
+  {
+    "name": "Magesh ",
+    "email": "",
+    "phone_number": "+919840040441"
+  },
+  {
+    "name": "Arif shekh",
+    "email": "shaikaarifshaikaarif5@gmail.com",
+    "phone_number": "+919022755905"
+  },
+  {
+    "name": "Mahesh Babu",
+    "email": "amgothmaheshbabu@gmail.com",
+    "phone_number": "+919494220374"
+  },
+  {
+    "name": "Swethaaaa",
+    "email": "88swetharaj@gmail.com",
+    "phone_number": "+919342043713"
+  },
+  {
+    "name": "Reshma Rahamathulla",
+    "email": "afraidris1522@gmail.com",
+    "phone_number": "+919941296866"
+  },
+  {
+    "name": "Dharshini Suresh",
+    "email": "dharshinisuresh324@gmail.com",
+    "phone_number": "+917708620224"
+  },
+  {
+    "name": "Aisha",
+    "email": "",
+    "phone_number": "+919043966313"
+  },
+  {
+    "name": "Aleem",
+    "email": "Kogatamaleem386@gmail.com",
+    "phone_number": "+916305182750"
+  },
+  {
+    "name": "Saran",
+    "email": "",
+    "phone_number": "+919840809513"
+  },
+  {
+    "name": "aathesshh >!",
+    "email": "athays.th@gmail.com",
+    "phone_number": "+919043365990"
+  },
+  {
+    "name": "Kirthika",
+    "email": "Kirthikasarava7@gmail.com",
+    "phone_number": "+917358057598"
+  },
+  {
+    "name": "Bala Guru",
+    "email": "",
+    "phone_number": "+918825960813"
+  },
+  {
+    "name": "Varsha",
+    "email": "maadhusep16@gmail.com",
+    "phone_number": "+919789112791"
+  },
+  {
+    "name": "JAI SUNDAR J",
+    "email": "jaisundarjeevanandam@gmail.com",
+    "phone_number": "+917338811547"
+  },
+  {
+    "name": "abinaya prabakar",
+    "email": "abinayaprabakar007@gmail.com",
+    "phone_number": "+919342212821"
+  },
+  {
+    "name": "Suve Tha",
+    "email": "Suverenu15@gmail.com",
+    "phone_number": "+919360247600"
+  },
+  {
+    "name": "P Karthik Manikantan",
+    "email": "manikantanp1313@gmail.com",
+    "phone_number": "+918982666983"
+  },
+  {
+    "name": "Mohamed Nazim",
+    "email": "nazim2732@gmail.com",
+    "phone_number": "+919042507345"
+  },
+  {
+    "name": "sr!",
+    "email": "thiyagasri410@gmail.com",
+    "phone_number": "+916369063417"
+  },
+  {
+    "name": "S.sivaramakrishnan",
+    "email": "sivaramakrishnan925@gmail.com",
+    "phone_number": "+917449133133"
+  },
+  {
+    "name": "Monica",
+    "email": "",
+    "phone_number": "+966531252015"
+  },
+  {
+    "name": "Subash",
+    "email": "sub241104@gmail.com",
+    "phone_number": "+916380151607"
+  },
+  {
+    "name": "Hari Prasath",
+    "email": "hariprasath1909@gmail.com",
+    "phone_number": "+918220296385"
+  },
+  {
+    "name": "Arul Kumaran",
+    "email": "arulkumaran.racerak.05@gmail.com",
+    "phone_number": "+919943295725"
+  },
+  {
+    "name": "GRISH KRITHIK",
+    "email": "noobgamerbgmivictor@gmail.com",
+    "phone_number": "+918072760561"
+  },
+  {
+    "name": "Badrinath",
+    "email": "",
+    "phone_number": "+918870245025"
+  },
+  {
+    "name": "Amla",
+    "email": "",
+    "phone_number": "+919940629443"
+  },
+  {
+    "name": "Bharani",
+    "email": "bharaniblof20@gmail.com",
+    "phone_number": "+919360445381"
+  },
+  {
+    "name": "Divya ",
+    "email": "",
+    "phone_number": "+918438796591"
+  },
+  {
+    "name": "T",
+    "email": "tejaswiniveenadhakshin@gmail.com",
+    "phone_number": "+919789014745"
+  },
+  {
+    "name": "Padmashri",
+    "email": "padmashri2023@gmail.com",
+    "phone_number": "+919043005720"
+  },
+  {
+    "name": "Shree Ranjana",
+    "email": "shreeshiny293@gmail.com",
+    "phone_number": "+918122682551"
+  },
+  {
+    "name": "Raaj",
+    "email": "logeshraaj07@gmail.com",
+    "phone_number": "+919600572755"
+  },
+  {
+    "name": "Faizal Ahmed ",
+    "email": "faizalahmed0805@gmail.com ",
+    "phone_number": "9043629588"
+  },
+  {
+    "name": "JeniAsh96",
+    "email": "ashlinjensha96@gmail.com",
+    "phone_number": "+1919500940731"
+  },
+  {
+    "name": "Bhuvaneswari Aravind Kumar",
+    "email": "bhuvani.aravind@gmail.com",
+    "phone_number": "+919841405854"
+  },
+  {
+    "name": "Bhavika",
+    "email": "paduchurubhavika04@gmail.com",
+    "phone_number": "+916380238620"
+  },
+  {
+    "name": "G Austen Sanjay",
+    "email": "gaustensanjay@gmail.com",
+    "phone_number": "+917395967581"
+  },
+  {
+    "name": "Gokul",
+    "email": "",
+    "phone_number": "+917386668432"
+  },
+  {
+    "name": "Aadith Aadith",
+    "email": "suganyamurugavel1978@gmail.com",
+    "phone_number": "8431875894"
+  },
+  {
+    "name": "Madhusmita",
+    "email": "",
+    "phone_number": "+916369372614"
+  },
+  {
+    "name": "Aishwarya K ",
+    "email": "aishudass071@gmail.com",
+    "phone_number": "9003620870"
+  },
+  {
+    "name": "Durainathan ",
+    "email": "durainathana70@gmail.com",
+    "phone_number": "8825930830"
+  },
+  {
+    "name": "Vignesh",
+    "email": "",
+    "phone_number": "+918925238017"
+  },
+  {
+    "name": "Vijaya Sarathy",
+    "email": "vijaynautical999@gmail.com",
+    "phone_number": "+919790999736"
+  },
+  {
+    "name": "Tarit Biswas",
+    "email": "taritbiswas78@gmail.com",
+    "phone_number": "+917823938678"
+  },
+  {
+    "name": "Kumaravel",
+    "email": "kumaravelramesh23@gmail.com",
+    "phone_number": "+918220668196"
+  },
+  {
+    "name": "Selvarani S",
+    "email": "selvaraniberlin45e@gmail.com",
+    "phone_number": "+917598269178"
+  },
+  {
+    "name": "Kijolin Johisha ",
+    "email": "johishakijolin@gmail.com",
+    "phone_number": "8524004603"
+  },
+  {
+    "name": "Heena",
+    "email": "heenasithik976@gmail.com ",
+    "phone_number": "6374426961"
+  },
+  {
+    "name": "Faritha",
+    "email": "farithaparveen14a@gmail.com",
+    "phone_number": "+917397624499"
+  },
+  {
+    "name": "Shiva",
+    "email": "shiva20045535@gmail.com",
+    "phone_number": "+916374693979"
+  },
+  {
+    "name": "Abilash N",
+    "email": "abilash1322004@gmail.com",
+    "phone_number": "+918925299629"
+  },
+  {
+    "name": "Sanjaay Hariharan",
+    "email": "sanjaayh@gmail.com",
+    "phone_number": "+917550202333"
+  },
+  {
+    "name": " Nagul",
+    "email": "",
+    "phone_number": "+919940695123"
+  },
+  {
+    "name": "Pranav",
+    "email": "drpranav2012@gmail.com",
+    "phone_number": "+918056279626"
+  },
+  {
+    "name": "Sushmitha",
+    "email": "",
+    "phone_number": "+919789943684"
+  },
+  {
+    "name": "R Rohit",
+    "email": "",
+    "phone_number": "+919952562649"
+  },
+  {
+    "name": "Sterlin jino",
+    "email": "sterlinjino07@gmail.com",
+    "phone_number": "+918124197571"
+  },
+  {
+    "name": "Sandhya",
+    "email": "nsandhya2612004@gmail.com",
+    "phone_number": "+919342807187"
+  },
+  {
+    "name": "Sangeerthana",
+    "email": "sangeerthanasangee0@gmail.com",
+    "phone_number": "+919677630903"
+  },
+  {
+    "name": "Narmada Murali",
+    "email": "narmadakm@yahoo.com",
+    "phone_number": "+919840894578"
+  },
+  {
+    "name": "Vaseekaran",
+    "email": "",
+    "phone_number": "+918939612140"
+  },
+  {
+    "name": "Sanchana R",
+    "email": "sanch.ramnan1702@gmail.com",
+    "phone_number": "+919962062882"
+  },
+  {
+    "name": "Bavinilasheni",
+    "email": "bavinilasheni@gmail.com",
+    "phone_number": "+919629497572"
+  },
+  {
+    "name": "Hemapriya ",
+    "email": "2912priyahema@gmail.com",
+    "phone_number": "+918072231560"
+  },
+  {
+    "name": "Pranav P",
+    "email": "pranav23000@gmail.com",
+    "phone_number": "+917305448084"
+  },
+  {
+    "name": "DS",
+    "email": "imagineiamstillalive@gmail.com",
+    "phone_number": "+917599274901"
+  },
+  {
+    "name": "Saif Ali Khan",
+    "email": "saifalikhn541@gmail.com",
+    "phone_number": "+917010706524"
+  },
+  {
+    "name": "Arulkumar",
+    "email": "arulkumarsuji@gmail.com",
+    "phone_number": "+919976226363"
+  },
+  {
+    "name": "Mohamad shaikh",
+    "email": "",
+    "phone_number": "+919445018309"
+  },
+  {
+    "name": "Giridaran S",
+    "email": "giridaran25.gd@gmail.com",
+    "phone_number": "+917397281595"
+  },
+  {
+    "name": "Kummari vishnu sai",
+    "email": "kvishnuvishnu77@gmail.com",
+    "phone_number": "+917981778537"
+  },
+  {
+    "name": "Aditya L",
+    "email": "aditya21022003@gmail.com",
+    "phone_number": "+917299212777"
+  },
+  {
+    "name": "Vigneshvaran",
+    "email": "knithyakanagu@gmail.com",
+    "phone_number": "+918056171541"
+  },
+  {
+    "name": "AFREEN",
+    "email": "afreenpathi@gmail.com",
+    "phone_number": "+919150417493"
+  },
+  {
+    "name": "Apinayaa Sivakumar",
+    "email": "apinayaasivakumar53@gmail.com",
+    "phone_number": "+917639054591"
+  },
+  {
+    "name": "Kalimuthuraja Sureshkumar",
+    "email": "krsureshkumar27@yahoo.in",
+    "phone_number": "+919962978078"
+  },
+  {
+    "name": "Arunachalam",
+    "email": "rockarun1006@gmail.com",
+    "phone_number": "+918939662840"
+  },
+  {
+    "name": "SC",
+    "email": "gsriramchandrasekar@gmail.com",
+    "phone_number": "+919025038804"
+  },
+  {
+    "name": "Jagadeesh",
+    "email": "jagadeeshrajkumar13@gmail.com",
+    "phone_number": "9585121935"
+  },
+  {
+    "name": "Yashaswini Mudunuri",
+    "email": "yashumudunuri123@gmail.com",
+    "phone_number": "8575167777"
+  },
+  {
+    "name": "Nandini",
+    "email": "nandusri0143@gmail.com",
+    "phone_number": "+919676270313"
+  },
+  {
+    "name": "Jothi Ganesh ",
+    "email": "V.j.ganeshvdm25@gmail.com",
+    "phone_number": "8610210535"
+  },
+  {
+    "name": "Kaviya",
+    "email": "kaviyamanivannan1999@gmail.com",
+    "phone_number": "+917092504568"
+  },
+  {
+    "name": "Bhargav ",
+    "email": "barulucky123@gmail.com",
+    "phone_number": "+919059463826"
+  },
+  {
+    "name": "kishor_craze",
+    "email": "kishorkishor8290@gmail.com",
+    "phone_number": "+919444007576"
+  },
+  {
+    "name": "Arav",
+    "email": "",
+    "phone_number": "+919150269823"
+  },
+  {
+    "name": "Santraj",
+    "email": "",
+    "phone_number": "+919787090963"
+  },
+  {
+    "name": "Adhisaya",
+    "email": "adhisayaot7@gmail.com",
+    "phone_number": "+918122091612"
+  },
+  {
+    "name": "Angavi Balraj",
+    "email": "angavib@gmail.com",
+    "phone_number": "+919361097883"
+  },
+  {
+    "name": "Arjun",
+    "email": "nairarjunp2003@gmail.com",
+    "phone_number": "+919037131789"
+  },
+  {
+    "name": "Samreena",
+    "email": "",
+    "phone_number": "+917358227561"
+  },
+  {
+    "name": "Vignesh",
+    "email": "",
+    "phone_number": "+919952282083"
+  },
+  {
+    "name": "Vignesh",
+    "email": "",
+    "phone_number": "+919444109663"
+  },
+  {
+    "name": "Anchal Bhupal",
+    "email": "anchalbhupal17092004@gmail.com",
+    "phone_number": "+918075922896"
+  },
+  {
+    "name": "ᴍᴜᴋɪʟ",
+    "email": "mukilrjpm@gmail.com",
+    "phone_number": "+917550184402"
+  },
+  {
+    "name": "Carl Kane",
+    "email": "carlkane89@gmail.com",
+    "phone_number": "+918015918272"
+  },
+  {
+    "name": "Dashni",
+    "email": "",
+    "phone_number": "+916382411702"
+  },
+  {
+    "name": "Arvind",
+    "email": "",
+    "phone_number": "+918428306060"
+  },
+  {
+    "name": "Jerushlin jose JB",
+    "email": "josejerushlin7@gmail.com",
+    "phone_number": "+916369345332"
+  },
+  {
+    "name": "Riya",
+    "email": "riya61662@gmail.com",
+    "phone_number": "+917305956822"
+  },
+  {
+    "name": "Mari Vishal K",
+    "email": "marivishal011@gmail.com",
+    "phone_number": "+919486764559"
+  },
+  {
+    "name": "Varun Kumar v",
+    "email": "Varunjaya87@gmail.com",
+    "phone_number": "7010157902"
+  },
+  {
+    "name": "Adithya B.C",
+    "email": "adithyabharadwaj15@gmail.com",
+    "phone_number": "+917892729435"
+  },
+  {
+    "name": "Ragu",
+    "email": "sragunaath001@gmail.com",
+    "phone_number": "+919941608766"
+  },
+  {
+    "name": "Bhaskar",
+    "email": "bhaskar2411@gmail.com",
+    "phone_number": "+919841189486"
+  },
+  {
+    "name": "Eniyavan ",
+    "email": "iniyavangulsa@gmail.com",
+    "phone_number": "+918015126624"
+  },
+  {
+    "name": "Dhiksha",
+    "email": "dhiksha1231@gmail.com ",
+    "phone_number": "8072591431"
+  },
+  {
+    "name": "Mohamed Riyaif",
+    "email": "mdriyaif@gmail.com",
+    "phone_number": "+919791638595"
+  },
+  {
+    "name": "KESMAA RAJ",
+    "email": "rajkesmaa@gmail.com",
+    "phone_number": "+919345986103"
+  },
+  {
+    "name": "SUJISHRI V",
+    "email": "vsujishri@gmail.com",
+    "phone_number": "+919487756336"
+  },
+  {
+    "name": "Arun Kumar K M",
+    "email": "arunkuma@gmail.com",
+    "phone_number": "+919008819809"
+  },
+  {
+    "name": "Jayasanthiya Mohan",
+    "email": "santhiyamohan07@gmail.com",
+    "phone_number": "+916369315497"
+  },
+  {
+    "name": "Portia Joseph ",
+    "email": "sanciaportia004@gmail.com",
+    "phone_number": "+918754440327"
+  },
+  {
+    "name": "Kishore Kesavan",
+    "email": "kishorekesavan3605@gmail.com",
+    "phone_number": "+916383887292"
+  },
+  {
+    "name": "Sheela Nagusah",
+    "email": "drsheela2020@outlook.com",
+    "phone_number": "+919962703342"
+  },
+  {
+    "name": "Imdhadhullah levvau",
+    "email": "Imdhadhullahmhd@gmail.com",
+    "phone_number": "+916374071737"
+  },
+  {
+    "name": "Sanjith Raman",
+    "email": "",
+    "phone_number": "+918056182974"
+  },
+  {
+    "name": "Vignesh M",
+    "email": "vigneshmrevathi123@gmail.com",
+    "phone_number": "+919677443895"
+  },
+  {
+    "name": "Jayinth",
+    "email": "jayinthravi007@gmail.com",
+    "phone_number": "+919360022875"
+  },
+  {
+    "name": "Yuvaraj Dilly",
+    "email": "yuvavictory@gmail.com",
+    "phone_number": "+919380167159"
+  },
+  {
+    "name": "Rajpariya",
+    "email": "",
+    "phone_number": "+917550174511"
+  },
+  {
+    "name": "subash",
+    "email": "subashselvan443@gmail.com",
+    "phone_number": "+919944809187"
+  },
+  {
+    "name": "suhail",
+    "email": "suhailchikku499@gmail.com",
+    "phone_number": "+919840195044"
+  },
+  {
+    "name": "Moorthy G",
+    "email": "moorjaya1@gmail.com",
+    "phone_number": "+919884387081"
+  },
+  {
+    "name": "Mughilan ",
+    "email": "mughilang2009@gmail.com",
+    "phone_number": "+918523922372"
+  },
+  {
+    "name": "Rohan",
+    "email": "ranjankalkiedu@gmail.com",
+    "phone_number": "+919392457943"
+  },
+  {
+    "name": "Jyoteshwer",
+    "email": "",
+    "phone_number": "+919043296453"
+  },
+  {
+    "name": "Aarthi Venkatesh",
+    "email": "aarthivnktsh@gmail.com",
+    "phone_number": "+919841414154"
+  },
+  {
+    "name": "Pradeep ",
+    "email": "www.pradeepkodi@gmail.com",
+    "phone_number": "+919047683638"
+  },
+  {
+    "name": "Bharti",
+    "email": "",
+    "phone_number": "+917200373044"
+  },
+  {
+    "name": "Mahendhiran",
+    "email": "mahendhira.oneplus2@gmail.com",
+    "phone_number": "+919841603675"
+  },
+  {
+    "name": "",
+    "email": "",
+    "phone_number": "+919398019415"
+  },
+  {
+    "name": "Hemanth",
+    "email": "hemanthsivakumar03@gmail.com",
+    "phone_number": "+917358096442"
+  },
+  {
+    "name": "Ashik",
+    "email": "Sk.mdazmalashik2@gmail.com",
+    "phone_number": "+9193980 19415 "
+  },
+  {
+    "name": "Yuvadhaya",
+    "email": "yuvadhayamohan19@gmail.com",
+    "phone_number": "+917010468315"
+  },
+  {
+    "name": "PRAJITH",
+    "email": "prajith888977@gmail.com",
+    "phone_number": "+919043057739"
+  },
+  {
+    "name": "Karthik Mallela",
+    "email": "karthikmallela16102003@gmail.com",
+    "phone_number": "+917287875454"
+  },
+  {
+    "name": "Babu",
+    "email": "",
+    "phone_number": "+917338828826"
+  },
+  {
+    "name": "Dhara",
+    "email": "tharanitharani963@gmail.com",
+    "phone_number": "+918610587925"
+  },
+  {
+    "name": "Suguna",
+    "email": "suguna_murali@yahoo.com",
+    "phone_number": "+919789980561"
+  },
+  {
+    "name": "stephy",
+    "email": "stephyannamaria130904@gmail.com",
+    "phone_number": "+916374460742"
+  },
+  {
+    "name": "𝓟𝓻𝓪𝓼𝓪𝓷𝓷𝓪",
+    "email": "pradsoprasanna@gmail.com",
+    "phone_number": "+916383048475"
+  },
+  {
+    "name": "Thanigavel",
+    "email": "tythaniga@gmail.com",
+    "phone_number": "+919791111699"
+  },
+  {
+    "name": "N A V E E N ",
+    "email": "naveenkarambayam@gmail.com",
+    "phone_number": "+919361558858"
+  }
+]
+
+console.log(NewLeads.length)
+
 const normalizePhone10 = (phone) => {
   if (!phone) return null;
 
@@ -662,7 +1687,7 @@ export const assignExistingLeads = async (incomingLeads) => {
 
   const counselors = [
     "68fcaa8e2342af01fff255e5",
-    "68fcaa8e2342af01fff255e5"
+    "68fc9152992c137019ff739c"
   ];
 
   let index = 0;
@@ -697,10 +1722,10 @@ export const assignExistingLeads = async (incomingLeads) => {
 };
 
 function getTop50Leads(leads) {
-  return leads.slice(0, 50);
+  return leads.slice(50);
 }
 
-// assignExistingLeads(getTop50Leads(leads));
+// assignExistingLeads(NewLeads);
 
 
 

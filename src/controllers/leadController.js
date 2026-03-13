@@ -43,7 +43,8 @@ const LEAD_STATUSES = [
     'closed',
     'visitDone',
     'visitSchedule',
-    'reenquired'
+    'reenquired',
+    'inactive'
 ];
 
 export const getLeadStatusStats = async (req, res) => {
@@ -115,13 +116,22 @@ export const getLeadStatusStats = async (req, res) => {
 
         const pipeline = [
             { $match: match },
+            {
+                $addFields: {
+                    effectiveStatus: {
+                        $ifNull: ["$secondaryStatus", "$status"]
+                    }
+                }
+            },
+
             { $sort: { createdAt: sort == 1 ? 1 : -1 } },
+
             {
                 $facet: {
                     counts: [
                         {
                             $group: {
-                                _id: "$status",
+                                _id: "$effectiveStatus",
                                 count: { $sum: 1 }
                             }
                         }
@@ -236,7 +246,14 @@ export const getAllLeads = async (req, res) => {
             ];
         }
 
-        if (status) matchStage.status = status;
+        if (status) {
+            matchStage.$expr = {
+                $eq: [
+                    { $ifNull: ["$secondaryStatus", "$status"] },
+                    status
+                ]
+            };
+        }
         if (source) matchStage.source = source;
         if (coursePreference) matchStage.coursePreference = coursePreference;
         if (countryOfResidence) matchStage.countryOfResidence = countryOfResidence;
@@ -1248,7 +1265,7 @@ export const getCounselorCallingAnalysis = async (req, res) => {
                 { leader: req.user._id, role: "counselor", isActive: true },
                 { _id: 1 }
             ).select("name _id");
-            LeaderCounselors= associates
+            LeaderCounselors = associates
             allowedCounselors = associates.map(a => a._id);
         }
 
@@ -1448,7 +1465,7 @@ export const getCounselorCallingAnalysis = async (req, res) => {
         res.json({
             success: true,
             data: result,
-            counselors :req.user.role === "admin" ? counselors : LeaderCounselors
+            counselors: req.user.role === "admin" ? counselors : LeaderCounselors
         });
     } catch (err) {
         console.error(err);
