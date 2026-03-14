@@ -943,7 +943,6 @@ export const bulkSaveCallLogs = async (callLogs = []) => {
     }
 };
 
-
 const normalizeIndianPhone = (number) => {
     if (!number) return null;
     let phone = String(number).trim();
@@ -1338,9 +1337,9 @@ export const getCounselorCallRecords = async (req, res) => {
 
             { $sort: { [sort.replace("-", "")]: sort.startsWith("-") ? -1 : 1 } },
 
-            { $skip: (Number(page) - 1) * Number(limit) },
+            // { $skip: (Number(page) - 1) * Number(limit) },
 
-            { $limit: Number(limit) }
+            // { $limit: Number(limit) }
         ];
 
         const countPipeline = [
