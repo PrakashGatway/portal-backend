@@ -4,22 +4,22 @@ import { readAssignmentConfig, writeAssignmentConfig } from "../services/jsonFun
 const router = express.Router();
 
 router.get("/form",
-    async (req, res) => {
-        try {
-            const config = readAssignmentConfig();
+  async (req, res) => {
+    try {
+      const config = readAssignmentConfig();
 
-            res.json({
-                success: true,
-                data: config
-            });
-        } catch (error) {
-            console.log(error)
-            res.status(500).json({ success: false, message: "Failed to read config" });
-        }
+      res.json({
+        success: true,
+        data: config
+      });
+    } catch (error) {
+      console.log(error)
+      res.status(500).json({ success: false, message: "Failed to read config" });
     }
+  }
 );
 
-router.post("/form-assignments", async (req, res) => {
+router.post("/form", async (req, res) => {
   try {
     const { formId, campaign_id, counselors } = req.body;
 
@@ -59,7 +59,7 @@ router.post("/form-assignments", async (req, res) => {
   }
 });
 
-router.put("/form-assignments/:formId", async (req, res) => {
+router.put("/form/:formId", async (req, res) => {
   try {
     const { formId } = req.params;
     const { counselors, campaign_id } = req.body;
@@ -89,6 +89,23 @@ router.put("/form-assignments/:formId", async (req, res) => {
   }
 });
 
-// router.delete("/form-assignments/:formId", deleteFormAssignment);
+router.delete("/form/:formId", async (req, res) => {
+  try {
+    const { formId } = req.params;
+
+    let config = readAssignmentConfig();
+
+    config = config.filter((c) => c.formId !== formId);
+
+    writeAssignmentConfig(config);
+
+    res.json({
+      success: true,
+      message: "Form assignment deleted"
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: "Failed to delete config" });
+  }
+});
 
 export default router;

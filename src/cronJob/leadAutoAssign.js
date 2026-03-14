@@ -1,8 +1,10 @@
 import cron from "node-cron";
 import User from "../models/User.js";
 import { Lead } from "../models/Leads.js";
+import mongoose from "mongoose";
+import { readAssignmentConfig, writeAssignmentConfig } from "../services/jsonFunction.js";
 
-const CRON_SCHEDULE = "*/60 * * * * *"; // every 5 min (change as needed)
+const CRON_SCHEDULE = "*/60 * * * * *"; 
 const TIMEZONE = "Asia/Kolkata";
 
 
@@ -64,6 +66,73 @@ const TIMEZONE = "Asia/Kolkata";
 //   }
 // }
 
+
+
+export async function assignOldestLeadsByForm() {
+
+  const config = readAssignmentConfig();
+
+  if (!config.length) {
+    console.log("⚠️ No form assignment config found");
+    return 0;
+  }
+
+  const leads = await Lead.find({
+    $or: [
+      { assignedCounselor: { $exists: false } },
+      { assignedCounselor: null }
+    ],
+    "adsDetails.formId": { $exists: true, $ne: null }
+  })
+    .sort({ createdAt: 1 })
+    .limit(20)
+    .lean();
+
+  console.log(leads)
+  // return 0
+
+  if (!leads.length) return 0;
+
+
+  const ops = [];
+
+  for (const lead of leads) {
+
+    const formId = lead?.adsDetails?.formId;
+
+    if (!formId) continue;
+
+    const formConfig = config.find(c => c.formId === formId);
+
+    if (!formConfig || !formConfig.counselors?.length) continue;
+
+    const counselors = formConfig.counselors;
+
+    let nextIndex = (formConfig.lastAssignedIndex + 1) % counselors.length;
+
+    const counselorId = counselors[nextIndex];
+
+    ops.push({
+      updateOne: {
+        filter: { _id: lead._id },
+        update: {
+          $set: {
+            assignedCounselor: new mongoose.Types.ObjectId(counselorId)
+          }
+        }
+      }
+    });
+
+    formConfig.lastAssignedIndex = nextIndex;
+  }
+
+  if (!ops.length) return 0;
+
+  const result = await Lead.bulkWrite(ops);
+  writeAssignmentConfig(config);
+  return result.modifiedCount || ops.length;
+}
+
 async function assignOldestLeadsOneToOne() {
   const counselors = await User.find({ role: "counselor", isActive: true })
     .select("_id")
@@ -124,13 +193,12 @@ async function assignOldestLeadsOneToOne() {
   return result.modifiedCount || ops.length;
 }
 
-
 cron.schedule(
   CRON_SCHEDULE,
   async () => {
     console.log("🔄 Auto-assign cron running:", new Date().toISOString());
     try {
-      const assigned = await assignOldestLeadsOneToOne();
+      const assigned = await assignOldestLeadsByForm();
       console.log(`✅ Assigned ${assigned} leads this run`);
     } catch (err) {
       console.error("❌ Cron error:", err.message);

@@ -10,6 +10,7 @@ import dotenv from 'dotenv';
 import cookieParser from "cookie-parser";
 import crypto from 'crypto';
 
+import axios from "axios";
 import connectDB from './config/database.js';
 // import secondDB from './config/webDb.js';
 import { errorHandler, notFound } from './middleware/errorMiddleware.js';
@@ -38,6 +39,8 @@ import webRoutes from './routes/webRoutes.js';
 import aiRoutes from './services/speakingService.js'
 import supportRoutes from './routes/supportRoutes.js';
 import mcuRoutes from './routes/mcuRoutes.js';
+import jsonRoutes from './routes/jsonRoutes.js';
+
 
 import paymentRoutes from './routes/paymentRoutes.js';
 
@@ -138,7 +141,9 @@ app.use('/api/v1/web', webRoutes);
 app.use('/api/v1/support', supportRoutes);
 app.use('/api/v1/mcu', mcuRoutes);
 app.use('/api', aiRoutes);
+app.use('/api/v1/json', jsonRoutes);
 
+// call  
 
 // questions.forEach(async (q) => {
 //   // await Question.create(q);
@@ -158,7 +163,6 @@ app.use('/api', aiRoutes);
 //       source:q.section == "gmat001-2"
 //     });
 // });
-
 
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
@@ -196,9 +200,6 @@ server.listen(PORT, () => {
   console.log(`Server running in ${process.env.NODE_ENV} mode on port ${PORT}`);
 });
 
-
-import axios from "axios";
-
 const API_KEY = "cHJha2FzaGphbmdpcjQyOUBnbWFpbC5jb20:rSpaFaKcjrurOvxr6v-UH";
 
 
@@ -222,39 +223,6 @@ async function checkStatus(id) {
 }
 
 // checkStatus("tlk_ztnmVb4rSWkdRX8ehXrAG")
-
-async function createVideo() {
-  const url = "https://api.d-id.com/talks";
-
-  const payload = {
-    script: {
-      type: "text",
-      input: "Hello, Naveen this is the did video please tell me about yourself in details ok by the way how are you and how was your day today!"
-    },
-    source_url: "https://thumbs.dreamstime.com/b/portrait-cheerful-smiling-young-man-folded-arms-joyful-handsome-men-crossed-hands-studio-shot-isolated-gray-195089624.jpg", // face image URL
-    config: {
-      stitch: true
-    }
-  };
-
-  try {
-    const res = await axios.post(url, payload, {
-      headers: {
-        "Authorization": `Basic ${Buffer.from(API_KEY + ":").toString("base64")}`,
-        "Content-Type": "application/json"
-      }
-    });
-
-    console.log("Video Job ID:", res.data.id);
-    checkStatus(res.data.id);
-
-    return res.data.id;
-
-  } catch (err) {
-    console.error(err.response?.data || err);
-  }
-}
-// createVideo();
 
 
 export default app;
