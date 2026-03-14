@@ -43,7 +43,8 @@ const LEAD_STATUSES = [
     'visitDone',
     'visitSchedule',
     'reenquired',
-    'inactive'
+    'inactive',
+    'langBarrier'
 ];
 
 export const getLeadStatusStats = async (req, res) => {
@@ -782,7 +783,7 @@ export const bulkAssignCounselor = async (req, res) => {
         {
             $set: {
                 assignedCounselor: counselorId,
-                ...(withNew && { secondaryStatus: "new" }),
+                ...(withNew && {status : "new" }),
                 ...(withNew && {
                     createdAt: new Date()
                 })
@@ -1225,6 +1226,152 @@ export const getIncomingCalls = async (req, res) => {
     }
 };
 
+export const getCounselorCallRecords = async (req, res) => {
+    try {
+        const {
+            counselorId,
+            startDate,
+            endDate,
+            page = 1,
+            limit = 20,
+            sort = "-createdAt",
+        } = req.query;
+
+        // Default → Today
+        let start = startDate ? new Date(startDate) : new Date();
+        let end = endDate ? new Date(endDate) : new Date();
+
+        start.setHours(0, 0, 0, 0);
+        end.setHours(23, 59, 59, 999);
+
+        const matchStage = {
+            createdAt: {
+                $gte: start,
+                $lte: end
+            }
+        };
+
+        const pipeline = [
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: "leads",
+                    localField: "phone",
+                    foreignField: "phone10",
+                    as: "lead",
+                    pipeline: [
+                        {
+                            $project: {
+                                fullName: 1,
+                                phone10: 1,
+                                email: 1,
+                                status: 1,
+                                assignedCounselor: 1,
+                                secondaryStatus: 1
+
+                            }
+                        }
+                    ]
+                }
+            },
+
+            { $unwind: { path: "$lead", preserveNullAndEmptyArrays: true } },
+
+            // Join Counselor
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "lead.assignedCounselor",
+                    foreignField: "_id",
+                    as: "counselor",
+                    pipeline: [
+                        {
+                            $project: {
+                                name: 1,
+                                phoneNumber: 1
+                            }
+                        }
+                    ]
+                }
+            },
+
+            { $unwind: { path: "$counselor", preserveNullAndEmptyArrays: true } },
+
+            ...(counselorId
+                ? [
+                    {
+                        $match: {
+                            "counselor._id": new mongoose.Types.ObjectId(counselorId)
+                        }
+                    }
+                ]
+                : []),
+
+            {
+                $project: {
+                    phone: 1,
+                    status: 1,
+                    duration: 1,
+                    ivrSTime: 1,
+                    ivrETime: 1,
+                    masterCallNumber: 1,
+                    recordingData:1,
+                    extraDetails: 1,
+
+                    lead: {
+                        id: "$lead._id",
+                        name: "$lead.fullName",
+                        email: "$lead.email",
+                        phone: "$lead.phone10",
+                        status: "$lead.status",
+                        secondaryStatus: "$lead.secondaryStatus",
+                        source: "$lead.source"
+                    },
+
+                    counselor: {
+                        id: "$counselor._id",
+                        name: "$counselor.name"
+
+                    }
+                }
+            },
+
+            { $sort: { [sort.replace("-", "")]: sort.startsWith("-") ? -1 : 1 } },
+
+            { $skip: (Number(page) - 1) * Number(limit) },
+
+            { $limit: Number(limit) }
+        ];
+
+        const countPipeline = [
+            { $match: matchStage },
+            { $count: "total" }
+        ];
+
+        const [calls, countResult] = await Promise.all([
+            Leadlogs.aggregate(pipeline),
+            Leadlogs.aggregate(countPipeline)
+        ]);
+
+        const total = countResult[0]?.total || 0;
+
+        res.json({
+            success: true,
+            data: calls,
+            pagination: {
+                page: Number(page),
+                limit: Number(limit),
+                total,
+                totalPages: Math.ceil(total / limit)
+            }
+        });
+
+    } catch (error) {
+        console.error("❌ Counselor call records error:", error);
+        res.status(500).json({ error: "Failed to fetch counselor calls" });
+    }
+};
+
 export const getCounselorCallingAnalysis = async (req, res) => {
     try {
         const { startDate, endDate, counselorId } = req.query;
@@ -1473,188 +1620,188 @@ export const getCounselorCallingAnalysis = async (req, res) => {
 };
 
 export const getCounselorLeadStatusReport = async (req, res) => {
-  try {
-    const { startDate, endDate, counselorId } = req.query;
+    try {
+        const { startDate, endDate, counselorId } = req.query;
 
-    if (req.user.role === "user") {
-      return res.status(401).json({
-        success: false,
-        message: "Unauthorized"
-      });
-    }
-
-    let start = startDate;
-    let end = endDate;
-
-    if (!start || !end) {
-      end = new Date();
-      start = new Date();
-      start.setDate(start.getDate() - 7);
-    }
-
-    const startDat = new Date(start);
-    startDat.setHours(0, 0, 0, 0);
-
-    const endDat = new Date(end);
-    endDat.setHours(23, 59, 59, 999);
-
-    const leadMatch = {
-      createdAt: {
-        $gte: startDat,
-        $lte: endDat
-      }
-    };
-
-    let allowedCounselors = [];
-
-    if (req.user.role === "leader") {
-      const associates = await User.find(
-        { leader: req.user._id, role: "counselor", isActive: true },
-        { _id: 1 }
-      );
-
-      allowedCounselors = associates.map(a => a._id);
-    }
-
-    if (req.user.role === "counselor") {
-      allowedCounselors = [req.user._id];
-    }
-
-    if (counselorId) {
-      leadMatch.assignedCounselor = new mongoose.Types.ObjectId(counselorId);
-    } else if (allowedCounselors.length) {
-      leadMatch.assignedCounselor = { $in: allowedCounselors };
-    }
-
-    const pipeline = [
-
-      { $match: leadMatch },
-
-      {
-        $addFields: {
-          effectiveStatus: {
-            $ifNull: ["$secondaryStatus", "$status"]
-          }
+        if (req.user.role === "user") {
+            return res.status(401).json({
+                success: false,
+                message: "Unauthorized"
+            });
         }
-      },
 
-      {
-        $lookup: {
-          from: "leadlogs",
-          localField: "phone10",
-          foreignField: "phone",
-          as: "calls"
+        let start = startDate;
+        let end = endDate;
+
+        if (!start || !end) {
+            end = new Date();
+            start = new Date();
+            start.setDate(start.getDate() - 7);
         }
-      },
 
-      { $unwind: { path: "$calls", preserveNullAndEmptyArrays: true } },
+        const startDat = new Date(start);
+        startDat.setHours(0, 0, 0, 0);
 
-      {
-        $group: {
-          _id: {
-            counselor: "$assignedCounselor",
-            status: "$effectiveStatus"
-          },
+        const endDat = new Date(end);
+        endDat.setHours(23, 59, 59, 999);
 
-          leadCount: { $addToSet: "$_id" },
-
-          totalCalls: { $sum: { $cond: [{ $ifNull: ["$calls._id", false] }, 1, 0] } },
-
-          connectedCalls: {
-            $sum: {
-              $cond: [{ $eq: ["$calls.status", "Answer"] }, 1, 0]
+        const leadMatch = {
+            createdAt: {
+                $gte: startDat,
+                $lte: endDat
             }
-          },
+        };
 
-          missedCalls: {
-            $sum: {
-              $cond: [{ $eq: ["$calls.status", "Missed"] }, 1, 0]
+        let allowedCounselors = [];
+
+        if (req.user.role === "leader") {
+            const associates = await User.find(
+                { leader: req.user._id, role: "counselor", isActive: true },
+                { _id: 1 }
+            );
+
+            allowedCounselors = associates.map(a => a._id);
+        }
+
+        if (req.user.role === "counselor") {
+            allowedCounselors = [req.user._id];
+        }
+
+        if (counselorId) {
+            leadMatch.assignedCounselor = new mongoose.Types.ObjectId(counselorId);
+        } else if (allowedCounselors.length) {
+            leadMatch.assignedCounselor = { $in: allowedCounselors };
+        }
+
+        const pipeline = [
+
+            { $match: leadMatch },
+
+            {
+                $addFields: {
+                    effectiveStatus: {
+                        $ifNull: ["$secondaryStatus", "$status"]
+                    }
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "leadlogs",
+                    localField: "phone10",
+                    foreignField: "phone",
+                    as: "calls"
+                }
+            },
+
+            { $unwind: { path: "$calls", preserveNullAndEmptyArrays: true } },
+
+            {
+                $group: {
+                    _id: {
+                        counselor: "$assignedCounselor",
+                        status: "$effectiveStatus"
+                    },
+
+                    leadCount: { $addToSet: "$_id" },
+
+                    totalCalls: { $sum: { $cond: [{ $ifNull: ["$calls._id", false] }, 1, 0] } },
+
+                    connectedCalls: {
+                        $sum: {
+                            $cond: [{ $eq: ["$calls.status", "Answer"] }, 1, 0]
+                        }
+                    },
+
+                    missedCalls: {
+                        $sum: {
+                            $cond: [{ $eq: ["$calls.status", "Missed"] }, 1, 0]
+                        }
+                    },
+
+                    outboundCalls: {
+                        $sum: {
+                            $cond: [{ $eq: ["$calls.extraDetails.cType", "CTC"] }, 1, 0]
+                        }
+                    },
+
+                    inboundCalls: {
+                        $sum: {
+                            $cond: [{ $eq: ["$calls.extraDetails.cType", "IBD"] }, 1, 0]
+                        }
+                    },
+
+                    totalDuration: {
+                        $sum: {
+                            $cond: [
+                                { $eq: ["$calls.status", "Answer"] },
+                                "$calls.duration",
+                                0
+                            ]
+                        }
+                    }
+                }
+            },
+
+            {
+                $addFields: {
+                    leadCount: { $size: "$leadCount" }
+                }
+            },
+
+            {
+                $lookup: {
+                    from: "users",
+                    localField: "_id.counselor",
+                    foreignField: "_id",
+                    as: "counselor"
+                }
+            },
+
+            { $unwind: "$counselor" },
+
+            {
+                $project: {
+                    counselorName: "$counselor.name",
+                    status: "$_id.status",
+                    leadCount: 1,
+                    totalCalls: 1,
+                    connectedCalls: 1,
+                    missedCalls: 1,
+                    inboundCalls: 1,
+                    outboundCalls: 1,
+                    totalDuration: 1,
+                    avgDuration: {
+                        $cond: [
+                            { $eq: ["$connectedCalls", 0] },
+                            0,
+                            { $divide: ["$totalDuration", "$connectedCalls"] }
+                        ]
+                    }
+                }
+            },
+
+            {
+                $sort: {
+                    counselorName: 1
+                }
             }
-          },
 
-          outboundCalls: {
-            $sum: {
-              $cond: [{ $eq: ["$calls.extraDetails.cType", "CTC"] }, 1, 0]
-            }
-          },
+        ];
 
-          inboundCalls: {
-            $sum: {
-              $cond: [{ $eq: ["$calls.extraDetails.cType", "IBD"] }, 1, 0]
-            }
-          },
+        const result = await Lead.aggregate(pipeline);
 
-          totalDuration: {
-            $sum: {
-              $cond: [
-                { $eq: ["$calls.status", "Answer"] },
-                "$calls.duration",
-                0
-              ]
-            }
-          }
-        }
-      },
+        res.json({
+            success: true,
+            data: result
+        });
 
-      {
-        $addFields: {
-          leadCount: { $size: "$leadCount" }
-        }
-      },
+    } catch (error) {
+        console.error("Counselor status call report error:", error);
 
-      {
-        $lookup: {
-          from: "users",
-          localField: "_id.counselor",
-          foreignField: "_id",
-          as: "counselor"
-        }
-      },
-
-      { $unwind: "$counselor" },
-
-      {
-        $project: {
-          counselorName: "$counselor.name",
-          status: "$_id.status",
-          leadCount: 1,
-          totalCalls: 1,
-          connectedCalls: 1,
-          missedCalls: 1,
-          inboundCalls: 1,
-          outboundCalls: 1,
-          totalDuration: 1,
-          avgDuration: {
-            $cond: [
-              { $eq: ["$connectedCalls", 0] },
-              0,
-              { $divide: ["$totalDuration", "$connectedCalls"] }
-            ]
-          }
-        }
-      },
-
-      {
-        $sort: {
-          counselorName: 1
-        }
-      }
-
-    ];
-
-    const result = await Lead.aggregate(pipeline);
-
-    res.json({
-      success: true,
-      data: result
-    });
-
-  } catch (error) {
-    console.error("Counselor status call report error:", error);
-
-    res.status(500).json({
-      success: false,
-      message: "Failed to generate report"
-    });
-  }
+        res.status(500).json({
+            success: false,
+            message: "Failed to generate report"
+        });
+    }
 };

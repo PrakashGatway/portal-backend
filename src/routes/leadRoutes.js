@@ -17,7 +17,8 @@ import {
     addLogsNotes,
     getIncomingCalls,
     getCounselorCallingAnalysis,
-    getCounselorLeadStatusReport
+    getCounselorLeadStatusReport,
+    getCounselorCallRecords
 } from '../controllers/leadController.js';
 import { authorize, protect } from '../middleware/auth.js';
 
@@ -33,6 +34,9 @@ router.route('/reports')
 
 router.route('/reports/status')
     .get(protect, getCounselorLeadStatusReport);
+
+router.route('/reports/calls')
+    .get(protect, getCounselorCallRecords);
 
 router.route('/')
     .get(protect, getAllLeads)

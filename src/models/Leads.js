@@ -47,7 +47,8 @@ const LEAD_STATUSES = [
     'visitDone',
     'visitSchedule',
     'reenquired',
-    'inactive'
+    'inactive',
+    'langBarrier'
 ];
 
 const LEAD_SOURCES = [
