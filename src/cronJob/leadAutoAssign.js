@@ -88,7 +88,7 @@ export async function assignOldestLeadsByForm() {
     .limit(20)
     .lean();
 
-  console.log(leads)
+  // console.log(leads)
   // return 0
 
   if (!leads.length) return 0;
