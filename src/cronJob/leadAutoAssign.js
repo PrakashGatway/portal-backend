@@ -9,6 +9,22 @@ const CRON_SCHEDULE = "*/60 * * * * *";
 const TIMEZONE = "Asia/Kolkata";
 
 
+function sendDummyLeadNotification() {
+  setInterval(() => {
+    const leadNamespace = global.io.of("/lead-notifications");
+    leadNamespace
+      .to("689ec9f452b5c61e3d2def2a")
+      .emit("leadAssigned", {
+        leadId: "123",
+        name: "Naveen",
+        phone: "1234567890",
+        createdAt: new Date()
+      });
+    console.log("Dummy lead notification sent");
+  }, 1000);
+}
+// sendDummyLeadNotification()
+
 // async function assignOldestLeadsOneToOne() {
 //   const counselors = await User.find({ role: "counselor", isActive: true })
 //     .select("_id")
@@ -66,8 +82,6 @@ const TIMEZONE = "Asia/Kolkata";
 
 //   }
 // }
-
-
 
 export async function assignOldestLeadsByForm() {
 
@@ -207,7 +221,6 @@ cron.schedule(
   },
   { scheduled: true, timezone: TIMEZONE }
 );
-
 
 async function fixPhoneNumbersStartingWithP() {
   // find leads where phone starts with "p:"
@@ -1766,7 +1779,6 @@ export const assignExistingLeads = async (incomingLeads) => {
         update: {
           $set: {
             assignedCounselor: counselor,
-            secondaryStatus: "new",
             createdAt: new Date()
           }
         },

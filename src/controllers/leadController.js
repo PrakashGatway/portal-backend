@@ -1343,7 +1343,8 @@ export const getCounselorCallRecords = async (req, res) => {
                         email: "$lead.email",
                         phone: "$lead.phone10",
                         status: "$lead.status",
-                        secondaryStatus: "$lead.secondaryStatus"
+                        secondaryStatus: "$lead.secondaryStatus",
+                        notes: "$lead.notes"
                     },
 
                     counselor: {

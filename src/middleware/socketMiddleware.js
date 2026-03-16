@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import cookie from "cookie";
 
 const parseCookies = (cookieHeader) => {
   if (!cookieHeader) return {};
@@ -59,4 +60,47 @@ export const socketAuth = async (socket, next) => {
       next(new Error('Authentication error: ' + error.message));
     }
   }
+};
+
+
+export const leadSocketAuth = async (socket, next) => {
+  try {
+    let token;
+
+    if (socket.handshake.headers?.cookie) {
+      const cookies = cookie.parse(socket.handshake.headers.cookie);
+      token = cookies.auth_token;
+    }
+
+    if (!token) {
+      token = socket.handshake.auth?.token;
+    }
+
+    if (!token) {
+      return next(new Error("No token"));
+    }
+
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    const user = await User.findById(decoded.id).select("_id role");
+
+    if (!user) {
+      console.log("User not found");
+      return next(new Error("User not found"));
+    }
+
+    const allowedRoles = ["admin", "leader", "counselor"];
+
+    if (!allowedRoles.includes(user.role)) {
+      return next(new Error("Unauthorized role"));
+    }
+
+    socket.user = user;
+
+    next();
+
+  } catch (error) {
+    next(new Error("Socket auth failed"));
+  }
+
 };
