@@ -3,8 +3,9 @@ import User from "../models/User.js";
 import { Lead } from "../models/Leads.js";
 import mongoose from "mongoose";
 import { readAssignmentConfig, writeAssignmentConfig } from "../services/jsonFunction.js";
+import { Leadlogs } from "../models/leadLogs.js";
 
-const CRON_SCHEDULE = "*/60 * * * * *"; 
+const CRON_SCHEDULE = "*/60 * * * * *";
 const TIMEZONE = "Asia/Kolkata";
 
 
@@ -210,32 +211,46 @@ cron.schedule(
 
 async function fixPhoneNumbersStartingWithP() {
   // find leads where phone starts with "p:"
+  // const leads = await Lead.find({
+  //   phone: { $regex: /^p:/i }
+  // }).select("_id phone");
+
   const leads = await Lead.find({
-    phone: { $regex: /^p:/i }
-  }).select("_id phone");
+     phone: { $exists: true, $ne: "" } ,
+    $or: [
+    { phone10: { $exists: false } },
+    { phone10: null },
+    { phone10: "" }
+  ]
+  })
 
-  if (!leads.length) {
-    console.log("No phone numbers starting with p:");
-    return 0;
-  }
+console.log(leads)
 
-  const ops = leads.map((lead) => {
-    const cleanedPhone = lead.phone.replace(/^p:/i, "");
+if (!leads.length) {
+  console.log("No phone numbers starting with p:");
+  return 0;
+}
 
-    return {
-      updateOne: {
-        filter: { _id: lead._id },
-        update: {
-          $set: { phone: cleanedPhone }
-        }
+// return 0
+
+const ops = leads.map((lead) => {
+  // const cleanedPhone = lead.phone.replace(/^p:/i, "");
+  const phone10 = lead.phone.replace(/\D/g, "").slice(-10);
+
+  return {
+    updateOne: {
+      filter: { _id: lead._id, phone10: { $exists: false } },
+      update: {
+        $set: { phone10: phone10 }
       }
-    };
-  });
+    }
+  };
+});
 
-  const result = await Lead.bulkWrite(ops);
+const result = await Lead.bulkWrite(ops);
 
-  console.log(`Updated ${result.modifiedCount} phone numbers`);
-  return result.modifiedCount;
+console.log(`Updated ${result.modifiedCount} phone numbers`);
+return result.modifiedCount;
 }
 
 // fixPhoneNumbersStartingWithP()
@@ -705,26 +720,7 @@ let leads = [
 ]
 
 const NewLeads = [
-  {
-    "name": "Dinesh S N",
-    "email": "dinesh.n7639@gmail.com",
-    "phone_number": "+916379173860"
-  },
-  {
-    "name": "Satish",
-    "email": "",
-    "phone_number": "+919566877020"
-  },
-  {
-    "name": "David",
-    "email": "",
-    "phone_number": "+918056105824"
-  },
-  {
-    "name": "Harni",
-    "email": "",
-    "phone_number": "+919626818515"
-  },
+
   {
     "name": "Abhishek ",
     "email": "",
@@ -1794,6 +1790,96 @@ function getTop50Leads(leads) {
 }
 
 // assignExistingLeads(NewLeads);
+
+
+async function clearCallLogsByPhones(phones) {
+  const phone10List = phones.map(p =>
+    String(p.phone).replace(/\D/g, "").slice(-10)
+  );
+
+  const regexConditions = phone10List.map(num => ({
+    phone: { $regex: `${num}$` } // match last 10 digits
+  }));
+
+  const result = await Leadlogs.deleteMany({
+    $or: regexConditions
+  });
+
+  console.log(`Deleted ${result.deletedCount} call logs`);
+  return result.deletedCount;
+}
+
+// clearCallLogsByPhones([
+//   {
+//     "name": "Dinesh S N",
+//     "email": "dinesh.n7639@gmail.com",
+//     "phone_number": "+916379173860"
+//   },
+//   {
+//     "name": "Satish",
+//     "email": "",
+//     "phone_number": "+919566877020"
+//   },
+//   {
+//     "name": "David",
+//     "email": "",
+//     "phone_number": "+918056105824"
+//   },
+//   {
+//     "name": "Harni",
+//     "email": "",
+//     "phone_number": "+919626818515"
+//   },
+// ])
+
+
+
+function parseDate(dateStr) {
+  if (!dateStr) return null;
+  return new Date(dateStr.replace(/\//g, "-"));
+}
+
+async function insertCallLogs(dataArray) {
+  try {
+    const logs = dataArray.map((item) => {
+      const phone10 = String(item["Client Number"] || "")
+        .replace(/\D/g, "")
+        .slice(-10);
+
+
+      let duration = 0;
+      if (item["Duration (sec)"]) {
+        duration = parseInt(item["Duration (sec)"].split("/")[0].trim()) || 0;
+      }
+
+      return {
+        phone: phone10,
+        masterCallNumber: item["Executive Number"] || "",
+        callerId: item["Executive Number"] || "",
+        duration,
+        status: item["Call Status"] || "",
+        ivrSTime: parseDate(item["Start Time"]),
+        ivrETime: parseDate(
+          item["End Time"] || item["Client Hangup Time"]
+        ),
+        recordingData:"https://api.dndfilter.com/api/final/ivr/call-recording/play/69b787d8db847b5a81abb88a",
+        extraDetails: {
+          Direction : item["Call Type"], cType: item["Call Type"] == "In" ? "IBD" : "CTC" 
+        }
+      };
+    });
+
+    const result = await Leadlogs.insertMany(logs);
+
+    console.log(`Inserted ${result.length} call logs`);
+    return result.length;
+  } catch (error) {
+    console.error("Error inserting call logs:", error);
+    throw error;
+  }
+}
+
+// insertCallLogs()
 
 
 

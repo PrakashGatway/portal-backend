@@ -36,8 +36,13 @@ const leadlogsSchema = new Schema(
         ivrETime: {
             type: Date,
         },
+        createdAt: {
+            type: Date,
+            default: Date.now
+        }
 
     },
+
     {
         timestamps: true,
         toObject: { virtuals: true }

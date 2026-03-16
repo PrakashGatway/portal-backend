@@ -358,12 +358,12 @@ export const getAllLeads = async (req, res) => {
                                 _id: null,
                                 answeredCalls: {
                                     $sum: {
-                                        $cond: [{ $eq: ["$status", "3"] }, 1, 0]
+                                        $cond: [{ $eq: ["$status", "Answer"] }, 1, 0]
                                     }
                                 },
                                 notConnectedCalls: {
                                     $sum: {
-                                        $cond: [{ $ne: ["$status", "3"] }, 1, 0]
+                                        $cond: [{ $ne: ["$status", "Answer"] }, 1, 0]
                                     }
                                 }
                             }
@@ -1236,6 +1236,8 @@ export const getCounselorCallRecords = async (req, res) => {
             sort = "-createdAt",
         } = req.query;
 
+        const user = req.user; // logged-in user
+
         // Default → Today
         let start = startDate ? new Date(startDate) : new Date();
         let end = endDate ? new Date(endDate) : new Date();
@@ -1250,8 +1252,36 @@ export const getCounselorCallRecords = async (req, res) => {
             }
         };
 
+        let counselorMatch = [];
+
+        // If user is leader → get their counselors
+        if (user.role === "leader") {
+            const counselors = await User.find({
+                leader: user._id,
+                role: "counselor"
+            }).select("_id");
+
+            const counselorIds = counselors.map(c => c._id);
+
+            counselorMatch.push({
+                $match: {
+                    "counselor._id": { $in: counselorIds }
+                }
+            });
+        }
+
+        // If specific counselor filter provided
+        if (counselorId) {
+            counselorMatch.push({
+                $match: {
+                    "counselor._id": new mongoose.Types.ObjectId(counselorId)
+                }
+            });
+        }
+
         const pipeline = [
             { $match: matchStage },
+
             {
                 $lookup: {
                     from: "leads",
@@ -1267,7 +1297,6 @@ export const getCounselorCallRecords = async (req, res) => {
                                 status: 1,
                                 assignedCounselor: 1,
                                 secondaryStatus: 1
-
                             }
                         }
                     ]
@@ -1276,7 +1305,6 @@ export const getCounselorCallRecords = async (req, res) => {
 
             { $unwind: { path: "$lead", preserveNullAndEmptyArrays: true } },
 
-            // Join Counselor
             {
                 $lookup: {
                     from: "users",
@@ -1296,15 +1324,7 @@ export const getCounselorCallRecords = async (req, res) => {
 
             { $unwind: { path: "$counselor", preserveNullAndEmptyArrays: true } },
 
-            ...(counselorId
-                ? [
-                    {
-                        $match: {
-                            "counselor._id": new mongoose.Types.ObjectId(counselorId)
-                        }
-                    }
-                ]
-                : []),
+            ...counselorMatch,
 
             {
                 $project: {
@@ -1314,7 +1334,7 @@ export const getCounselorCallRecords = async (req, res) => {
                     ivrSTime: 1,
                     ivrETime: 1,
                     masterCallNumber: 1,
-                    recordingData:1,
+                    recordingData: 1,
                     extraDetails: 1,
 
                     lead: {
@@ -1323,46 +1343,24 @@ export const getCounselorCallRecords = async (req, res) => {
                         email: "$lead.email",
                         phone: "$lead.phone10",
                         status: "$lead.status",
-                        secondaryStatus: "$lead.secondaryStatus",
-                        source: "$lead.source"
+                        secondaryStatus: "$lead.secondaryStatus"
                     },
 
                     counselor: {
                         id: "$counselor._id",
                         name: "$counselor.name"
-
                     }
                 }
             },
 
-            { $sort: { [sort.replace("-", "")]: sort.startsWith("-") ? -1 : 1 } },
-
-            // { $skip: (Number(page) - 1) * Number(limit) },
-
-            // { $limit: Number(limit) }
+            { $sort: { [sort.replace("-", "")]: sort.startsWith("-") ? -1 : 1 } }
         ];
 
-        const countPipeline = [
-            { $match: matchStage },
-            { $count: "total" }
-        ];
-
-        const [calls, countResult] = await Promise.all([
-            Leadlogs.aggregate(pipeline),
-            Leadlogs.aggregate(countPipeline)
-        ]);
-
-        const total = countResult[0]?.total || 0;
+        const calls = await Leadlogs.aggregate(pipeline);
 
         res.json({
             success: true,
-            data: calls,
-            pagination: {
-                page: Number(page),
-                limit: Number(limit),
-                total,
-                totalPages: Math.ceil(total / limit)
-            }
+            data: calls
         });
 
     } catch (error) {
