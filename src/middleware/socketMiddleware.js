@@ -69,6 +69,8 @@ export const leadSocketAuth = async (socket, next) => {
 
     if (socket.handshake.headers?.cookie) {
       const cookies = cookie.parse(socket.handshake.headers.cookie);
+
+      console.log(cookies);
       token = cookies.auth_token;
     }
 

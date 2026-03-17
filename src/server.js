@@ -70,9 +70,9 @@ app.use("/uploads", express.static("uploads"));
 const io = new Server(server, {
   cors: {
     origin: ["https://dashboard.gatewayabroadeducations.com"],
-    methods: ["GET", "POST"]
-  },
-  credentials: true
+    methods: ["GET", "POST"],
+    credentials: true
+  }
 });
 
 global.io = io;
