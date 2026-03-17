@@ -24,7 +24,7 @@ function sendDummyLeadNotification() {
     console.log("Dummy lead notification sent");
   }, 10000);
 }
-sendDummyLeadNotification()
+// sendDummyLeadNotification()
 
 // async function assignOldestLeadsOneToOne() {
 //   const counselors = await User.find({ role: "counselor", isActive: true })
