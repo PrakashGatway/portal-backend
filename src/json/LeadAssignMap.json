@@ -14,7 +14,7 @@
     "counselors": [
       "68fc734c709d5cd2d2afeeeb"
     ],
-    "lastAssignedIndex": -1
+    "lastAssignedIndex": 0
   },
   {
     "formId": "2774063569616736",
@@ -23,7 +23,7 @@
       "68ff57a3a22ea2bcbd574d33",
       "68fc7adcaf8a8141ebe7257a"
     ],
-    "lastAssignedIndex": -1
+    "lastAssignedIndex": 0
   },
   {
     "formId": "966877269001689",
@@ -41,7 +41,7 @@
       "68fc9152992c137019ff739c",
       "68fca9ab2342af01fff255cb"
     ],
-    "lastAssignedIndex": -1
+    "lastAssignedIndex": 0
   },
   {
     "formId": "1318539813368863",
@@ -87,7 +87,7 @@
       "68ff57a3a22ea2bcbd574d33",
       "68fc7adcaf8a8141ebe7257a"
     ],
-    "lastAssignedIndex": -1
+    "lastAssignedIndex": 0
   },
   {
     "formId": "1257524446356213",
@@ -137,5 +137,37 @@
       "68fc9152992c137019ff739c"
     ],
     "lastAssignedIndex": -1
+  },
+  {
+    "formId": "2061600321050517",
+    "campaign_id": "Mumbai | Germany | 12_mar_2026 - 2061600321050517",
+    "counselors": [
+      "68fc734c709d5cd2d2afeeeb"
+    ],
+    "lastAssignedIndex": 0
+  },
+  {
+    "formId": "1453845796376201",
+    "campaign_id": "Mumbai | Italy | 12_mar_2026 - 1453845796376201",
+    "counselors": [
+      "68fc734c709d5cd2d2afeeeb"
+    ],
+    "lastAssignedIndex": 0
+  },
+  {
+    "formId": "1248829047354379",
+    "campaign_id": "Mumbai | Dubai | 12_mar_2026 - 1248829047354379",
+    "counselors": [
+      "68fc734c709d5cd2d2afeeeb"
+    ],
+    "lastAssignedIndex": -1
+  },
+  {
+    "formId": "728213726924274",
+    "campaign_id": "3. Mumbai | UK | 12_mar_2025 -  728213726924274",
+    "counselors": [
+      "68fc734c709d5cd2d2afeeeb"
+    ],
+    "lastAssignedIndex": 0
   }
 ]

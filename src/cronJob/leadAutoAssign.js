@@ -18,12 +18,13 @@ function sendDummyLeadNotification() {
         leadId: "123",
         name: "Naveen",
         phone: "1234567890",
+        message: "Dummy lead notification",
         createdAt: new Date()
       });
     console.log("Dummy lead notification sent");
-  }, 1000);
+  }, 10000);
 }
-// sendDummyLeadNotification()
+sendDummyLeadNotification()
 
 // async function assignOldestLeadsOneToOne() {
 //   const counselors = await User.find({ role: "counselor", isActive: true })
