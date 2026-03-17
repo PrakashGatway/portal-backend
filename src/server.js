@@ -69,7 +69,7 @@ app.use("/uploads", express.static("uploads"));
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "https://dashboard.gatewayabroadeducations.com",
     methods: ["GET", "POST"]
   },
   credentials: true
