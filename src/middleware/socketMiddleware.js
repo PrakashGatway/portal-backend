@@ -72,7 +72,14 @@ export const leadSocketAuth = async (socket, next) => {
 
       console.log(cookies);
       token = cookies.auth_token;
+      if (!token) {
+        const parsed = Object.fromEntries(
+          cookie.split("; ").map(c => c.split("="))
+        );
+        token = parsed.auth_token;
+      }
     }
+
 
     if (!token) {
       token = socket.handshake.auth?.token;
