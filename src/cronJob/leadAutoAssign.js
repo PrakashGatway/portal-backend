@@ -24,7 +24,7 @@ function sendDummyLeadNotification() {
     console.log("Dummy lead notification sent");
   }, 10000);
 }
-sendDummyLeadNotification()
+// sendDummyLeadNotification()
 
 // async function assignOldestLeadsOneToOne() {
 //   const counselors = await User.find({ role: "counselor", isActive: true })
@@ -101,14 +101,11 @@ export async function assignOldestLeadsByForm() {
     "adsDetails.formId": { $exists: true, $ne: null }
   })
     .sort({ createdAt: 1 })
-    .limit(20)
+    .limit(10)
     .lean();
 
-  // console.log(leads)
-  // return 0
 
   if (!leads.length) return 0;
-
 
   const ops = [];
 
@@ -139,12 +136,48 @@ export async function assignOldestLeadsByForm() {
       }
     });
 
+    const leadNamespace = global.io.of("/lead-notifications");
+    leadNamespace
+      .to(counselorId)
+      .emit("leadAssigned", {
+        leadId: lead._id.toString(),
+        name: lead.fullName || "Unknown",
+        phone: lead.phone || "Unknown",
+        message: `${lead.fullName} has been assigned to you`,
+        createdAt: new Date()
+      });
+
+    const [counsellor, admins] = await Promise.all([User.findOne({ _id: counselorId, isActive: true }), User.find({ role: "admin", isActive: true })]);
+    if (counsellor.leader) {
+      leadNamespace
+        .to(counsellor.leader)
+        .emit("leadAssigned", {
+          leadId: lead._id.toString(),
+          name: lead.fullName || "Unknown",
+          phone: lead.phone || "Unknown",
+          message: `${lead.fullName} has been assigned to you`,
+          createdAt: new Date()
+        });
+    }
+    admins.map((admin) => {
+      leadNamespace
+        .to(admin._id)
+        .emit("leadAssigned", {
+          leadId: lead._id.toString(),
+          name: lead.fullName || "Unknown",
+          phone: lead.phone || "Unknown",
+          message: `${lead.fullName} has been assigned to you`,
+          createdAt: new Date()
+        });
+    })
+
     formConfig.lastAssignedIndex = nextIndex;
   }
 
   if (!ops.length) return 0;
 
   const result = await Lead.bulkWrite(ops);
+
   writeAssignmentConfig(config);
   return result.modifiedCount || ops.length;
 }
@@ -230,41 +263,41 @@ async function fixPhoneNumbersStartingWithP() {
   // }).select("_id phone");
 
   const leads = await Lead.find({
-     phone: { $exists: true, $ne: "" } ,
+    phone: { $exists: true, $ne: "" },
     $or: [
-    { phone10: { $exists: false } },
-    { phone10: null },
-    { phone10: "" }
-  ]
+      { phone10: { $exists: false } },
+      { phone10: null },
+      { phone10: "" }
+    ]
   })
 
-console.log(leads)
+  console.log(leads)
 
-if (!leads.length) {
-  console.log("No phone numbers starting with p:");
-  return 0;
-}
+  if (!leads.length) {
+    console.log("No phone numbers starting with p:");
+    return 0;
+  }
 
-// return 0
+  // return 0
 
-const ops = leads.map((lead) => {
-  // const cleanedPhone = lead.phone.replace(/^p:/i, "");
-  const phone10 = lead.phone.replace(/\D/g, "").slice(-10);
+  const ops = leads.map((lead) => {
+    // const cleanedPhone = lead.phone.replace(/^p:/i, "");
+    const phone10 = lead.phone.replace(/\D/g, "").slice(-10);
 
-  return {
-    updateOne: {
-      filter: { _id: lead._id, phone10: { $exists: false } },
-      update: {
-        $set: { phone10: phone10 }
+    return {
+      updateOne: {
+        filter: { _id: lead._id, phone10: { $exists: false } },
+        update: {
+          $set: { phone10: phone10 }
+        }
       }
-    }
-  };
-});
+    };
+  });
 
-const result = await Lead.bulkWrite(ops);
+  const result = await Lead.bulkWrite(ops);
 
-console.log(`Updated ${result.modifiedCount} phone numbers`);
-return result.modifiedCount;
+  console.log(`Updated ${result.modifiedCount} phone numbers`);
+  return result.modifiedCount;
 }
 
 // fixPhoneNumbersStartingWithP()
@@ -1875,9 +1908,9 @@ async function insertCallLogs(dataArray) {
         ivrETime: parseDate(
           item["End Time"] || item["Client Hangup Time"]
         ),
-        recordingData:"https://api.dndfilter.com/api/final/ivr/call-recording/play/69b787d8db847b5a81abb88a",
+        recordingData: "https://api.dndfilter.com/api/final/ivr/call-recording/play/69b787d8db847b5a81abb88a",
         extraDetails: {
-          Direction : item["Call Type"], cType: item["Call Type"] == "In" ? "IBD" : "CTC" 
+          Direction: item["Call Type"], cType: item["Call Type"] == "In" ? "IBD" : "CTC"
         }
       };
     });

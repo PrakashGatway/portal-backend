@@ -91,8 +91,6 @@ leadIO.on("connection", (socket) => {
 
 });
 
-
-
 io.use(socketAuth);
 
 app.use(helmet());
