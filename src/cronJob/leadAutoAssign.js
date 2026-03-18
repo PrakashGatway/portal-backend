@@ -9,22 +9,7 @@ const CRON_SCHEDULE = "*/60 * * * * *";
 const TIMEZONE = "Asia/Kolkata";
 
 
-function sendDummyLeadNotification() {
-  setInterval(() => {
-    const leadNamespace = global.io.of("/lead-notifications");
-    leadNamespace
-      .to("689ec9f452b5c61e3d2def2a")
-      .emit("leadAssigned", {
-        leadId: "123",
-        name: "Naveen",
-        phone: "1234567890",
-        message: "Dummy lead notification",
-        createdAt: new Date()
-      });
-    console.log("Dummy lead notification sent");
-  }, 10000);
-}
-// sendDummyLeadNotification()
+
 
 // async function assignOldestLeadsOneToOne() {
 //   const counselors = await User.find({ role: "counselor", isActive: true })
@@ -104,6 +89,7 @@ export async function assignOldestLeadsByForm() {
     .limit(10)
     .lean();
 
+  // console.log(leads)
 
   if (!leads.length) return 0;
 
@@ -121,9 +107,13 @@ export async function assignOldestLeadsByForm() {
 
     const counselors = formConfig.counselors;
 
+    // console.log("counsellors", counselors)
+
     let nextIndex = (formConfig.lastAssignedIndex + 1) % counselors.length;
 
     const counselorId = counselors[nextIndex];
+
+    // console.log("counselorId", counselorId)
 
     ops.push({
       updateOne: {
@@ -138,7 +128,7 @@ export async function assignOldestLeadsByForm() {
 
     const leadNamespace = global.io.of("/lead-notifications");
     leadNamespace
-      .to(counselorId)
+      .to(counselorId.toString())
       .emit("leadAssigned", {
         leadId: lead._id.toString(),
         name: lead.fullName || "Unknown",
@@ -148,25 +138,27 @@ export async function assignOldestLeadsByForm() {
       });
 
     const [counsellor, admins] = await Promise.all([User.findOne({ _id: counselorId, isActive: true }), User.find({ role: "admin", isActive: true })]);
-    if (counsellor.leader) {
+    // console.log("leader", counsellor.leader)
+    if (counsellor && counsellor.leader) {
       leadNamespace
-        .to(counsellor.leader)
+        .to(counsellor.leader.toString())
         .emit("leadAssigned", {
           leadId: lead._id.toString(),
           name: lead.fullName || "Unknown",
           phone: lead.phone || "Unknown",
-          message: `${lead.fullName} has been assigned to you`,
+          message: `${lead.fullName} has been assigned to ${counsellor?.name}`,
           createdAt: new Date()
         });
     }
-    admins.map((admin) => {
+    admins.forEach((admin) => {
+      // console.log("admin", admin._id)
       leadNamespace
-        .to(admin._id)
+        .to(admin._id.toString())
         .emit("leadAssigned", {
           leadId: lead._id.toString(),
           name: lead.fullName || "Unknown",
           phone: lead.phone || "Unknown",
-          message: `${lead.fullName} has been assigned to you`,
+          message: `${lead.fullName} has been assigned to ${counsellor?.name}`,
           createdAt: new Date()
         });
     })
@@ -271,24 +263,23 @@ async function fixPhoneNumbersStartingWithP() {
     ]
   })
 
-  console.log(leads)
+  console.log(leads.length)
 
   if (!leads.length) {
     console.log("No phone numbers starting with p:");
     return 0;
   }
 
-  // return 0
 
   const ops = leads.map((lead) => {
-    // const cleanedPhone = lead.phone.replace(/^p:/i, "");
+    const cleanedPhone = lead.phone.replace(/^p:/i, "");
     const phone10 = lead.phone.replace(/\D/g, "").slice(-10);
 
     return {
       updateOne: {
         filter: { _id: lead._id, phone10: { $exists: false } },
         update: {
-          $set: { phone10: phone10 }
+          $set: { phone: cleanedPhone, phone10: phone10 }
         }
       }
     };
