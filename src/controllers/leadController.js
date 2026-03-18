@@ -768,6 +768,7 @@ export const bulkDeleteLeads = async (req, res) => {
     }
 };
 
+
 export const bulkAssignCounselor = async (req, res) => {
     const { counselorId, leadIds, withNew } = req.body;
 
@@ -778,27 +779,64 @@ export const bulkAssignCounselor = async (req, res) => {
         });
     }
 
-    const result = await Lead.updateMany(
-        { _id: { $in: leadIds } },
-        {
-            $set: {
-                assignedCounselor: counselorId,
-                ...(withNew && {status : "new" }),
-                ...(withNew && {
-                    createdAt: new Date()
-                })
-            }
-        },
-        {
-            timestamps: false // IMPORTANT
-        }
-    );
+    try {
+        // 1. Get leads to extract phone numbers
+        const leads = await Lead.find(
+            { _id: { $in: leadIds } },
+            { phone: 1 }
+        );
 
-    res.json({
-        success: true,
-        modifiedCount: result.modifiedCount,
-    });
+        // 2. Prepare regex for last 10 digits
+        const phoneRegexList = leads
+            .map((lead) => {
+                if (!lead.phone) return null;
+
+                // extract last 10 digits
+                const last10 = lead.phone.replace(/\D/g, "").slice(-10);
+
+                if (last10.length !== 10) return null;
+
+                return new RegExp(`${last10}$`); // match ending with last 10 digits
+            })
+            .filter(Boolean);
+
+        // 3. Delete matching call logs
+        if (phoneRegexList.length > 0) {
+            await Leadlogs.deleteMany({
+                phone: { $in: phoneRegexList }
+            });
+        }
+
+        // 4. Update leads
+        const result = await Lead.updateMany(
+            { _id: { $in: leadIds } },
+            {
+                $set: {
+                    assignedCounselor: counselorId,
+                    ...(withNew && { status: "new" }),
+                    ...(withNew && { createdAt: new Date() })
+                }
+            },
+            {
+                timestamps: false
+            }
+        );
+
+        res.json({
+            success: true,
+            modifiedCount: result.modifiedCount,
+            deletedLogs: phoneRegexList.length
+        });
+
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({
+            success: false,
+            message: "Something went wrong"
+        });
+    }
 };
+
 
 function toTenDigitNumber(phone) {
     const cleaned = phone.replace(/\D/g, '');
