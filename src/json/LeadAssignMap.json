@@ -78,7 +78,7 @@
       "68ff57a3a22ea2bcbd574d33",
       "68fc7adcaf8a8141ebe7257a"
     ],
-    "lastAssignedIndex": -1
+    "lastAssignedIndex": 0
   },
   {
     "formId": "1922244412008493",
@@ -169,5 +169,40 @@
       "68fc734c709d5cd2d2afeeeb"
     ],
     "lastAssignedIndex": 0
+  },
+  {
+    "formId": "1203272524941734",
+    "campaign_id": "Germany | Uttarakhand, Up & Haryana for Delhi Branch | 15 March 2026  1203272524941734",
+    "counselors": [
+      "68fcaa8e2342af01fff255e5",
+      "68fca9ab2342af01fff255cb"
+    ],
+    "lastAssignedIndex": -1
+  },
+  {
+    "formId": "2111416906300896",
+    "campaign_id": "Germany | Mumbai | 16_mar_2026 - 2111416906300896 ",
+    "counselors": [
+      "68fc734c709d5cd2d2afeeeb"
+    ],
+    "lastAssignedIndex": -1
+  },
+  {
+    "formId": "2045493972847600",
+    "campaign_id": "Germany | Bangalore | 16_mar_2026 - 2045493972847600",
+    "counselors": [
+      "68ff57a3a22ea2bcbd574d33",
+      "68fc7adcaf8a8141ebe7257a"
+    ],
+    "lastAssignedIndex": -1
+  },
+  {
+    "formId": "766407406311251",
+    "campaign_id": "Germany | Delhi | 16_mar_2026 -  766407406311251",
+    "counselors": [
+      "68fcaa8e2342af01fff255e5",
+      "68fca9ab2342af01fff255cb"
+    ],
+    "lastAssignedIndex": -1
   }
 ]
