@@ -8,7 +8,7 @@ const createTransporter = () => {
     service: process.env.EMAIL_SERVICE,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: "wyxn ttai iqvg rfnt"
+      pass: "dfmw xgno nfqb dazz"
     }
   });
 };
@@ -37,7 +37,7 @@ export const sendEmail = async (options) => {
   const transporter = createTransporter();
   
   const mailOptions = {
-    from: `"Study Platform" <${process.env.EMAIL_USER}>`,
+    from: `"Gateway abroad" <${process.env.EMAIL_USER}>`,
     to: options.email,
     subject: options.subject,
     html: options.html || options.message

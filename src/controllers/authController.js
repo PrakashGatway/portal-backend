@@ -54,20 +54,20 @@ export const sendOtp = async (req, res) => {
 
     await Otp.create({ email, otp });
 
-    try {
-      await axios.post("https://otp-backend-main.vercel.app/api/send-otp", {
-        "email": email,
-        "otp": otp
-      });
-    } catch (error) {
-      return res.status(200).json({ success: false, message: "Failed to send OTP" });
-    }
+    // try {
+    //   await axios.post("https://otp-backend-main.vercel.app/api/send-otp", {
+    //     "email": email,
+    //     "otp": otp
+    //   });
+    // } catch (error) {
+    //   return res.status(200).json({ success: false, message: "Failed to send OTP" });
+    // }
 
-    // await sendEmail({
-    //   email,
-    //   subject: "OTP for Login",
-    //   message: `Your OTP is ${otp}. It will expire in 5 minutes.`
-    // });
+    await sendEmail({
+      email,
+      subject: "OTP for Login",
+      message: `Your OTP is ${otp}. It will expire in 5 minutes.`
+    });
 
     return res.json({ success: true, message: "OTP sent successfully" });
   } catch (error) {
