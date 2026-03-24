@@ -86,7 +86,7 @@ export async function assignOldestLeadsByForm() {
     "adsDetails.formId": { $exists: true, $ne: null }
   })
     .sort({ createdAt: 1 })
-    .limit(10)
+    .limit(100)
     .lean();
 
   // console.log(leads)
@@ -126,44 +126,48 @@ export async function assignOldestLeadsByForm() {
       }
     });
 
-    const leadNamespace = global.io.of("/lead-notifications");
-    leadNamespace
-      .to(counselorId.toString())
-      .emit("leadAssigned", {
-        leadId: lead._id.toString(),
-        name: lead.fullName || "Unknown",
-        phone: lead.phone || "Unknown",
-        message: `${lead.fullName} has been assigned to you`,
-        createdAt: new Date()
-      });
-
-    const [counsellor, admins] = await Promise.all([User.findOne({ _id: counselorId, isActive: true }), User.find({ role: "admin", isActive: true })]);
-    // console.log("leader", counsellor.leader)
-    if (counsellor && counsellor.leader) {
+    try {
+      const leadNamespace = global.io.of("/lead-notifications");
       leadNamespace
-        .to(counsellor.leader.toString())
+        .to(counselorId.toString())
         .emit("leadAssigned", {
           leadId: lead._id.toString(),
           name: lead.fullName || "Unknown",
           phone: lead.phone || "Unknown",
-          message: `${lead.fullName} has been assigned to ${counsellor?.name}`,
+          message: `${lead.fullName} has been assigned to you`,
           createdAt: new Date()
         });
+
+      const [counsellor, admins] = await Promise.all([User.findOne({ _id: counselorId, isActive: true }), User.find({ role: "admin", isActive: true })]);
+      // console.log("leader", counsellor.leader)
+      if (counsellor && counsellor.leader) {
+        leadNamespace
+          .to(counsellor.leader.toString())
+          .emit("leadAssigned", {
+            leadId: lead._id.toString(),
+            name: lead.fullName || "Unknown",
+            phone: lead.phone || "Unknown",
+            message: `${lead.fullName} has been assigned to ${counsellor?.name}`,
+            createdAt: new Date()
+          });
+      }
+      admins.forEach((admin) => {
+        // console.log("admin", admin._id)
+        leadNamespace
+          .to(admin._id.toString())
+          .emit("leadAssigned", {
+            leadId: lead._id.toString(),
+            name: lead.fullName || "Unknown",
+            phone: lead.phone || "Unknown",
+            message: `${lead.fullName} has been assigned to ${counsellor?.name}`,
+            createdAt: new Date()
+          });
+      })
+
+      formConfig.lastAssignedIndex = nextIndex;
+    } catch (error) {
+      console.log(error)
     }
-    admins.forEach((admin) => {
-      // console.log("admin", admin._id)
-      leadNamespace
-        .to(admin._id.toString())
-        .emit("leadAssigned", {
-          leadId: lead._id.toString(),
-          name: lead.fullName || "Unknown",
-          phone: lead.phone || "Unknown",
-          message: `${lead.fullName} has been assigned to ${counsellor?.name}`,
-          createdAt: new Date()
-        });
-    })
-
-    formConfig.lastAssignedIndex = nextIndex;
   }
 
   if (!ops.length) return 0;
@@ -284,6 +288,7 @@ async function fixPhoneNumbersStartingWithP() {
       }
     };
   });
+  return 0
 
   const result = await Lead.bulkWrite(ops);
 
@@ -1761,7 +1766,6 @@ const NewLeads = [
   }
 ]
 
-console.log(NewLeads.length)
 
 const normalizePhone10 = (phone) => {
   if (!phone) return null;
