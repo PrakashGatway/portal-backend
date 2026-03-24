@@ -44,7 +44,8 @@ const LEAD_STATUSES = [
     'visitSchedule',
     'reenquired',
     'inactive',
-    'langBarrier'
+    'langBarrier',
+    'callback'
 ];
 
 export const getLeadStatusStats = async (req, res) => {
