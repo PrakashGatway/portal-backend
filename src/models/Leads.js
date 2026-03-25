@@ -49,7 +49,8 @@ const LEAD_STATUSES = [
     'reenquired',
     'inactive',
     'langBarrier',
-    'callback'
+    'callback',
+    'enquiry'
 ];
 
 const LEAD_SOURCES = [
@@ -144,17 +145,17 @@ const leadSchema = new Schema(
                 }
             }
         ],
-        adsDetails:{
+        adsDetails: {
             formId: {
                 type: String
             },
             campaign_id: {
                 type: String
             },
-            leadId:{
+            leadId: {
                 type: String
             },
-            ad_name:{
+            ad_name: {
                 type: String
             }
         },
