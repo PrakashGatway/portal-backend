@@ -861,14 +861,14 @@ export const logsPush = async (req, res) => {
     // firstAttended, cType, CTC, did,HangupBySourceDetected,masterNumCTC
 
     await Leadlogs.create({
-        phone: Direction == "Out" ? toTenDigitNumber(masterAgentNumber) : toTenDigitNumber(cNumber),
+        phone: Direction == "Out" ? toTenDigitNumber(masterAgentNumber) : toTenDigitNumber(masterAgentNumber),
         callerId: callId,
         recordingData: recordings,
         duration: talkDuration,
         status: callStatus,
         ivrSTime: ivrSTime,
         ivrETime: ivrETime,
-        masterCallNumber: Direction == "Out" ? toTenDigitNumber(cNumber) : toTenDigitNumber(masterAgentNumber),
+        masterCallNumber: Direction == "Out" ? toTenDigitNumber(cNumber) : toTenDigitNumber(cNumber),
         extraDetails: { Direction, cType: cType == "In" ? "IBD" : "CTC" },
     });
 
