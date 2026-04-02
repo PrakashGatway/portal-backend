@@ -244,7 +244,9 @@ export const getAllLeads = async (req, res) => {
             matchStage.$or = [
                 { fullName: searchRegex },
                 { email: searchRegex },
-                { phone: searchRegex }
+                { phone: searchRegex },
+                { city: searchRegex },
+                {countryOfResidence: searchRegex}
             ];
         }
 
