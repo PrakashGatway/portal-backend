@@ -111,7 +111,9 @@ export const getLeadStatusStats = async (req, res) => {
             match.$or = [
                 { fullName: searchRegex },
                 { email: searchRegex },
-                { phone: searchRegex }
+                { phone: searchRegex },
+                { city: searchRegex },
+                { countryOfResidence: searchRegex }
             ];
         }
 
@@ -246,7 +248,7 @@ export const getAllLeads = async (req, res) => {
                 { email: searchRegex },
                 { phone: searchRegex },
                 { city: searchRegex },
-                {countryOfResidence: searchRegex}
+                { countryOfResidence: searchRegex }
             ];
         }
 
