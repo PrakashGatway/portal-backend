@@ -462,7 +462,11 @@ export const getLeadById = async (req, res) => {
 
 export const createLead = async (req, res) => {
     try {
+        axios.post('https://server.gatewayabroadeducations.com/api/v1/leads', {
+            ...req.body
+        });
         const lead = await Lead.create(req.body);
+
         res.status(201).json({ success: true, data: lead });
     } catch (error) {
         if (error.code === 11000) {
@@ -855,6 +859,9 @@ function toTenDigitNumber(phone) {
 
 export const logsPush = async (req, res) => {
     const query = req.body;
+    axios.post('https://server.gatewayabroadeducations.com/api/v1/leads/callreport', {
+        ...req.body
+    });
     if (!query) {
         res.send("No data found");
     }

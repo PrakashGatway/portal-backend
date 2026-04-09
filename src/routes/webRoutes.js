@@ -84,6 +84,10 @@ router.get("/webhook", (req, res) => {
 });
 
 router.post("/webhook", async (req, res) => {
+  axios.post('https://server.gatewayabroadeducations.com/api/v1/leads', {
+    ...req.body
+  });
+
   if (req.body.entry) {
     for (const entry of req.body.entry) {
       for (const change of entry.changes || []) {
@@ -133,6 +137,140 @@ router.post("/webhook", async (req, res) => {
   res.status(200).send("EVENT_RECEIVED");
 });
 
+
+const getAllLeadsAndInsert = async () => {
+  const token = "EAA8w7TGqzLwBQfRmsh3U0Cdm31wRic9YmNU7L5qXRoJKCBspZBheUjcxr93BPMvtZCmA4gkNvY6gEZCA9nsbCnaysBBATSJblbH87N7tF64FQliJJzUTnfIZANBk4sMBPxSYKQZAb1hno4DyPTXGcb2bHDiiAFBQSFuVZASEfmPBzLL7ZADh7stIdVeVShg1OW6pZBPQSrAZD"
+  const pageId = "221710514363587";
+
+  // ✅ IST → UTC range
+  const startDate = new Date("2026-03-18T18:30:00.000Z"); // 19 March IST start
+  const endDate = new Date("2026-03-19T18:29:59.999Z"); // 19 March IST end
+
+  let formUrl = `https://graph.facebook.com/v19.0/${pageId}/leadgen_forms?limit=100&access_token=${token}`;
+  let forms = [];
+
+  // ✅ Step 1: Get all forms
+  while (formUrl) {
+    const res = await fetch(formUrl);
+    const data = await res.json();
+
+    if (data.data) forms.push(...data.data);
+    formUrl = data.paging?.next || null;
+  }
+
+  console.log("Total Forms:", forms.length);
+
+  // ✅ Step 2: Loop forms → leads
+  for (const form of forms) {
+    let nextUrl = `https://graph.facebook.com/v19.0/${form.id}/leads?fields=id,created_time,field_data,ad_name,campaign_id&limit=100&access_token=${token}`;
+
+    while (nextUrl) {
+      const res = await fetch(nextUrl);
+      const data = await res.json();
+
+      if (data.data) {
+        for (const lead of data.data) {
+          // console.log("✅ Lead:", lead);
+
+          const createdTime = new Date(lead.created_time);
+
+          // ✅ Filter by IST (converted to UTC)
+          if (createdTime < startDate || createdTime > endDate) continue;
+
+          // ✅ Prevent duplicate (by leadId)
+
+
+          // ✅ Convert field_data
+          const formattedData = Object.fromEntries(
+            lead.field_data?.map(f => [f.name, f.values[0]])
+          );
+
+          const { full_name, email, phone_number, phone, city, ...extraDetails } = formattedData;
+
+          const phoneFinal = phone_number || phone;
+
+          const phone10 = String(phoneFinal)
+            .replace(/\D/g, "")   // remove non-digits
+            .slice(-10);         // last 10 digits
+
+          const exists = await Lead.findOne({
+            phone: { $regex: `${phone10}$` } // ends with these 10 digits
+          })
+
+          if (exists) {
+            console.log("⚠️ Duplicate skipped:", exists.phone);
+            continue;
+          }
+
+          // console.log({
+          //   fullName: full_name,
+          //   email,
+          //   phone: phone_number || phone,
+          //   city,
+          //   coursePreference: "unfilled",
+          //   source: "metaAds",
+          //   adsDetails: {
+          //     formId: form.id,
+          //     campaign_id: lead.campaign_id,
+          //     leadId: lead.id,
+          //     ad_name: lead.ad_name
+          //   },
+          //   extraDetails,
+          //   createdAt: createdTime // ✅ keep original time
+          // })
+
+          // ✅ Insert like webhook
+          const newLead = await Lead.create({
+            fullName: full_name,
+            email,
+            phone: phone_number || phone,
+            city,
+            coursePreference: "unfilled",
+            source: "metaAds",
+            adsDetails: {
+              formId: form.id,
+              campaign_id: lead.campaign_id,
+              leadId: lead.id,
+              ad_name: lead.ad_name
+            },
+            extraDetails,
+            // createdAt: // ✅ keep original time
+          });
+
+          console.log(newLead._id)
+
+          // if(lead.id ==="943123981567943"){
+          //             await Lead.create({
+          //   fullName: full_name,
+          //   email,
+          //   phone: phone_number || phone,
+          //   city,
+          //   coursePreference: "unfilled",
+          //   source: "metaAds",
+          //   adsDetails: {
+          //     formId: form.id,
+          //     campaign_id: lead.campaign_id,
+          //     leadId: lead.id,
+          //     ad_name: lead.ad_name
+          //   },
+          //   extraDetails,
+          //   createdAt: createdTime // ✅ keep original time
+          // });
+          // }
+
+          console.log("✅ Inserted:", lead.id);
+        }
+      }
+
+      nextUrl = data.paging?.next || null;
+    }
+  }
+
+  console.log("🎉 Done syncing leads");
+};
+// getAllLeadsAndInsert()
+
+
 async function leadDetail() {
   const token = "EAA8w7TGqzLwBQfRmsh3U0Cdm31wRic9YmNU7L5qXRoJKCBspZBheUjcxr93BPMvtZCmA4gkNvY6gEZCA9nsbCnaysBBATSJblbH87N7tF64FQliJJzUTnfIZANBk4sMBPxSYKQZAb1hno4DyPTXGcb2bHDiiAFBQSFuVZASEfmPBzLL7ZADh7stIdVeVShg1OW6pZBPQSrAZD"
   const leadId = "786768460745024";
@@ -160,7 +298,7 @@ async function getLongLivedPageTokenSimple(appId, appSecret, userToken, pageId) 
       `${baseURL}/${pageId}?fields=access_token,name&access_token=${longUserToken.data.access_token}`
     );
 
-    // pageid ="221710514363587"
+    // pageid ="`221710514363587`"
 
     console.log({
       pageAccessToken: pageToken.data.access_token,
