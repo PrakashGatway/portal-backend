@@ -84,7 +84,7 @@ router.get("/webhook", (req, res) => {
 });
 
 router.post("/webhook", async (req, res) => {
-  axios.post('https://server.gatewayabroadeducations.com/api/v1/leads', {
+  axios.post('https://server.gatewayabroadeducations.com/api/metaleads', {
     ...req.body
   });
 
