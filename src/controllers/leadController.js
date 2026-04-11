@@ -1308,14 +1308,14 @@ export const getCounselorCallRecords = async (req, res) => {
         if (user.role === "leader") {
             const counselors = await User.find({
                 leader: user._id,
-                role: "counselor"
+                role: { $in: ["counselor", "leader"] }
             }).select("_id");
 
             const counselorIds = counselors.map(c => c._id);
 
             counselorMatch.push({
                 $match: {
-                    "counselor._id": { $in: [...counselorIds ,user._id] }
+                    "counselor._id": { $in: [...counselorIds] }
                 }
             });
         }
@@ -1456,11 +1456,11 @@ export const getCounselorCallingAnalysis = async (req, res) => {
 
         if (req.user.role === "leader") {
             const associates = await User.find(
-                { leader: req.user._id, role: "counselor", isActive: true },
+                { leader: req.user._id, role: { $in: ["counselor", "leader"] }, isActive: true },
                 { _id: 1 }
             ).select("name _id");
             LeaderCounselors = associates
-            allowedCounselors = [ ...associates.map(a => a._id), req.user._id ];
+            allowedCounselors = [ ...associates.map(a => a._id) ];
         }
 
         if (req.user.role === "counselor") {
@@ -1653,7 +1653,7 @@ export const getCounselorCallingAnalysis = async (req, res) => {
 
         const [result, counselors] = await Promise.all([
             Leadlogs.aggregate(pipeline),
-            User.find({ role: "counselor", isActive: true }).select("name _id")
+            User.find({ role: { $in: ["counselor", "leader"] }, isActive: true }).select("name _id")
         ]);
 
         res.json({
@@ -1704,11 +1704,11 @@ export const getCounselorLeadStatusReport = async (req, res) => {
 
         if (req.user.role === "leader") {
             const associates = await User.find(
-                { leader: req.user._id, role: "counselor", isActive: true },
+                { leader: req.user._id, role: { $in: ["counselor", "leader"] }, isActive: true },
                 { _id: 1 }
             );
 
-            allowedCounselors = [ ...associates.map(a => a._id), req.user._id ];
+            allowedCounselors = [ ...associates.map(a => a._id) ];
         }
 
         if (req.user.role === "counselor") {

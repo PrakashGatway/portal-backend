@@ -1,6 +1,7 @@
 import User from '../models/User.js';
 import Course from '../models/Course.js';
 import { Wallet } from '../models/Wallet.js';
+import { match } from 'assert';
 
 export const getUsers = async (req, res) => {
   try {
@@ -19,6 +20,11 @@ export const getUsers = async (req, res) => {
     const matchStage = {};
 
     if (role) matchStage.role = role;
+
+    if(role === 'counselor'){
+      matchStage.role = { $in: ['counselor', 'leader'] };
+    }
+
     if (isActive) matchStage.isActive = isActive === 'true' ? true : false;
     if (isVerified !== undefined) matchStage.isVerified = isVerified === 'true';
     if (subscriptionType) matchStage['subscription.type'] = subscriptionType;
