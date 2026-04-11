@@ -75,7 +75,7 @@ export const getLeadStatusStats = async (req, res) => {
                 { _id: 1 }
             );
             const counselorIds = counselors.map(c => c._id);
-            match.assignedCounselor = { $in: counselorIds };
+            match.assignedCounselor = { $in: [...counselorIds ,user._id] };
 
             if (assignedCounselor) {
                 if (!mongoose.Types.ObjectId.isValid(assignedCounselor)) {
@@ -283,7 +283,7 @@ export const getAllLeads = async (req, res) => {
                 { _id: 1 }
             );
             const counselorIds = counselors.map(c => c._id);
-            matchStage.assignedCounselor = { $in: counselorIds };
+            matchStage.assignedCounselor = { $in: [...counselorIds ,user._id] };
 
             if (assignedCounselor) {
 
@@ -847,7 +847,6 @@ export const bulkAssignCounselor = async (req, res) => {
     }
 };
 
-
 function toTenDigitNumber(phone) {
     const cleaned = phone.replace(/\D/g, '');
 
@@ -1316,7 +1315,7 @@ export const getCounselorCallRecords = async (req, res) => {
 
             counselorMatch.push({
                 $match: {
-                    "counselor._id": { $in: counselorIds }
+                    "counselor._id": { $in: [...counselorIds ,user._id] }
                 }
             });
         }
@@ -1461,7 +1460,7 @@ export const getCounselorCallingAnalysis = async (req, res) => {
                 { _id: 1 }
             ).select("name _id");
             LeaderCounselors = associates
-            allowedCounselors = associates.map(a => a._id);
+            allowedCounselors = [ ...associates.map(a => a._id), req.user._id ];
         }
 
         if (req.user.role === "counselor") {
@@ -1709,7 +1708,7 @@ export const getCounselorLeadStatusReport = async (req, res) => {
                 { _id: 1 }
             );
 
-            allowedCounselors = associates.map(a => a._id);
+            allowedCounselors = [ ...associates.map(a => a._id), req.user._id ];
         }
 
         if (req.user.role === "counselor") {
