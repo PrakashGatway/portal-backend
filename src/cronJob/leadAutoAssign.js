@@ -114,7 +114,9 @@ export async function assignOldestLeadsByForm() {
     const counselorId = counselors[nextIndex];
 
     // console.log("counselorId", counselorId)
-
+    let isCounselorActive = await User.findOne({ _id: counselorId, isActive: true }).lean()
+    if (!isCounselorActive) continue
+    
     ops.push({
       updateOne: {
         filter: { _id: lead._id },
