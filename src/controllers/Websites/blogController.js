@@ -10,7 +10,11 @@ export const getArticles = async (req, res) => {
         const filter = {};
         if (status !== undefined && status !== '' && status !== null) { filter.status = status === 'true' } else { filter.status = true }
 
-        if (category && category !== '') filter.category = mongoose.Types.ObjectId.isValid(category) ? category : await Category.findOne({ slug: category })._id;
+        if (category && category !== '') {
+            filter.category = mongoose.Types.ObjectId.isValid(category)
+                ? new mongoose.Types.ObjectId(category)
+                : (await Category.findOne({ slug: category }))?._id;
+        }
 
         if (search) {
             const regex = new RegExp(search, 'i');
