@@ -95,7 +95,7 @@ export const getPagesByType = async (req, res) => {
     try {
         const { type, featured = true } = req.query;
 
-        const pages = await Page.find({ pageType: type, status: "published", isFeatured: featured }).select('pageType slug title metaDescription');
+        const pages = await Page.find({ pageType: type, status: "published", isFeatured: featured }).select('pageType slug title metaTitle metaDescription');
 
         if (!pages || pages.length === 0) {
             return res.status(404).json({
