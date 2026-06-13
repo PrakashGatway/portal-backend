@@ -125,7 +125,7 @@ const getCourses = asyncHandler(async (req, res, next) => {
 
   if (req.query.category) {
     if (mongoose.Types.ObjectId.isValid(req.query.category)) {
-      match.category = mongoose.Types.ObjectId(req.query.category);
+      match.category = new mongoose.Types.ObjectId(req.query.category);
     } else {
       const category = await Category.findOne({ slug: req.query.category });
       if (category) {
