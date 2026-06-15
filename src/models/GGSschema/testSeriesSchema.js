@@ -1,7 +1,5 @@
-// models/testSeries.model.ts
 import { Schema, model } from "mongoose";
 
-// ⭐ pricing for the bundle
 const seriesPricingSchema = new Schema(
   {
     isFree: { type: Boolean, default: false },
@@ -12,7 +10,6 @@ const seriesPricingSchema = new Schema(
   { _id: false }
 );
 
-// ⭐ link each test inside the series
 const seriesTestItemSchema = new Schema(
   {
     test: {

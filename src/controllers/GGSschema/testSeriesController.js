@@ -147,9 +147,10 @@ export const getPublicTestSeries = async (req, res) => {
       isPublished: true,
     };
 
-    if (category) {
-      match.category = objectId(category);
-    }
+
+    // if (category) {
+    //   match.category = objectId(category);
+    // }
 
     const pipeline = [
       { $match: match },
@@ -255,8 +256,6 @@ export const getTestSeriesById = async (req, res) => {
 
     const pipeline = [
       matchStage,
-
-      // 🔹 Populate TestTemplate data
       {
         $lookup: {
           from: "testtemplates",
@@ -278,8 +277,6 @@ export const getTestSeriesById = async (req, res) => {
           ],
         },
       },
-
-      // 🔹 Lookup user attempts for these tests
       {
         $lookup: {
           from: "testattempts",
@@ -310,7 +307,6 @@ export const getTestSeriesById = async (req, res) => {
           as: "attempts",
         },
       },
-
       {
         $lookup: {
           from: "categories",
@@ -327,9 +323,12 @@ export const getTestSeriesById = async (req, res) => {
           ]
         },
       },
-      { $unwind: "$category" },
-
-      // 🔹 Merge test + testData + attemptStatus
+      {
+        $unwind: {
+          path: "$category",
+          preserveNullAndEmptyArrays: true,
+        },
+      },
       {
         $addFields: {
           tests: {
@@ -339,8 +338,6 @@ export const getTestSeriesById = async (req, res) => {
               in: {
                 $mergeObjects: [
                   "$$t",
-
-                  // attach test details
                   {
                     testData: {
                       $arrayElemAt: [
@@ -406,8 +403,6 @@ export const getTestSeriesById = async (req, res) => {
           },
         },
       },
-
-      // 🔹 Cleanup
       {
         $project: {
           testsData: 0,

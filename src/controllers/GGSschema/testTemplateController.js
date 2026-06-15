@@ -151,13 +151,19 @@ export const listTestTemplates = async (req, res) => {
       sortBy = "createdAt",
       sortOrder = "desc",
       isActive = "true",
+      category,
     } = req.query;
+
 
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
     const sort = {};
     sort[sortBy] = sortOrder === "asc" ? 1 : -1;
+
+    if (req.user.role == "user") {
+      match.isActive = true
+    }
 
     const pipeline = [
       { $match: match },
@@ -170,14 +176,23 @@ export const listTestTemplates = async (req, res) => {
         },
       },
       { $unwind: "$exam" },
-      {
-        $lookup: {
-          from: "testseries",
-          localField: "series",
-          foreignField: "_id",
-          as: "seriesDocs",
-        },
-      },
+      ...(category
+        ? [
+          {
+            $match: {
+              "exam.category": new mongoose.Types.ObjectId(category),
+            },
+          },
+        ]
+        : []),
+      // {
+      //   $lookup: {
+      //     from: "testseries",
+      //     localField: "series",
+      //     foreignField: "_id",
+      //     as: "seriesDocs",
+      //   },
+      // },
       {
         $addFields: {
           sectionCount: { $size: { $ifNull: ["$sections", []] } },
@@ -396,7 +411,7 @@ export const listStoreTests = async (req, res) => {
           localField: "exam",
           foreignField: "_id",
           as: "exam",
-        }, 
+        },
       },
       { $unwind: "$exam" },
       {

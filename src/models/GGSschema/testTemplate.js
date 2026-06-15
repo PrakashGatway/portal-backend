@@ -47,12 +47,11 @@ const quizConfigSchema = new Schema({
 // ⭐ NEW pricing block for a single test
 const testPricingSchema = new Schema(
   {
-    isSellable: { type: Boolean, default: true }, // can user buy this test alone?
-    isFree: { type: Boolean, default: false },    // completely free, ignore price
-    price: { type: Number, default: 0 },          // base price (e.g. 499)
-    salePrice: { type: Number },                  // optional discounted price
+    isSellable: { type: Boolean, default: true }, 
+    isFree: { type: Boolean, default: false },    
+    price: { type: Number, default: 0 },      
+    salePrice: { type: Number },                
     currency: { type: String, default: "INR" },
-    // optional: if true, this test only comes via bundles, cannot be bought alone
     seriesOnly: { type: Boolean, default: false },
   },
   { _id: false }
@@ -68,36 +67,27 @@ const testTemplateSchema = new Schema(
       ref: "Exam",
       required: true,
     },
-
-    // a test can belong to 0, 1 or many series
     series: [
       {
         type: Schema.Types.ObjectId,
         ref: "TestSeries",
       },
     ],
-
     testType: {
       type: String,
       enum: ["full_length", "sectional", "quiz"],
       required: true,
     },
-
     difficultyLabel: {
       type: String,
       enum: ["Easy", "Medium", "Hard", "Mixed"],
       default: "Mixed",
     },
-
     sections: [sectionInTestSchema],
     quizConfig: quizConfigSchema,
-
     totalDurationMinutes: Number,
     totalQuestions: Number,
-
-    // ⭐ pricing for standalone test
     pricing: testPricingSchema,
-
     isActive: { type: Boolean, default: true },
   },
   { timestamps: true }

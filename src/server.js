@@ -45,18 +45,18 @@ import jsonRoutes from './routes/jsonRoutes.js';
 import paymentRoutes from './routes/paymentRoutes.js';
 
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
-import "./cronJob/leadAutoAssign.js"
+// import "./cronJob/leadAutoAssign.js"
 // import "./cronJob/convertNmber.js"
 // import "./cronJob/pteCronJob.js";
+
 
 import { Question } from './models/GGSschema/questionSchema.js';
 import { Leadlogs } from './models/leadLogs.js';
 import { Lead } from './models/Leads.js';
 import { startLeadCron } from './cronJob/insertOneByOne.js';
 
-// startLeadCron("one","68fca9ab2342af01fff255cb")
-// startLeadCron("sid","68fcaa8e2342af01fff255e5")
-
+// startLeadCron("one","68ff57a3a22ea2bcbd574d33")
+// startLeadCron("sid","68ff57a3a22ea2bcbd574d33")
 
 // setupWalletCronJob();
 
@@ -70,6 +70,7 @@ app.use("/uploads", express.static("uploads"));
 const io = new Server(server, {
   cors: {
     origin: ["https://dashboard.gatewayabroadeducations.com"],
+    // origin: "*",
     methods: ["GET", "POST"],
     credentials: true
   }
@@ -81,15 +82,27 @@ const leadIO = io.of("/lead-notifications");
 leadIO.use(leadSocketAuth);
 
 leadIO.on("connection", (socket) => {
-
-  console.log("Lead notification socket connected:", socket.user._id);
   socket.join(socket.user._id.toString());
-
   socket.on("disconnect", () => {
-    console.log("Lead notification socket disconnected:", socket.user._id);
   });
-
 });
+
+function sendDummyLeadNotification() {
+  setInterval(() => {
+    const leadNamespace = global.io.of("/lead-notifications");
+    leadNamespace
+      .to("689ec9f452b5c61e3d2def2a")
+      .emit("leadAssigned", {
+        leadId: "123",
+        name: "Naveen",
+        phone: "1234567890",
+        message: "Dummy lead notification",
+        createdAt: new Date()
+      });
+    console.log("Dummy lead notification sent");
+  }, 10000);
+}
+// sendDummyLeadNotification()
 
 io.use(socketAuth);
 

@@ -48,8 +48,7 @@ const courseSchema = new mongoose.Schema({
     default: 'beginner'
   },
   language: {
-    type: String,
-    default: 'English'
+    type: String
   },
   thumbnail: {
     url: String,
@@ -92,7 +91,7 @@ const courseSchema = new mongoose.Schema({
   },
   mode: {
     type: String,
-    enum: ['online', 'offline', 'hybrid', 'recorded',"free"],
+    enum: ['online', 'offline', 'hybrid', 'recorded', "free"],
     required: [true, 'Please select batch mode']
   },
   schedule_pattern: {
@@ -129,7 +128,7 @@ const courseSchema = new mongoose.Schema({
     type: Map,
     of: mongoose.Schema.Types.Mixed,
     default: () => new Map()
-  },
+  }
 }, {
   timestamps: true
 });
@@ -138,6 +137,5 @@ courseSchema.index({ category: 1 });
 courseSchema.index({ status: 1 });
 courseSchema.index({ featured: 1 });
 courseSchema.index({ createdAt: -1 });
-courseSchema.index({ title: 'text', description: 'text', tags: 'text' });
 
 export default mongoose.model('Course', courseSchema);
