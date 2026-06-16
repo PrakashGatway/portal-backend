@@ -109,6 +109,8 @@ io.use(socketAuth);
 app.use(helmet());
 
 const allowedOrigins = [
+  "https://www.ooshasprep.com",
+  "https://dashboard.ooshasprep.com",
   "https://www.gatewayabroadeducations.com",
   "https://uat.gatewayabroadeducations.com",
   "https://join.gatewayabroadeducations.com",

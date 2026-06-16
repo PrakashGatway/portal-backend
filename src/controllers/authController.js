@@ -152,6 +152,13 @@ export const verifyOtp = async (req, res) => {
     }
 
     await Otp.deleteOne({ email }).session(session);
+    res.cookie("auth_token", accessToken, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "None",
+      domain: "ooshasprep.com",
+      maxAge: 7 * 24 * 60 * 60 * 1000
+    });
 
     res.cookie("auth_token", accessToken, {
       httpOnly: true,
@@ -246,6 +253,12 @@ export const logout = async (req, res) => {
         secure: true,
         sameSite: "None",
         domain: "gatewayabroadeducations.com" // same as when you set it
+      });
+      res.clearCookie("auth_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        domain: "ooshasprep.com" // same as when you set it
       });
     }
 

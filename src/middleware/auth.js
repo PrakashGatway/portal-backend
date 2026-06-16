@@ -28,6 +28,12 @@ export const protect = async (req, res, next) => {
         sameSite: "None",
         domain: "gatewayabroadeducations.com" // same as when you set it
       });
+      res.clearCookie("auth_token", {
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+        domain: "ooshasprep.com" // same as when you set it
+      });
       return res.status(400).json({
         success: false,
         message: 'Not authorized, no token'
