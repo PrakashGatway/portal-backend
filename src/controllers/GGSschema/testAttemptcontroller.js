@@ -229,7 +229,7 @@ export const startTestAttempt = async (req, res) => {
     const existing = await TestAttempt.findOne({
       user: userId,
       testTemplate: testTemplateId,
-      // status: "in_progress",
+      status: "in_progress",
     });
 
     if (existing) {
