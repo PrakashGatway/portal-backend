@@ -92,7 +92,6 @@ const QuestionSchema = new Schema({
   content: {
     instruction: {
       type: String,
-      required: true,
       trim: true,
     },
     passageTitle: String,

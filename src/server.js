@@ -47,7 +47,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
 // import "./cronJob/leadAutoAssign.js"
 // import "./cronJob/convertNmber.js"
-// import "./cronJob/pteCronJob.js";
+import "./cronJob/pteCronJob.js";
 
 
 import { Question } from './models/GGSschema/questionSchema.js';
@@ -76,33 +76,16 @@ const io = new Server(server, {
   }
 });
 
-global.io = io;
-const leadIO = io.of("/lead-notifications");
+// global.io = io;
+// const leadIO = io.of("/lead-notifications");
 
-leadIO.use(leadSocketAuth);
+// leadIO.use(leadSocketAuth);
 
-leadIO.on("connection", (socket) => {
-  socket.join(socket.user._id.toString());
-  socket.on("disconnect", () => {
-  });
-});
-
-function sendDummyLeadNotification() {
-  setInterval(() => {
-    const leadNamespace = global.io.of("/lead-notifications");
-    leadNamespace
-      .to("689ec9f452b5c61e3d2def2a")
-      .emit("leadAssigned", {
-        leadId: "123",
-        name: "Naveen",
-        phone: "1234567890",
-        message: "Dummy lead notification",
-        createdAt: new Date()
-      });
-    console.log("Dummy lead notification sent");
-  }, 10000);
-}
-// sendDummyLeadNotification()
+// leadIO.on("connection", (socket) => {
+//   socket.join(socket.user._id.toString());
+//   socket.on("disconnect", () => {
+//   });
+// });
 
 io.use(socketAuth);
 
@@ -180,26 +163,6 @@ app.use('/api/v1/mcu', mcuRoutes);
 app.use('/api', aiRoutes);
 app.use('/api/v1/json', jsonRoutes);
 
-
-// questions.forEach(async (q) => {
-//   // await Question.create(q);
-//   const question = await Question.create({
-//       exam:"6926e3f58c40c330202b130b",
-//       section : "6926e0798c40c330202b12ab",
-//       questionType : q.questionType,
-//       questionText : q.questionText,
-//       options: q.options,
-//       correctAnswerText:"",
-//       difficulty: q.difficulty,
-//       tags:q.tags || [],
-//       stimulus:q.stimulus || '',
-//       marks:1,
-//       negativeMarks:0,
-//       explanation: q.explanation || '',
-//       source:q.section == "gmat001-2"
-//     });
-// });
-
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
 // app.use('/api/v1/analytics', analyticsRoutes);
@@ -239,24 +202,24 @@ server.listen(PORT, () => {
 const API_KEY = "cHJha2FzaGphbmdpcjQyOUBnbWFpbC5jb20:rSpaFaKcjrurOvxr6v-UH";
 
 
-async function checkStatus(id) {
-  const url = `https://api.d-id.com/talks/${id}`;
+// async function checkStatus(id) {
+//   const url = `https://api.d-id.com/talks/${id}`;
 
-  try {
-    const res = await axios.get(url, {
-      headers: {
-        "Authorization": `Basic ${Buffer.from(API_KEY + ":").toString("base64")}`
-      }
-    });
+//   try {
+//     const res = await axios.get(url, {
+//       headers: {
+//         "Authorization": `Basic ${Buffer.from(API_KEY + ":").toString("base64")}`
+//       }
+//     });
 
-    if (res.data.result_url) {
-      console.log("VIDEO READY:", res.data.result_url);
-    }
+//     if (res.data.result_url) {
+//       console.log("VIDEO READY:", res.data.result_url);
+//     }
 
-  } catch (err) {
-    console.error(err.response?.data || err);
-  }
-}
+//   } catch (err) {
+//     console.error(err.response?.data || err);
+//   }
+// }
 
 // checkStatus("tlk_ztnmVb4rSWkdRX8ehXrAG")
 

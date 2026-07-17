@@ -14,10 +14,6 @@ const openai = new OpenAI({
     apiKey: "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"
 });
 
-
-console.log("🚀 PTE Cron Job Module Loaded");
-
-
 import fetch from "node-fetch";
 import FormData from "form-data";
 import { json } from "stream/consumers";
@@ -33,7 +29,7 @@ async function transcribeAudio(filePath) {
         {
             method: "POST",
             headers: {
-                Authorization: `Bearer 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`,
+                Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
             },
             body: form,
         }
@@ -49,7 +45,6 @@ async function transcribeAudio(filePath) {
     console.log("Transcription result:", data);
     return data.text;
 }
-
 
 export async function analyzePteWithOpenRouter({
     transcript,
@@ -108,7 +103,7 @@ RETURN STRICT JSON ONLY (NO MARKDOWN):
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-            "Authorization": `Bearer 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`,
+            "Authorization": `Bearer ${process.env.OPENROUTER_API_KEY}`,
             "Content-Type": "application/json",
             "HTTP-Referer": "https://m8j3lq9z-5000.inc1.devtunnels.ms",
             "X-Title": "PTE Evaluation"
@@ -160,8 +155,129 @@ RETURN STRICT JSON ONLY (NO MARKDOWN):
     };
 }
 
+export async function analyzePteWithNavida({
+    transcript,
+    questionText1,
+    questionText2,
+    questionAudioTranscript,
+    correctAnswerText,
+    type,
+    threshold = 0.6
+}) {
 
-// transcribeAudio("uploads\\pteAnswers\\1766821519644-659732839.webm") 
+    const prompt = `
+You are a PTE exam evaluator.
+
+You MUST return a COMPLETE JSON object.
+Do NOT return an empty object.
+Do NOT explain anything.
+If unsure, still estimate accuracy between 0 and 1.
+
+
+TASK:
+1. Evaluate the candidate transcript.
+2. Focus on MEANING and KEY CONTENT.
+3. Ignore minor grammar and pronunciation issues.
+
+Question Text Part 1:
+${questionText1 || "N/A"}
+
+Question Text (if type is describe image then a image in base64 will in this content also there see that and use that) Part 2: 
+${questionText2 || "N/A"}
+
+Question Audio Transcript:
+${questionAudioTranscript || "N/A"}
+
+Question Type:
+${type}
+
+Candidate Transcript:
+${transcript}
+
+Correct Answer (if applicable):
+${correctAnswerText || "N/A"}
+
+SCORING RULES:
+- Accuracy >= ${threshold * 100}% = correct
+
+RETURN STRICT JSON ONLY (NO MARKDOWN):
+
+{
+  "accuracy": 0,
+  "missingKeywords": [],
+  "extraWords": []
+}
+`;
+
+    const response = await fetch(
+        "https://integrate.api.nvidia.com/v1/chat/completions",
+        {
+            method: "POST",
+            headers: {
+                Authorization: `Bearer ${process.env.NvidiaApiKey}`,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                model: "openai/gpt-oss-120b",
+                messages: [
+                    {
+                        role: "system",
+                        content:
+                            "You are a JSON generator. Always return valid JSON only. Never use markdown or explanations.",
+                    },
+                    {
+                        role: "user",
+                        content: prompt,
+                    },
+                ],
+                temperature: 0.2,
+                max_tokens: 4096,
+            }),
+        }
+    );
+
+    if (!response.ok) {
+        const error = await response.text();
+        console.error("NVIDIA API Error:", error);
+        return {
+            transcript,
+            accuracy: 0,
+            isCorrect: false,
+            missingKeywords: [],
+            extraWords: []
+        }
+    }
+
+    const result = await response.json();
+
+    // console.log(result);
+
+    let content = result?.choices?.[0]?.message?.content || "[]";
+
+    content = content
+        .replace(/```json/g, "")
+        .replace(/```/g, "")
+        .trim();
+
+    // return JSON.parse(content);
+
+    const parsed = JSON.parse(content);
+
+    console.log(parsed);
+
+    const accuracy = typeof parsed.accuracy === "number" ? parsed.accuracy : 0;
+
+    return {
+        transcript,
+        accuracy,
+        isCorrect: accuracy >= threshold,
+        missingKeywords: parsed.missingKeywords || [],
+        extraWords: parsed.extraWords || []
+    };
+}
+
+
+// transcribeAudio("uploads\\audio\\1766570454793-677076.mp3") 
 
 async function sleep() {
     try {
@@ -180,20 +296,7 @@ async function sleep() {
     }
 }
 
-// sleep();
-
-async function testGeminiAPI() {
-
-    const response = await openai.responses.create({
-        model: "gpt-4o-mini",
-        input: "Write a short bedtime story about a unicorn.",
-    });
-
-    console.log(response.output_text);
-}
-// testGeminiAPI();
-
-export async function evaluatePteListeningWithGemini({
+export async function evaluatePteListeningWithOpenRouter({
     audioFilePath,
     questionText1,
     questionText2,
@@ -202,287 +305,50 @@ export async function evaluatePteListeningWithGemini({
     type,
     threshold = 0.6
 }) {
-    if (!audioFilePath || !type) {
-        throw new Error("audioFilePath and correctAnswerText are required");
+    if (!type) {
+        throw new Error("type are required");
     }
 
-    const ai = new GoogleGenAI({
-        apiKey: "AIzaSyB2I63SukyULf98Rh3SR0IYDcGFaNGBaEY"
-    });
-
-    let uploadedFile = null;
-    let tmpFilePath = null;
-
     try {
-        const buffer = await fs.readFile(audioFilePath);
-        const ext = path.extname(audioFilePath).toLowerCase();
-        const mimeType =
-            ext === ".mp3"
-                ? "audio/mp3"
-                : ext === ".wav"
-                    ? "audio/wav"
-                    : "audio/webm";
 
-        const tmpDir = os.tmpdir();
-        const tmpName = `pte-listening-${Date.now()}${ext || ".webm"}`;
-        tmpFilePath = path.join(tmpDir, tmpName);
-        await fs.writeFile(tmpFilePath, buffer);
+        let isQuestionAsWriting = ["pte_writing", "pte_writing_listening", "pte_summarize_listening", "pte_summarize_writing", "pte_summarize_spoken"].includes(type);
 
-        uploadedFile = await ai.files.upload({
-            file: tmpFilePath,
-            config: { mimeType }
-        });
+        const transcript = isQuestionAsWriting ? audioFilePath : await transcribeAudio(audioFilePath);
 
-        const fileUri =
-            uploadedFile.uri ||
-            uploadedFile.name ||
-            uploadedFile.fileUri ||
-            uploadedFile.path;
-
-        if (!fileUri) {
-            throw new Error("Gemini upload failed: missing file URI");
-        }
-
-        const prompt = `
-You are a PTE exam evaluator.
-
-TASK:
-1. Listen carefully to the audio.
-2. Transcribe exactly what the candidate said.
-3. Evaluate the correctness of the transcript.
-4. Evaluate based on MEANING and KEY CONTENT.
-5. Ignore minor grammar and pronunciation issues.
-
-Question Text Part 1: ${questionText1}
-
-Question Text Part 2: ${questionText2}
-
-Question Audio Transcript: ${questionAudioTranscript}
-
-Question type : ${type}
-
-User Answer: attached audio file 
-
-if writing question then answer is ${correctAnswerText}
-
-SCORING RULES:
-- Accuracy >= ${threshold * 100}% = correct
-- Focus on content accuracy, not fluency
-
-RETURN STRICT JSON ONLY (NO MARKDOWN):
-
-{
-  "transcript": "",
-  "accuracy": 0,
-  "isCorrect": true,
-  "missingKeywords": [],
-  "extraWords": []
-}
-`;
-
-        const contents = createUserContent([
-            createPartFromUri(fileUri, mimeType),
-            prompt
-        ]);
-
-        const response = await ai.models.generateContent({
-            model: "gemini-2.0-flash",
-            contents
-        });
-
-        let rawText = "";
-
-        if (typeof response?.text === "function") {
-            try { rawText = response.text(); } catch { }
-        }
-
-        if (!rawText && typeof response?.response?.text === "function") {
-            try { rawText = response.response.text(); } catch { }
-        }
-
-        if (!rawText && Array.isArray(response?.candidates)) {
-            for (const c of response.candidates) {
-                const parts = c?.content?.parts;
-                if (Array.isArray(parts)) {
-                    for (const p of parts) {
-                        if (typeof p.text === "string" && p.text.trim()) {
-                            rawText = p.text;
-                            break;
-                        }
-                    }
-                }
-                if (rawText) break;
+        if (!transcript || !transcript.trim()) {
+            return {
+                transcript: audioFilePath,
+                accuracy: 0,
+                isCorrect: false,
+                missingKeywords: [],
+                extraWords: []
             }
         }
-
-        if (!rawText && typeof response === "string") {
-            rawText = response;
-        }
-
-        if (!rawText) {
-            throw new Error("Empty or unexpected Gemini response");
-        }
-
-        let text = rawText.trim();
-        text = text.replace(/^\s*```(?:json)?\s*/i, "");
-        text = text.replace(/\s*```\s*$/i, "");
-
-        const start = text.indexOf("{");
-        const end = text.lastIndexOf("}");
-        if (start === -1 || end === -1 || end <= start) {
-            throw new Error("Gemini response did not contain valid JSON");
-        }
-
-        const jsonString = text.slice(start, end + 1);
-
-        let parsed;
-        try {
-            parsed = JSON.parse(jsonString);
-        } catch {
-            throw new Error("Failed to parse JSON from Gemini output");
-        }
-
-        const accuracy =
-            typeof parsed.accuracy === "number" ? parsed.accuracy : 0;
-
-        console.log("PTE Evaluation Result:", {
-            transcript: parsed.transcript || "",
-            accuracy,
-            isCorrect: accuracy >= threshold,
-            missingKeywords: parsed.missingKeywords || [],
-            extraWords: parsed.extraWords || []
+        const analysis = await analyzePteWithNavida({
+            transcript,
+            questionText1,
+            questionText2,
+            questionAudioTranscript,
+            correctAnswerText,
+            type,
+            threshold
         });
 
         return {
-            transcript: parsed.transcript || "",
-            accuracy,
-            isCorrect: accuracy >= threshold,
-            missingKeywords: parsed.missingKeywords || [],
-            extraWords: parsed.extraWords || []
+            transcript,
+            accuracy: analysis.accuracy,
+            isCorrect: analysis.isCorrect,
+            missingKeywords: analysis.missingKeywords || [],
+            extraWords: analysis.extraWords || []
         };
 
-    } finally {
-        if (uploadedFile?.name || uploadedFile?.uri) {
-            try {
-                await ai.files.delete(
-                    uploadedFile.name
-                        ? { name: uploadedFile.name }
-                        : { uri: uploadedFile.uri }
-                );
-            } catch { }
-        }
-        if (tmpFilePath) {
-            try { await fs.unlink(tmpFilePath); } catch { }
-        }
+    } catch (err) {
+        console.error("PTE Evaluation Failed:", err.message);
+        throw err;
     }
 }
 
-export async function evaluatePteListeningWithOpenAI({
-    audioFilePath,
-    questionText1,
-    questionText2,
-    questionAudioTranscript,
-    correctAnswerText,
-    type,
-    threshold = 0.6
-}) {
-    if (!audioFilePath || !type) {
-        throw new Error("audioFilePath and type are required");
-    }
-
-    /* -------------------------------------------------
-       STEP 1: TRANSCRIPTION (Whisper)
-    -------------------------------------------------- */
-    const transcription = await openai.audio.transcriptions.create({
-        file: await fs.open(audioFilePath).then(f => f.createReadStream()),
-        model: "whisper-1"
-    });
-
-    const userTranscript = transcription.text?.trim() || "";
-    console.log(userTranscript)
-    return userTranscript;
-    if (!userTranscript) {
-        throw new Error("Empty transcription from Whisper");
-    }
-
-    /* -------------------------------------------------
-       STEP 2: ANALYSIS (GPT-4o-mini)
-    -------------------------------------------------- */
-    const prompt = `
-You are a PTE exam evaluator.
-
-TASK:
-1. Analyze the candidate transcript.
-2. Compare with question context.
-3. Evaluate based on MEANING and KEY CONTENT.
-4. Ignore minor grammar and pronunciation issues.
-
-Question Text Part 1:
-${questionText1}
-
-Question Text Part 2:
-${questionText2}
-
-Question Audio Transcript:
-${questionAudioTranscript}
-
-Question Type:
-${type}
-
-Candidate Transcript:
-${userTranscript}
-
-Correct Answer (if applicable):
-${correctAnswerText || "N/A"}
-
-SCORING RULES:
-- Accuracy >= ${threshold * 100}% = correct
-- Focus on semantic correctness
-
-RETURN STRICT JSON ONLY (NO MARKDOWN):
-
-{
-  "accuracy": 0,
-  "missingKeywords": [],
-  "extraWords": []
-}
-`;
-
-    const response = await openai.responses.create({
-        model: "gpt-4o-mini",
-        input: prompt,
-        temperature: 0
-    });
-
-    let rawText = response.output_text?.trim();
-    if (!rawText) {
-        throw new Error("Empty response from GPT-4o-mini");
-    }
-
-    // Cleanup accidental formatting
-    rawText = rawText.replace(/^\s*```(?:json)?\s*/i, "");
-    rawText = rawText.replace(/\s*```\s*$/i, "");
-
-    const start = rawText.indexOf("{");
-    const end = rawText.lastIndexOf("}");
-    if (start === -1 || end === -1) {
-        throw new Error("Invalid JSON from GPT-4o-mini");
-    }
-
-    const parsed = JSON.parse(rawText.slice(start, end + 1));
-    const accuracy =
-        typeof parsed.accuracy === "number" ? parsed.accuracy : 0;
-
-    return {
-        transcript: userTranscript,
-        accuracy,
-        isCorrect: accuracy >= threshold,
-        missingKeywords: parsed.missingKeywords || [],
-        extraWords: parsed.extraWords || []
-    };
-}
-
-export async function evaluatePteListeningWithOpenRouter({
+export async function evaluatePteListeningWithNavida({
     audioFilePath,
     questionText1,
     questionText2,
@@ -595,13 +461,12 @@ function recomputeAttemptStats(attempt) {
 }
 
 
-cron.schedule("*/60 * * * * *", async () => {
+cron.schedule("*/5 * * * *", async () => { // every 5 minutes
     console.log("🚀 PTE Listening Cron Started");
     try {
-
         const attempts = await TestAttempt.find({
             status: "completed",
-            // analysisStatus: false,
+            analysisStatus: false,
             exam: { $in: ["69410ab31f72080b90c700f7"] }
         }).limit(2);
 

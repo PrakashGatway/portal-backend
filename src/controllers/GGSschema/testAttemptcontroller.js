@@ -751,8 +751,6 @@ export const submitTestAttempt = async (req, res) => {
           const user = (aq.answerText || "").trim().toLowerCase();
           isCorrect = correct && user && correct === user;
         }
-
-
         if (isCorrect) {
           secCorrect += 1;
           totalCorrect += 1;
