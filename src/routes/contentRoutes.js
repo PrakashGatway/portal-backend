@@ -13,7 +13,9 @@ import {
     getContentStats,
     getUpcomingLiveClasses,
     getCourseContentStructure,
-    updateContentStatus
+    updateContentStatus,
+    getFreeStudyMaterials,
+    getContentBySlug
 } from '../controllers/contentController.js';
 
 import { protect, authorize, ensureCoursePurchase } from '../middleware/auth.js';
@@ -22,6 +24,12 @@ const router = express.Router();
 
 router.route('/')
     .get(getAllContent);
+
+router.route('/resources')
+    .get(getFreeStudyMaterials);
+
+router.route('/resources/:slug')
+    .get(protect, getContentBySlug);
 
 router.route('/stats')
     .get(getContentStats);

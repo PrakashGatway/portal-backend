@@ -29,7 +29,7 @@ router.route('/:id')
   .get(getModule);
 
 router.route('/overview/:id')
-  .get(protect, ensureCourseQuery,getModuleDetails);
+  .get(protect, ensureCourseQuery, getModuleDetails);
 
 router.route('/:id/content')
   .get(getModuleContentStructure);

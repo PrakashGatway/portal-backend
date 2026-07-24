@@ -795,7 +795,7 @@ const getCourseCurriculum = async (req, res) => {
             {
               $match: {
                 status: { $nin: ['draft', 'deleted'] },
-                __t: { $in: ['LiveClasses', 'RecordedClasses'] }
+                __t: { $in: ['LiveClasses', 'RecordedClasses', 'StudyMaterials'] }
               }
             },
             { $sort: { order: 1 } },
@@ -845,22 +845,22 @@ const getCourseCurriculum = async (req, res) => {
                           ]
                         }
                       },
-                      {
-                        case: { $eq: ['$$item.__t', 'Tests'] },
-                        then: {
-                          $concat: [
-                            { $toString: { $size: { $ifNull: ['$$item.questions', []] } } },
-                            ' ',
-                            {
-                              $cond: {
-                                if: { $eq: [{ $size: { $ifNull: ['$$item.questions', []] } }, 1] },
-                                then: 'question',
-                                else: 'questions'
-                              }
-                            }
-                          ]
-                        }
-                      },
+                      // {
+                      //   case: { $eq: ['$$item.__t', 'Tests'] },
+                      //   then: {
+                      //     $concat: [
+                      //       { $toString: { $size: { $ifNull: ['$$item.questions', []] } } },
+                      //       ' ',
+                      //       {
+                      //         $cond: {
+                      //           if: { $eq: [{ $size: { $ifNull: ['$$item.questions', []] } }, 1] },
+                      //           then: 'question',
+                      //           else: 'questions'
+                      //         }
+                      //       }
+                      //     ]
+                      //   }
+                      // },
                       {
                         case: { $eq: ['$$item.__t', 'StudyMaterials'] },
                         then: {

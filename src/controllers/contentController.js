@@ -24,10 +24,6 @@ const validateContentInput = (req, res, next) => {
     errors.push('Course is required');
   }
 
-  if (!instructor) {
-    errors.push('Instructor is required');
-  }
-
   if (errors.length > 0) {
     return next(new ErrorResponse(errors.join(', '), 400));
   }
@@ -678,11 +674,8 @@ const createStudyMaterial = [
       ...req.body,
       __t: 'StudyMaterials'
     });
-
-    // Populate related data for response
     const populatedStudyMaterial = await StudyMaterial.findById(studyMaterial._id)
       .populate('course', 'title code')
-      .populate('instructor', 'name email')
       .populate('module', 'title');
 
     res.status(201).json({
@@ -700,8 +693,6 @@ const updateContent = [
     if (!content) {
       return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
     }
-
-
     if (content.__t === 'LiveClasses') {
       const { scheduledStart, scheduledEnd } = req.body;
       if (scheduledStart && scheduledEnd && new Date(scheduledStart) >= new Date(scheduledEnd)) {
@@ -737,6 +728,20 @@ const updateContent = [
         }
       )
     };
+
+    if (content.__t == "StudyMaterials") {
+      await StudyMaterial.findByIdAndUpdate(
+        req.params.id,
+        req.body,
+        {
+          new: true,
+          runValidators: true
+        }
+      )
+    }
+
+
+
 
     // const populatedContent = await Content.findById(content._id)
     //   .populate('course', 'title code')
@@ -1013,7 +1018,86 @@ export const updateContentStatus = [
   }),
 ];
 
+export const getFreeStudyMaterials = async (req, res) => {
+  try {
+    const { page = 1, limit = 12, search = "", materialType } = req.query;
 
+    const query = {
+      status: "published",
+      ...(materialType && { materialType: materialType }),
+      isFree: true,
+      ...(search && {
+        $or: [
+          { title: { $regex: search, $options: "i" } },
+          { description: { $regex: search, $options: "i" } },
+        ],
+      }),
+    };
+
+    const [materials, total] = await Promise.all([
+      StudyMaterial.find(query)
+        .populate("course", "title slug")
+        .populate("module", "title")
+        .sort({ order: 1, createdAt: -1 })
+        .skip((page - 1) * limit)
+        .limit(Number(limit))
+        .lean(),
+
+      StudyMaterial.countDocuments(query),
+    ]);
+
+    return res.status(200).json({
+      success: true,
+      total,
+      page: Number(page),
+      totalPages: Math.ceil(total / limit),
+      count: materials.length,
+      data: materials,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch free study materials.",
+      error: error.message,
+    });
+  }
+};
+
+export const getContentBySlug = async (req, res) => {
+  try {
+
+    const { slug } = req.params;
+    console.log(slug)
+
+    const content = await StudyMaterial.findOne({
+      slug,
+      status: "published",
+      isFree: true
+    })
+      .populate("course", "title slug")
+      .populate("module", "title slug")
+
+    if (!content) {
+      return res.status(404).json({
+        success: false,
+        message: "Content not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: content,
+    });
+  } catch (error) {
+    console.error("Get Content By Slug Error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error.",
+    });
+  }
+};
 
 export {
   getAllContent,

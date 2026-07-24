@@ -30,11 +30,6 @@ const contentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Module'
   },
-  instructor: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    required: [true, 'Please assign an instructor']
-  },
   order: {
     type: Number,
     default: 0
@@ -88,6 +83,11 @@ const liveClassSchema = new mongoose.Schema({
     type: Date,
     required: true
   },
+    instructor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'Please select an instructor']
+  },
   scheduledEnd: {
     type: Date,
     required: true
@@ -115,19 +115,11 @@ const recordedClassSchema = new mongoose.Schema({
     summary: String,
     transcript: String
   },
-  materials: [{
-    title: String,
-    type: {
-      type: String,
-      enum: ['pdf', 'ppt', 'document', 'link', 'code']
-    },
-    url: String,
-    description: String,
-    isDownloadable: {
-      type: Boolean,
-      default: true
-    }
-  }],
+    instructor: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: [true, 'Please select an instructor']
+  },
   analytics: {
     views: {
       type: Number,

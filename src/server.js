@@ -47,7 +47,7 @@ import paymentRoutes from './routes/paymentRoutes.js';
 import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
 // import "./cronJob/leadAutoAssign.js"
 // import "./cronJob/convertNmber.js"
-import "./cronJob/pteCronJob.js";
+// import "./cronJob/pteCronJob.js";
 
 
 import { Question } from './models/GGSschema/questionSchema.js';
@@ -112,15 +112,8 @@ const allowedOrigins = [
 // app.use(cors());
 
 app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.log(origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
+  origin: true,
+  credentials: true,
 }));
 
 app.use(cookieParser());

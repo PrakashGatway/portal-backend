@@ -394,30 +394,30 @@ const getModuleDetails = asyncHandler(async (req, res, next) => {
         //       _id: '$$test._id',
         //       title: '$$test.title',
         //       description: '$$test.description',
-        //       status: '$$test.status', // This will be 'published'
+        //       status: '$$test.status',
         //       testType: '$$test.testType',
         //       // Add other relevant test fields if needed
         //     }
         //   }
         // },
         // Simplified Study Materials
-        // studyMaterials: {
-        //   $map: {
-        //     input: '$studyMaterials',
-        //     as: 'material',
-        //     in: {
-        //       _id: '$$material._id',
-        //       title: '$$material.title',
-        //       description: '$$material.description',
-        //       status: '$$material.status', // This will be 'published'
-        //       materialType: '$$material.materialType',
-        //       thumbnailPic: '$$material.thumbnailPic', // Include thumbnail if available
-        //       file: { // Include basic file info if needed
-        //         mimeType: '$$material.file.mimeType'
-        //       }
-        //     }
-        //   }
-        // },
+        studyMaterials: {
+          $map: {
+            input: '$studyMaterials',
+            as: 'material',
+            in: {
+              _id: '$$material._id',
+              title: '$$material.title',
+              description: '$$material.description',
+              status: '$$material.status', // This will be 'published'
+              materialType: '$$material.materialType',
+              thumbnailPic: '$$material.thumbnailPic', // Include thumbnail if available
+              file: { // Include basic file info if needed
+                mimeType: '$$material.file.mimeType'
+              }
+            }
+          }
+        },
         liveClassesCount: { $size: '$liveClasses' },
         recordedClassesCount: { $size: '$recordedClasses' },
         testsCount: { $size: '$tests' },
