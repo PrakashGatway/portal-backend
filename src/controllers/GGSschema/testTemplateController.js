@@ -143,27 +143,70 @@ export const createTestTemplate = async (req, res) => {
 
 export const listTestTemplates = async (req, res) => {
   try {
-    const match = buildTestTemplateMatch(req.query);
-
-    let {
+    const {
+      examId,
+      testType,
+      isActive,
+      isFree,
+      isSellable,
+      seriesOnly,
+      search,
+      difficultyLabel,
       page = 1,
-      limit = 10,
+      limit = 100,
       sortBy = "createdAt",
       sortOrder = "desc",
-      isActive = "true",
       category,
     } = req.query;
 
+    const match = {};
 
-    const pageNum = Number(page) || 1;
-    const limitNum = Number(limit) || 10;
-    const skip = (pageNum - 1) * limitNum;
-    const sort = {};
-    sort[sortBy] = sortOrder === "asc" ? 1 : -1;
+    if (examId && Types.ObjectId.isValid(examId)) {
+      match.exam = new Types.ObjectId(examId);
+    }
+
+    if (testType) {
+      const types = String(testType).split(",").map((t) => t.trim());
+      match.testType = { $in: types };
+    }
+
+    if (difficultyLabel) {
+      const diff = String(difficultyLabel).split(",").map((d) => d.trim());
+      match.difficultyLabel = { $in: diff };
+    }
 
     if (req.user.role == "user") {
       match.isActive = true
+    } else if (typeof isActive !== "undefined") {
+      match.isActive = isActive === "true" || isActive === true;
     }
+
+    if (typeof isFree !== "undefined") {
+      match["pricing.isFree"] = isFree === "true" || isFree === true;
+    }
+
+    if (typeof isSellable !== "undefined") {
+      match["pricing.isSellable"] =
+        isSellable === "true" || isSellable === true;
+    }
+
+    if (typeof seriesOnly !== "undefined") {
+      match["pricing.seriesOnly"] =
+        seriesOnly === "true" || seriesOnly === true;
+    }
+
+    if (search) {
+      match.$or = [
+        { title: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+      ];
+    }
+
+    const pageNum = Number(page) || 1;
+    const limitNum = Number(limit) || 100;
+    const skip = (pageNum - 1) * limitNum;
+    const sort = {};
+    sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
     const pipeline = [
       { $match: match },
@@ -173,6 +216,9 @@ export const listTestTemplates = async (req, res) => {
           localField: "exam",
           foreignField: "_id",
           as: "exam",
+          pipeline: [
+            { $project: { name: 1, category: 1, examType: 1 } },
+          ]
         },
       },
       { $unwind: "$exam" },
@@ -205,11 +251,8 @@ export const listTestTemplates = async (req, res) => {
       },
       {
         $project: {
-          "exam.description": 0,
-          "exam.sections": 0,
-          "seriesDocs.tests": 0,
-          quizConfig: 0, // hide heavy config in list
-          sections: 0,   // list view doesn’t need full section config
+          quizConfig: 0,
+          sections: 0,   
         },
       },
       { $sort: sort },

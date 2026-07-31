@@ -9,7 +9,8 @@ const purchasedCourseSchema = new mongoose.Schema({
     },
     itemType: {
         type: String,
-        enum: ['course', 'package', 'testSeries'],
+        enum: ["Course", "package", "McuTestSeries", "TestTemplate", "subscription", "ilets"],
+        default: "Course",
         required: true
     },
     itemId: {
@@ -18,31 +19,14 @@ const purchasedCourseSchema = new mongoose.Schema({
         index: true,
         refPath: 'itemType'
     },
-    course: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Course',
-        required: true,
-        index: true
-    },
     enrolledAt: { type: Date, default: Date.now },
     accessExpiresAt: { type: Date },
     isActive: { type: Boolean, default: true },
     revokedReason: { type: String },
-    progress: {
-        percentage: { type: Number, min: 0, max: 100, default: 0 },
-        completedLessons: [{
-            lesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Content' },
-            completedAt: { type: Date, default: Date.now }
-        }]
-    },
+    percentage: { type: Number, min: 0, max: 100, default: 0 },
     transactionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Transaction' },
     totalTimeSpent: { type: Number, default: 0 },
     lastAccessedAt: { type: Date },
-    recentLessons: [{
-        lesson: { type: mongoose.Schema.Types.ObjectId, ref: 'Content' },
-        progress: { type: Number, min: 0, max: 100, default: 0 },
-        durationWatched: { type: Number, default: 0 }
-    }],
     isCompleted: { type: Boolean, default: false },
     completedAt: { type: Date }
 }, {
@@ -56,9 +40,6 @@ purchasedCourseSchema.virtual('isExpired').get(function () {
 });
 
 purchasedCourseSchema.index({ user: 1, isActive: 1 });
-purchasedCourseSchema.index({ course: 1, isCompleted: 1 });
-purchasedCourseSchema.index({ enrolledAt: -1 });
-purchasedCourseSchema.index({ "progress.percentage": -1, course: 1 });
-purchasedCourseSchema.index({ user: 1, course: 1 }, { unique: true });
+purchasedCourseSchema.index({ user: 1, itemId: 1 }, { unique: true });
 
 export default mongoose.model('PurchasedCourse', purchasedCourseSchema);

@@ -52,7 +52,7 @@ router.get('/blog/:slug', getArticle);
 
 router.post('/blog/', createArticle);
 router.put('/blog/:id', updateArticle);
-router.post('/blog/log/:id', logReadTime);
+router.get('/blog/log/:id', logReadTime);
 router.delete('/blog/:id', deleteArticle);
 router.patch('/blog/:id/status', toggleArticleStatus);
 

@@ -5,6 +5,8 @@ import Course from '../models/Course.js';
 import PromoCode from '../models/PromoCode.js';
 import { Wallet } from '../models/Wallet.js';
 import PurchasedCourse from '../models/PurchasedCourse.js';
+import { TestSeries } from '../models/GGSschema/testSeriesSchema.js';
+import { TestTemplate } from '../models/GGSschema/testTemplate.js';
 
 export const createPayment = async (req, res) => {
   let session = null;
@@ -14,49 +16,92 @@ export const createPayment = async (req, res) => {
     session.startTransaction();
 
     const {
-      courseId,
+      productId: courseId,
       promoCode,
+      productType,
       useWallet = false
     } = req.body;
 
     const userId = req.user._id;
 
-    const course = await Course.findById(courseId).session(session);
+    const IsExistingCourse = await Course.findOne({ user: req.user._id, ref_id: courseId }).session(session);
+
+    if (IsExistingCourse) {
+      throw new Error('Course_already_exist');
+    }
+
+    let course;
+
+    switch (productType) {
+      case 'test-series':
+        course = await TestSeries.findById(courseId).session(session);
+        if (!course) throw new Error('COURSE_NOT_FOUND')
+        break;
+      case 'test':
+        course = await TestTemplate.findById(courseId).session(session);
+        if (!course) throw new Error('COURSE_NOT_FOUND')
+        break;
+      default:
+        course = await Course.findById(courseId).session(session);
+        if (!course) throw new Error('COURSE_NOT_FOUND')
+        break;
+    }
+
     const wallet = await Wallet.findOne({ user: userId }).session(session);
 
-    if (!course) {
-      throw new Error('COURSE_NOT_FOUND');
-    }
     if (!wallet) {
       throw new Error('WALLET_NOT_FOUND');
     }
 
-    const originalAmount = course.pricing.originalAmount || course.pricing.amount;
-    let currentPrice = originalAmount;
-    let courseDiscount = 0;
-
-    if (course.pricing.discount && course.pricing.discount > 0) {
-      const discountAmt = (originalAmount * course.pricing.discount) / 100;
-      currentPrice = originalAmount - discountAmt;
-      courseDiscount = discountAmt;
-    }
-
+    let originalAmount;
+    let currentPrice;
+    let discountBreakdown = {
+      baseDiscount: 0,
+      earlyBirdDiscount: 0,
+      promoDiscount: 0,
+      walletDiscount: 0
+    };
     let isEarlyBirdActive = false;
-    if (course.pricing.earlyBird?.deadline) {
-      const now = new Date();
-      const deadline = new Date(course.pricing.earlyBird.deadline);
-      if (now <= deadline) {
-        isEarlyBirdActive = true;
-        const earlyBirdDiscount = (currentPrice * course.pricing.earlyBird.discount) / 100;
-        currentPrice -= earlyBirdDiscount;
-        courseDiscount += earlyBirdDiscount;
+
+    if (productType === 'course') {
+      originalAmount = course.pricing.originalAmount || course.pricing.amount;
+      currentPrice = originalAmount;
+
+      if (course.pricing.discount && course.pricing.discount > 0) {
+        const discountAmt = (originalAmount * course.pricing.discount) / 100;
+        currentPrice = originalAmount - discountAmt;
+        discountBreakdown.baseDiscount = discountAmt;
+      }
+
+
+      if (course.pricing.earlyBird?.deadline) {
+        const now = new Date();
+        const deadline = new Date(course.pricing.earlyBird.deadline);
+        if (now <= deadline) {
+          isEarlyBirdActive = true;
+          const earlyBirdDiscount = (currentPrice * course.pricing.earlyBird.discount) / 100;
+          currentPrice -= earlyBirdDiscount;
+          discountBreakdown.earlyBirdDiscount = earlyBirdDiscount;
+          // courseDiscount += earlyBirdDiscount;
+        }
+      }
+
+    } else {
+      originalAmount = course.pricing.price || 0;
+      currentPrice = course.pricing.salePrice || course.pricing.price || 0;
+      if (course.pricing.price > course.pricing.salePrice) {
+        discountBreakdown.baseDiscount = course.pricing.price - course.pricing.salePrice;
+      }
+      if (course.pricing.isFree) {
+        currentPrice = 0;
+        discountBreakdown.baseDiscount = originalAmount;
       }
     }
 
     let promoDiscount = 0;
     let couponData = null;
 
-    if (promoCode) {
+    if (promoCode && currentPrice > 0) {
       const promoDoc = await PromoCode.findOne({
         code: promoCode.toUpperCase(),
         isActive: true,
@@ -83,6 +128,7 @@ export const createPayment = async (req, res) => {
       }
 
       currentPrice = Math.max(0, currentPrice - promoDiscount);
+      discountBreakdown.promoDiscount = promoDiscount;
       couponData = {
         code: promoCode.toUpperCase(),
         discountType: promoDoc.discountType,
@@ -95,13 +141,16 @@ export const createPayment = async (req, res) => {
       const maxWalletUsage = currentPrice * 0.1; // 10%
       creditsUsed = Math.min(wallet.balance, maxWalletUsage);
       currentPrice = Math.max(0, currentPrice - creditsUsed);
+      discountBreakdown.walletDiscount = creditsUsed;
     }
 
     const transactionId = `TXN${Date.now()}${Math.random().toString(36).substr(2, 3).toUpperCase()}`;
     const transaction = new Transaction({
       user: userId,
       course: courseId,
+      paymentFor: productType == 'test-series' ? 'McuTestSeries' : productType == 'test' ? 'TestTemplate' : 'Course',
       type: 'purchase',
+      ref_id: courseId,
       amount: currentPrice,
       paymentMethod: creditsUsed > 0 ? 'bank' : 'bank',
       transactionId,
@@ -109,13 +158,15 @@ export const createPayment = async (req, res) => {
       breakdown: {
         baseAmount: originalAmount,
         tax: 0,
-        discount: courseDiscount + promoDiscount,
+        discount: discountBreakdown.baseDiscount +
+          discountBreakdown.earlyBirdDiscount +
+          discountBreakdown.promoDiscount,
         platformFee: 0,
         creditsUsed,
         creditsEarned: 0
       },
       coupon: couponData,
-      meta: { isEarlyBird: isEarlyBirdActive }
+      meta: { isEarlyBird: discountBreakdown.earlyBirdDiscount > 0 }
     });
 
     await transaction.save({ session });
@@ -148,6 +199,9 @@ export const createPayment = async (req, res) => {
 
     if (error.message === 'COURSE_NOT_FOUND') {
       return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+    if (error.message === 'Course_already_exist') {
+      return res.status(404).json({ success: false, message: 'Course already exist' });
     }
     if (error.message === 'WALLET_NOT_FOUND') {
       return res.status(404).json({ success: false, message: 'Wallet not found. Please contact support.' });
@@ -189,9 +243,9 @@ export const handlePaymentWebhook = async (req, res) => {
     }
 
     if (status === 'success') {
-      const { user, course, amount, breakdown } = transaction;
+      const { user, course, amount, breakdown, ref_id, paymentFor } = transaction;
       const courseDoc = await Course.findById(course).session(session);
-      let accessExpiresAt = undefined;
+      let accessExpiresAt = null;
       // if (courseDoc?) {
       accessExpiresAt = new Date();
       accessExpiresAt.setDate(accessExpiresAt.getDate() + 730);
@@ -199,7 +253,9 @@ export const handlePaymentWebhook = async (req, res) => {
 
       const purchasedCourse = new PurchasedCourse({
         user,
-        course,
+        itemType: paymentFor,
+        itemId: ref_id,
+        transactionId: transaction._id,
         accessExpiresAt,
         isActive: true,
         enrolledAt: new Date()
@@ -211,7 +267,6 @@ export const handlePaymentWebhook = async (req, res) => {
       //   const referralBonus = amount * 0.1;
       //   wallet.referralEarnings += referralBonus;
       //   wallet.totalEarned += referralBonus;
-
       //   // Also update referrer's wallet
       //   const referrerWallet = await Wallet.findOne({ user: wallet.referredBy }).session(session);
       //   if (referrerWallet) {
@@ -219,13 +274,11 @@ export const handlePaymentWebhook = async (req, res) => {
       //     referrerWallet.referralEarnings += referralBonus;
       //     referrerWallet.totalEarned += referralBonus;
       //     await referrerWallet.save({ session });
-
       //     if (wallet.totalReferrals === 0) {
       //       referrerWallet.totalReferrals += 1;
       //       await referrerWallet.save({ session });
       //     }
       //   }
-
       //   wallet.totalReferrals += 1; // or track per purchase
       //   await wallet.save({ session });
       // }
@@ -266,89 +319,157 @@ export const handlePaymentWebhook = async (req, res) => {
     session.endSession();
   }
 };
+
+// export const getUserTransactions = async (req, res) => {
+//   try {
+//     const { page = 1, limit = 10, type, status, queryUserId, search } = req.query;
+//     const currentUser = req.user;
+
+//     const filter = [];
+
+//     filter.push({ user: new mongoose.Types.ObjectId(currentUser._id) });
+
+//     // ✅ Type filter
+//     if (type) filter.push({ type });
+
+//     // ✅ Status filter
+//     if (status) filter.push({ status });
+
+//     if (search && search.trim()) {
+//       const regex = new RegExp(search.trim(), "i");
+//       filter.push({
+//         $or: [
+//           { transactionId: regex },
+//           { orderId: regex },
+//           { invoiceNumber: regex },
+//           { "coupon.code": regex }
+//         ]
+//       });
+//     }
+
+//     const pipeline = [
+//       { $match: filter.length ? { $and: filter } : {} },
+//       // {
+//       //   $lookup: {
+//       //     from: "courses",
+//       //     localField: "course",
+//       //     foreignField: "_id",
+//       //     as: "course"
+//       //   }
+//       // },
+//       // { $unwind: { path: "$course", preserveNullAndEmptyArrays: true } },
+//       {
+//         $project: {
+//           user: 1,
+//           // course: { _id: 1, title: 1 },
+//           type: 1,
+//           amount: 1,
+//           paymentMethod: 1,
+//           breakdown: 1,
+//           transactionId: 1,
+//           orderId: 1,
+//           invoiceNumber: 1,
+//           status: 1,
+//           createdAt: 1,
+//           coupon: 1
+//         }
+//       },
+//       { $sort: { createdAt: -1 } },
+//       {
+//         $facet: {
+//           data: [
+//             { $skip: (parseInt(page) - 1) * parseInt(limit) },
+//             { $limit: parseInt(limit) }
+//           ],
+//           totalCount: [{ $count: "count" }]
+//         }
+//       }
+//     ];
+
+//     const result = await Transaction.aggregate(pipeline);
+
+//     const transactions = result[0].data;
+//     const total = result[0].totalCount[0]?.count || 0;
+
+//     res.json({
+//       success: true,
+//       data: transactions,
+//       pagination: {
+//         page: parseInt(page),
+//         pages: Math.ceil(total / limit),
+//         total
+//       }
+//     });
+//   } catch (error) {
+//     res.status(500).json({ success: false, message: "Server error" });
+//   }
+// };
+
 export const getUserTransactions = async (req, res) => {
   try {
-    const { page = 1, limit = 10, type, status, queryUserId, search } = req.query;
+    const { page = 1, limit = 20, type, status, search } = req.query;
     const currentUser = req.user;
 
-    const filter = [];
+    const filter = {
+      user: currentUser._id,
+    };
 
-    filter.push({ user: new mongoose.Types.ObjectId(currentUser._id) });
+    if (type) filter.type = type;
+    if (status) filter.status = status;
 
-    // ✅ Type filter
-    if (type) filter.push({ type });
-
-    // ✅ Status filter
-    if (status) filter.push({ status });
-
-    if (search && search.trim()) {
+    if (search?.trim()) {
       const regex = new RegExp(search.trim(), "i");
-      filter.push({
-        $or: [
-          { transactionId: regex },
-          { orderId: regex },
-          { invoiceNumber: regex },
-          { "coupon.code": regex }
-        ]
-      });
+      filter.$or = [
+        { transactionId: regex },
+        { orderId: regex },
+        { invoiceNumber: regex },
+        { "coupon.code": regex },
+      ];
     }
 
-    // ✅ Build pipeline
-    const pipeline = [
-      { $match: filter.length ? { $and: filter } : {} },
-      {
-        $lookup: {
-          from: "courses",
-          localField: "course",
-          foreignField: "_id",
-          as: "course"
-        }
-      },
-      { $unwind: { path: "$course", preserveNullAndEmptyArrays: true } },
-      {
-        $project: {
-          user: 1,
-          course: { _id: 1, title: 1 },
-          type: 1,
-          amount: 1,
-          paymentMethod: 1,
-          breakdown: 1,
-          transactionId: 1,
-          orderId: 1,
-          invoiceNumber: 1,
-          status: 1,
-          createdAt: 1,
-          coupon: 1
-        }
-      },
-      { $sort: { createdAt: -1 } },
-      {
-        $facet: {
-          data: [
-            { $skip: (parseInt(page) - 1) * parseInt(limit) },
-            { $limit: parseInt(limit) }
-          ],
-          totalCount: [{ $count: "count" }]
-        }
-      }
-    ];
+    const [transactions, total] = await Promise.all([
+      Transaction.find(filter)
+        .populate({
+          path: "ref_id",
+          select: "-sections -__v -extraFields -targetAudience -objectives -requirements -features -schedule_pattern -tests",
+        })
+        .sort({ createdAt: -1 })
+        .skip((Number(page) - 1) * Number(limit))
+        .limit(Number(limit))
+        .select(
+          "user paymentFor ref_id type amount paymentMethod breakdown transactionId orderId invoiceNumber status createdAt coupon"
+        )
+        .lean(),
 
-    const result = await Transaction.aggregate(pipeline);
+      Transaction.countDocuments(filter),
+    ]);
 
-    const transactions = result[0].data;
-    const total = result[0].totalCount[0]?.count || 0;
+    // Optional: rename ref_id dynamically
+    const data = transactions.map((transaction) => {
+      const item = transaction.ref_id;
+      delete transaction.ref_id;
 
-    res.json({
+      return {
+        ...transaction,
+        [transaction.paymentFor]: item,
+      };
+    });
+
+    return res.json({
       success: true,
-      data: transactions,
+      data,
       pagination: {
-        page: parseInt(page),
-        pages: Math.ceil(total / limit),
-        total
-      }
+        page: Number(page),
+        pages: Math.ceil(total / Number(limit)),
+        total,
+      },
     });
   } catch (error) {
-    res.status(500).json({ success: false, message: "Server error" });
+    console.error(error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
 };
 
@@ -432,6 +553,7 @@ export const getAdminTransactions = async (req, res) => {
           course: { _id: 1, title: 1 },
           type: 1,
           amount: 1,
+          paymentFor: 1,
           paymentMethod: 1,
           breakdown: 1,
           transactionId: 1,
@@ -543,17 +665,21 @@ export const getTransaction = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Invalid transaction ID' });
     }
 
-    const transaction = await Transaction.findOne({ _id: new mongoose.Types.ObjectId(id) })
-      .populate('course', 'title')
-      .populate('user', 'name email')
-      .lean();
+    const transaction = await Transaction.findOne({ _id: new mongoose.Types.ObjectId(id) }).populate({
+      path: "ref_id",
+      select: "-sections -__v",
+    });
 
     if (!transaction) {
-      console.log('Transaction not found for ID:', id, 'and user ID:', userId);
       return res.status(404).json({ success: false, message: 'Transaction not found' });
     }
 
-    res.json({ success: true, data: transaction });
+    const data = transaction.toObject();
+
+    data.course = data.ref_id;
+    delete data.ref_id;
+
+    res.json({ success: true, data: data });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Server error' });
   }

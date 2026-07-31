@@ -53,10 +53,10 @@ router.delete("/questions/:id", deleteQuestion);
 
 
 router.get("/test", protect, listTestTemplates);
-router.post("/test", createTestTemplate);
-router.get("/test/:id", getTestTemplateById);
-router.put("/test/:id", updateTestTemplate);
-router.delete("/test/:id", deleteTestTemplate);
+router.post("/test", protect, createTestTemplate);
+router.get("/test/:id", protect, getTestTemplateById);
+router.put("/test/:id", protect, updateTestTemplate);
+router.delete("/test/:id", protect, deleteTestTemplate);
 // router.get("/public/store", listStoreTests);
 
 router.post("/start", protect, startTestAttempt);

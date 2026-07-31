@@ -154,20 +154,18 @@ export const toggleArticleStatus = async (req, res) => {
 export const logReadTime = async (req, res) => {
     try {
         const { id } = req.params;
-        const { readDuration } = req.body; // Duration in seconds
+        const { readDuration = 0 } = req.body; // Duration in seconds
 
         const article = await Article.findById(id);
         if (!article) {
             return res.status(404).json({ success: false, message: 'Article not found' });
         }
-        article.readTime += readDuration;
         article.viewCount += 1;
         await article.save();
 
         res.status(200).json({
             success: true,
             data: {
-                readTime: article.readTime,
                 viewCount: article.viewCount,
             },
         });

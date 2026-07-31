@@ -295,7 +295,7 @@ export const applyPromoCode = async (req, res) => {
 
 export const validatePromoCode = async (req, res) => {
   try {
-    const { code, courseId, currentPrice } = req.body;
+    const { code, productId:courseId, currentPrice } = req.body;
     const userId = req.user._id;
 
     if (!code || !courseId || currentPrice === undefined) {

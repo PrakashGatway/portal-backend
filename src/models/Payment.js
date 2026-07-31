@@ -5,10 +5,18 @@ const { Schema } = mongoose;
 const TransactionSchema = new Schema(
   {
     user: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    paymentFor: {
+      type: String,
+      enum: ["Course", "package", "McuTestSeries", "TestTemplate", "subscription", "ilets"],
+      default: "Course",
+      required: true
+    },
+    ref_id: {
+      type: Schema.Types.ObjectId,
+      required: true,
+      refPath: "paymentFor",
+    },
     course: { type: Schema.Types.ObjectId, ref: "Course" },
-    package: { type: Schema.Types.ObjectId, ref: "Package" },
-    testSeries: { type: Schema.Types.ObjectId, ref: "TestSeries" },
-
     type: {
       type: String,
       enum: [
@@ -68,8 +76,8 @@ const TransactionSchema = new Schema(
 );
 
 TransactionSchema.index({ user: 1 });
-TransactionSchema.index({ type: 1 });
 TransactionSchema.index({ transactionId: 1 });
+TransactionSchema.index({ user: 1, ref_id: 1 }, { unique: true });
 
 TransactionSchema.pre("save", async function (next) {
   if (!this.orderId) {
@@ -94,4 +102,4 @@ TransactionSchema.pre("save", async function (next) {
   next();
 });
 
-export default mongoose.model("Transaction", TransactionSchema);
+export default mongoose.model("Transaction", TransactionSchema);   

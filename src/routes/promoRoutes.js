@@ -22,6 +22,6 @@ router.route('/:id')
     .delete(protect, authorize('admin', 'super_admin'), deletePromoCode);
 
 router.post('/validate',protect, validatePromoCode);
-router.post('/apply', applyPromoCode);
+router.post('/apply',protect, applyPromoCode);
 
 export default router;

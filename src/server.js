@@ -65,7 +65,30 @@ connectDB();
 
 const app = express();
 const server = createServer(app);
-app.use("/uploads", express.static("uploads"));
+
+const allowedOrigins = [
+  "https://www.ooshasprep.com",
+  "https://dashboard.ooshasprep.com",
+  "https://www.gatewayabroadeducations.com",
+  "https://uat.gatewayabroadeducations.com",
+  "https://join.gatewayabroadeducations.com",
+  "https://portal.gatewayabroadeducations.com",
+  "https://gatewayabroadeducations.com",
+  "https://dashboard.gatewayabroadeducations.com",
+  "https://m8j3lq9z-5173.inc1.devtunnels.ms",
+  "http://localhost:3000",
+  "http://localhost:3001",
+  "http://localhost:8000",
+  "http://localhost:5173",
+  "https://6dtmqkkr-5173.inc1.devtunnels.ms",
+  "https://portal-virid-eta.vercel.app",
+  "https://m8j3lq9z-5173.inc1.devtunnels.ms"
+];
+
+app.use("/uploads", cors({
+  origin: allowedOrigins,
+  credentials: true
+}), express.static("uploads"));
 
 const io = new Server(server, {
   cors: {
@@ -91,24 +114,7 @@ io.use(socketAuth);
 
 app.use(helmet());
 
-const allowedOrigins = [
-  "https://www.ooshasprep.com",
-  "https://dashboard.ooshasprep.com",
-  "https://www.gatewayabroadeducations.com",
-  "https://uat.gatewayabroadeducations.com",
-  "https://join.gatewayabroadeducations.com",
-  "https://portal.gatewayabroadeducations.com",
-  "https://gatewayabroadeducations.com",
-  "https://dashboard.gatewayabroadeducations.com",
-  "https://m8j3lq9z-5173.inc1.devtunnels.ms",
-  "http://localhost:3000",
-  "http://localhost:3001",
-  "http://localhost:8000",
-  "http://localhost:5173",
-  "https://6dtmqkkr-5173.inc1.devtunnels.ms",
-  "https://portal-virid-eta.vercel.app",
-  "https://m8j3lq9z-5173.inc1.devtunnels.ms"
-];
+
 // app.use(cors());
 
 app.use(cors({
@@ -201,26 +207,21 @@ server.listen(PORT, () => {
 
 const API_KEY = "cHJha2FzaGphbmdpcjQyOUBnbWFpbC5jb20:rSpaFaKcjrurOvxr6v-UH";
 
-
 // async function checkStatus(id) {
 //   const url = `https://api.d-id.com/talks/${id}`;
-
 //   try {
 //     const res = await axios.get(url, {
 //       headers: {
 //         "Authorization": `Basic ${Buffer.from(API_KEY + ":").toString("base64")}`
 //       }
 //     });
-
 //     if (res.data.result_url) {
 //       console.log("VIDEO READY:", res.data.result_url);
 //     }
-
 //   } catch (err) {
 //     console.error(err.response?.data || err);
 //   }
 // }
-
 // checkStatus("tlk_ztnmVb4rSWkdRX8ehXrAG")
 
 
