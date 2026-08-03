@@ -40,6 +40,8 @@ import aiRoutes from './services/speakingService.js'
 import supportRoutes from './routes/supportRoutes.js';
 import mcuRoutes from './routes/mcuRoutes.js';
 import jsonRoutes from './routes/jsonRoutes.js';
+import bannerRoutes from './routes/bannerRoutes.js';
+import notificationRoutes from './routes/notificationRoutes.js'
 
 
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -168,6 +170,8 @@ app.use('/api/v1/support', supportRoutes);
 app.use('/api/v1/mcu', mcuRoutes);
 app.use('/api', aiRoutes);
 app.use('/api/v1/json', jsonRoutes);
+app.use('/api/v1/Banner',bannerRoutes);
+app.use('/api/v1/notification', notificationRoutes);
 
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);

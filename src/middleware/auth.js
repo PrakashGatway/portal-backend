@@ -17,11 +17,13 @@ export const protect = async (req, res, next) => {
     }
 
     if (!token) {
+      
       // res.clearCookie("auth_token", {
       //   httpOnly: true,
       //   secure: false,
       //   sameSite: "Lax"
       // });
+
       res.clearCookie("auth_token", {
         httpOnly: true,
         secure: true,
