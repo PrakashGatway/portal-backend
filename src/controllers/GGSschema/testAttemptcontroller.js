@@ -4,6 +4,7 @@ import { Question } from "../../models/GGSschema/questionSchema.js";
 import { TestAttempt } from "../../models/GGSschema/attemptSchema.js";
 import { load } from "cheerio";
 import { evaluateGreAnalyticalWriting } from "../../cronJob/greCronJob.js";
+import PurchasedCourse from "../../models/PurchasedCourse.js";
 
 
 const { Types } = mongoose;
@@ -224,6 +225,35 @@ export const startTestAttempt = async (req, res) => {
         success: false,
         message: "Test not found or inactive",
       });
+    }
+
+    const isFree = template?.pricing?.isFree === true;
+
+    if (!isFree) {
+      const purchase = await PurchasedCourse.findOne({
+        user: userId,
+        itemId: template._id,
+        itemType: "TestTemplate",
+        isActive: true,
+
+        // Access never expires OR hasn't expired yet
+        $or: [
+          { accessExpiresAt: null },
+          { accessExpiresAt: { $exists: false } },
+          { accessExpiresAt: { $gt: new Date() } },
+        ],
+      })
+        .select("_id accessExpiresAt")
+        .lean();
+
+      // User hasn't purchased this test
+      if (!purchase) {
+        return res.status(403).json({
+          success: false,
+          message: "Please purchase this test before attempting it.",
+          code: "TEST_NOT_PURCHASED",
+        });
+      }
     }
 
     const existing = await TestAttempt.findOne({

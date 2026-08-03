@@ -4,6 +4,7 @@ import { Content, LiveClass, RecordedClass, Test, StudyMaterial } from '../model
 import asyncHandler from '../middleware/async.js';
 import Modules from '../models/Modules.js';
 import ErrorResponse from '../utils/errorResponse.js';
+import PurchasedCourse from '../models/PurchasedCourse.js';
 
 const validateContentInput = (req, res, next) => {
   const { title, course, instructor } = req.body;
@@ -1065,24 +1066,57 @@ export const getFreeStudyMaterials = async (req, res) => {
   }
 };
 
+
 export const getContentBySlug = async (req, res) => {
   try {
-
     const { slug } = req.params;
-    console.log(slug)
 
     const content = await StudyMaterial.findOne({
       slug,
       status: "published",
-      isFree: true
     })
       .populate("course", "title slug")
-      .populate("module", "title slug")
+      .populate("module", "title slug");
 
     if (!content) {
       return res.status(404).json({
         success: false,
         message: "Content not found.",
+      });
+    }
+
+    // Free content
+    if (content.isFree) {
+      return res.status(200).json({
+        success: true,
+        data: content,
+      });
+    }
+
+    // Paid content - user must be logged in
+    if (!req.user?._id) {
+      return res.status(401).json({
+        success: false,
+        message: "Please login to access this content.",
+      });
+    }
+
+    const purchase = await PurchasedCourse.findOne({
+      user: req.user._id,
+      itemType: "Course",
+      itemId: content.course._id,
+      isActive: true,
+      $or: [
+        { accessExpiresAt: null },
+        { accessExpiresAt: { $exists: false } },
+        { accessExpiresAt: { $gt: new Date() } },
+      ],
+    }).lean();
+
+    if (!purchase) {
+      return res.status(403).json({
+        success: false,
+        message: "Please purchase this course to access this material.",
       });
     }
 
@@ -1092,6 +1126,7 @@ export const getContentBySlug = async (req, res) => {
     });
   } catch (error) {
     console.error("Get Content By Slug Error:", error);
+
     return res.status(500).json({
       success: false,
       message: "Internal server error.",

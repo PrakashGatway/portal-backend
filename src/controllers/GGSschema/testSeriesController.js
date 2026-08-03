@@ -137,21 +137,16 @@ export const getPublicTestSeries = async (req, res) => {
       page = 1,
       limit = 12, // storefront default
     } = req.query;
-
     const pageNum = Math.max(parseInt(page, 10), 1);
     const limitNum = Math.min(parseInt(limit, 10), 50);
     const skip = (pageNum - 1) * limitNum;
-
     const match = {
       isActive: true,
       isPublished: true,
     };
-
-
-    // if (category) {
-    //   match.category = objectId(category);
-    // }
-
+    if (category) {
+      match.category = objectId(category);
+    }
     const pipeline = [
       { $match: match },
 
@@ -177,20 +172,92 @@ export const getPublicTestSeries = async (req, res) => {
           as: "exam",
         },
       },
-      { $unwind: "$exam" },
+      { $unwind: "$exam" }
+    ];
 
-      {
-        $addFields: {
-          finalPrice: {
-            $cond: [
-              "$pricing.isFree",
-              0,
-              { $ifNull: ["$pricing.salePrice", "$pricing.price"] },
-            ],
+    if (req.user?._id) {
+      pipeline.push({
+        $lookup: {
+          from: "purchasedcourses",
+          let: {
+            testSeriesId: "$_id",
           },
-        },
-      },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    {
+                      $eq: ["$itemId", "$$testSeriesId"],
+                    },
+                    {
+                      $eq: [
+                        "$user",
+                        new mongoose.Types.ObjectId(req.user._id),
+                      ],
+                    },
+                    {
+                      $eq: ["$itemType", "McuTestSeries"],
+                    },
+                    {
+                      $eq: ["$isActive", true],
+                    },
 
+                    // Check expiry
+                    {
+                      $or: [
+                        {
+                          $eq: [
+                            { $ifNull: ["$accessExpiresAt", null] },
+                            null,
+                          ],
+                        },
+                        {
+                          $gt: ["$accessExpiresAt", new Date()],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+
+            // We only need to know whether it exists
+            {
+              $limit: 1,
+            },
+          ],
+          as: "purchaseInfo",
+        },
+      });
+    }
+
+    pipeline.push({
+      $addFields: {
+        finalPrice: {
+          $cond: [
+            "$pricing.isFree",
+            0,
+            {
+              $ifNull: [
+                "$pricing.salePrice",
+                "$pricing.price",
+              ],
+            },
+          ],
+        },
+        isPurchased: req.user?._id
+          ? {
+            $gt: [
+              { $size: "$purchaseInfo" },
+              0,
+            ],
+          }
+          : false,
+      },
+    });
+
+    pipeline.push(
       {
         $project: {
           title: 1,
@@ -209,10 +276,11 @@ export const getPublicTestSeries = async (req, res) => {
           },
           pricing: 1,
           finalPrice: 1,
+          isPurchased: 1,
           createdAt: 1,
         },
-      },
-    ];
+      }
+    )
 
     const [data, total] = await Promise.all([
       TestSeries.aggregate(pipeline),
@@ -241,21 +309,29 @@ export const getTestSeriesById = async (req, res) => {
   try {
     const { id } = req.params;
 
+    const userId = req.user?._id
+      ? new mongoose.Types.ObjectId(req.user._id)
+      : null;
+
     const matchStage = mongoose.Types.ObjectId.isValid(id)
       ? {
-        $match: {
-          $or: [
-            { _id: new mongoose.Types.ObjectId(id) },
-            { slug: id }
-          ]
+          $match: {
+            $or: [
+              { _id: new mongoose.Types.ObjectId(id) },
+              { slug: id },
+            ],
+          },
         }
-      }
       : {
-        $match: { slug: id }
-      };
+          $match: { slug: id },
+        };
 
     const pipeline = [
       matchStage,
+
+      // ==========================================
+      // Test Templates
+      // ==========================================
       {
         $lookup: {
           from: "testtemplates",
@@ -277,12 +353,19 @@ export const getTestSeriesById = async (req, res) => {
           ],
         },
       },
-      {
+    ];
+
+    // ==========================================
+    // User specific data
+    // ==========================================
+    if (userId) {
+      // Test attempts
+      pipeline.push({
         $lookup: {
           from: "testattempts",
           let: {
             testIds: "$tests.test",
-            userId: new mongoose.Types.ObjectId(req.user?._id),
+            userId: userId,
           },
           pipeline: [
             {
@@ -306,7 +389,80 @@ export const getTestSeriesById = async (req, res) => {
           ],
           as: "attempts",
         },
-      },
+      });
+
+      // ==========================================
+      // Check if Test Series is purchased
+      // ==========================================
+      pipeline.push({
+        $lookup: {
+          from: "purchasedcourses",
+          let: {
+            testSeriesId: "$_id",
+          },
+          pipeline: [
+            {
+              $match: {
+                $expr: {
+                  $and: [
+                    // Same Test Series
+                    {
+                      $eq: ["$itemId", "$$testSeriesId"],
+                    },
+
+                    // Same User
+                    {
+                      $eq: ["$user", userId],
+                    },
+
+                    // Test Series purchase
+                    {
+                      $eq: ["$itemType", "McuTestSeries"],
+                    },
+
+                    // Purchase must be active
+                    {
+                      $eq: ["$isActive", true],
+                    },
+
+                    // Access should not be expired
+                    {
+                      $or: [
+                        {
+                          $eq: [
+                            {
+                              $ifNull: ["$accessExpiresAt", null],
+                            },
+                            null,
+                          ],
+                        },
+                        {
+                          $gt: [
+                            "$accessExpiresAt",
+                            new Date(),
+                          ],
+                        },
+                      ],
+                    },
+                  ],
+                },
+              },
+            },
+
+            // We only need to know whether it exists
+            {
+              $limit: 1,
+            },
+          ],
+          as: "purchaseInfo",
+        },
+      });
+    }
+
+    // ==========================================
+    // Category
+    // ==========================================
+    pipeline.push(
       {
         $lookup: {
           from: "categories",
@@ -319,18 +475,42 @@ export const getTestSeriesById = async (req, res) => {
                 _id: 1,
                 name: 1,
               },
-            }
-          ]
+            },
+          ],
         },
       },
+
       {
         $unwind: {
           path: "$category",
           preserveNullAndEmptyArrays: true,
         },
       },
+
+      // ==========================================
+      // Add computed fields
+      // ==========================================
       {
         $addFields: {
+          // ------------------------------------------
+          // Purchase Status
+          // ------------------------------------------
+          isPurchased: userId
+            ? {
+                $gt: [
+                  {
+                    $size: {
+                      $ifNull: ["$purchaseInfo", []],
+                    },
+                  },
+                  0,
+                ],
+              }
+            : false,
+
+          // ------------------------------------------
+          // Tests
+          // ------------------------------------------
           tests: {
             $map: {
               input: "$tests",
@@ -338,6 +518,8 @@ export const getTestSeriesById = async (req, res) => {
               in: {
                 $mergeObjects: [
                   "$$t",
+
+                  // Test data
                   {
                     testData: {
                       $arrayElemAt: [
@@ -345,7 +527,12 @@ export const getTestSeriesById = async (req, res) => {
                           $filter: {
                             input: "$testsData",
                             as: "td",
-                            cond: { $eq: ["$$td._id", "$$t.test"] },
+                            cond: {
+                              $eq: [
+                                "$$td._id",
+                                "$$t.test",
+                              ],
+                            },
                           },
                         },
                         0,
@@ -353,49 +540,63 @@ export const getTestSeriesById = async (req, res) => {
                     },
                   },
 
-                  // attach attempt status
+                  // Attempt status
                   {
-                    attemptStatus: {
-                      $let: {
-                        vars: {
-                          attempt: {
-                            $arrayElemAt: [
-                              {
-                                $filter: {
-                                  input: "$attempts",
-                                  as: "a",
-                                  cond: {
-                                    $eq: [
-                                      "$$a.testTemplate",
-                                      "$$t.test",
-                                    ],
+                    attemptStatus: userId
+                      ? {
+                          $let: {
+                            vars: {
+                              attempt: {
+                                $arrayElemAt: [
+                                  {
+                                    $filter: {
+                                      input: {
+                                        $ifNull: [
+                                          "$attempts",
+                                          [],
+                                        ],
+                                      },
+                                      as: "a",
+                                      cond: {
+                                        $eq: [
+                                          "$$a.testTemplate",
+                                          "$$t.test",
+                                        ],
+                                      },
+                                    },
                                   },
-                                },
+                                  0,
+                                ],
                               },
-                              0,
-                            ],
-                          },
-                        },
-                        in: {
-                          $cond: [
-                            { $eq: ["$$attempt.status", "in_progress"] },
-                            "RESUME",
-                            {
+                            },
+
+                            in: {
                               $cond: [
                                 {
                                   $eq: [
                                     "$$attempt.status",
-                                    "completed",
+                                    "in_progress",
                                   ],
                                 },
-                                "COMPLETED",
-                                "START",
+                                "RESUME",
+
+                                {
+                                  $cond: [
+                                    {
+                                      $eq: [
+                                        "$$attempt.status",
+                                        "completed",
+                                      ],
+                                    },
+                                    "COMPLETED",
+                                    "START",
+                                  ],
+                                },
                               ],
                             },
-                          ],
-                        },
-                      },
-                    },
+                          },
+                        }
+                      : "START",
                   },
                 ],
               },
@@ -403,13 +604,18 @@ export const getTestSeriesById = async (req, res) => {
           },
         },
       },
+
+      // ==========================================
+      // Remove internal lookup fields
+      // ==========================================
       {
         $project: {
           testsData: 0,
           attempts: 0,
+          purchaseInfo: 0,
         },
-      },
-    ];
+      }
+    );
 
     const result = await TestSeries.aggregate(pipeline);
 
@@ -420,10 +626,17 @@ export const getTestSeriesById = async (req, res) => {
       });
     }
 
-    res.json({ success: true, data: result[0] });
+    res.json({
+      success: true,
+      data: result[0],
+    });
   } catch (err) {
     console.error("getTestSeriesById error:", err);
-    res.status(500).json({ success: false, message: err.message });
+
+    res.status(500).json({
+      success: false,
+      message: err.message,
+    });
   }
 };
 

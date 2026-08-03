@@ -23,7 +23,7 @@ import { protect, authorize, ensureCoursePurchase } from '../middleware/auth.js'
 const router = express.Router();
 
 router.route('/')
-    .get(getAllContent);
+    .get(protect, authorize('teacher', 'admin'), getAllContent);
 
 router.route('/resources')
     .get(getFreeStudyMaterials);

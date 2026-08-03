@@ -166,23 +166,31 @@ export const listTestTemplates = async (req, res) => {
     }
 
     if (testType) {
-      const types = String(testType).split(",").map((t) => t.trim());
+      const types = String(testType)
+        .split(",")
+        .map((t) => t.trim());
+
       match.testType = { $in: types };
     }
 
     if (difficultyLabel) {
-      const diff = String(difficultyLabel).split(",").map((d) => d.trim());
+      const diff = String(difficultyLabel)
+        .split(",")
+        .map((d) => d.trim());
+
       match.difficultyLabel = { $in: diff };
     }
 
-    if (req.user.role == "user") {
-      match.isActive = true
+    if (req.user?.role === "user") {
+      match.isActive = true;
     } else if (typeof isActive !== "undefined") {
-      match.isActive = isActive === "true" || isActive === true;
+      match.isActive =
+        isActive === "true" || isActive === true;
     }
 
     if (typeof isFree !== "undefined") {
-      match["pricing.isFree"] = isFree === "true" || isFree === true;
+      match["pricing.isFree"] =
+        isFree === "true" || isFree === true;
     }
 
     if (typeof isSellable !== "undefined") {
@@ -197,19 +205,44 @@ export const listTestTemplates = async (req, res) => {
 
     if (search) {
       match.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
+        {
+          title: {
+            $regex: search,
+            $options: "i",
+          },
+        },
+        {
+          description: {
+            $regex: search,
+            $options: "i",
+          },
+        },
       ];
     }
 
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 100;
     const skip = (pageNum - 1) * limitNum;
+
     const sort = {};
     sort[sortBy] = sortOrder === "asc" ? 1 : -1;
 
+    // Logged-in user id
+    const userId = req.user?._id
+      ? new mongoose.Types.ObjectId(req.user._id)
+      : null;
+
     const pipeline = [
-      { $match: match },
+      // =====================================
+      // Filter
+      // =====================================
+      {
+        $match: match,
+      },
+
+      // =====================================
+      // Exam
+      // =====================================
       {
         $lookup: {
           from: "exams",
@@ -217,61 +250,220 @@ export const listTestTemplates = async (req, res) => {
           foreignField: "_id",
           as: "exam",
           pipeline: [
-            { $project: { name: 1, category: 1, examType: 1 } },
-          ]
+            {
+              $project: {
+                name: 1,
+                category: 1,
+                examType: 1,
+              },
+            },
+          ],
         },
       },
-      { $unwind: "$exam" },
-      ...(category
+
+      {
+        $unwind: "$exam",
+      },
+
+      // =====================================
+      // Category filter
+      // =====================================
+      ...(category && mongoose.Types.ObjectId.isValid(category)
         ? [
-          {
-            $match: {
-              "exam.category": new mongoose.Types.ObjectId(category),
+            {
+              $match: {
+                "exam.category":
+                  new mongoose.Types.ObjectId(category),
+              },
             },
-          },
-        ]
+          ]
         : []),
-      // {
-      //   $lookup: {
-      //     from: "testseries",
-      //     localField: "series",
-      //     foreignField: "_id",
-      //     as: "seriesDocs",
-      //   },
-      // },
+
+      // =====================================
+      // Purchase lookup
+      // =====================================
+      ...(userId
+        ? [
+            {
+              $lookup: {
+                from: "purchasedcourses",
+
+                let: {
+                  testTemplateId: "$_id",
+                },
+
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          // User
+                          {
+                            $eq: ["$user", userId],
+                          },
+
+                          // Test Template
+                          {
+                            $eq: [
+                              "$itemId",
+                              "$$testTemplateId",
+                            ],
+                          },
+
+                          // Correct item type
+                          {
+                            $eq: [
+                              "$itemType",
+                              "TestTemplate",
+                            ],
+                          },
+
+                          // Must be active
+                          {
+                            $eq: [
+                              "$isActive",
+                              true,
+                            ],
+                          },
+
+                          // Must not be expired
+                          {
+                            $or: [
+                              {
+                                $eq: [
+                                  {
+                                    $ifNull: [
+                                      "$accessExpiresAt",
+                                      null,
+                                    ],
+                                  },
+                                  null,
+                                ],
+                              },
+
+                              {
+                                $gt: [
+                                  "$accessExpiresAt",
+                                  new Date(),
+                                ],
+                              },
+                            ],
+                          },
+                        ],
+                      },
+                    },
+                  },
+
+                  // We only need to know
+                  // whether purchase exists
+                  {
+                    $limit: 1,
+                  },
+                ],
+
+                as: "purchaseInfo",
+              },
+            },
+          ]
+        : []),
+
+      // =====================================
+      // Calculated fields
+      // =====================================
       {
         $addFields: {
-          sectionCount: { $size: { $ifNull: ["$sections", []] } },
+          sectionCount: {
+            $size: {
+              $ifNull: ["$sections", []],
+            },
+          },
+
           isFree: "$pricing.isFree",
           isSellable: "$pricing.isSellable",
           seriesOnly: "$pricing.seriesOnly",
           price: "$pricing.price",
           salePrice: "$pricing.salePrice",
+
+          // =================================
+          // Purchase Status
+          // =================================
+          isPurchased: userId
+            ? {
+                $gt: [
+                  {
+                    $size: {
+                      $ifNull: [
+                        "$purchaseInfo",
+                        [],
+                      ],
+                    },
+                  },
+                  0,
+                ],
+              }
+            : false,
         },
       },
+
+      // =====================================
+      // Remove unnecessary fields
+      // =====================================
       {
         $project: {
           quizConfig: 0,
-          sections: 0,   
+          sections: 0,
+          purchaseInfo: 0,
         },
       },
-      { $sort: sort },
+
+      // =====================================
+      // Sorting
+      // =====================================
+      {
+        $sort: sort,
+      },
+
+      // =====================================
+      // Pagination
+      // =====================================
       {
         $facet: {
-          data: [{ $skip: skip }, { $limit: limitNum }],
-          meta: [{ $count: "total" }],
+          data: [
+            {
+              $skip: skip,
+            },
+            {
+              $limit: limitNum,
+            },
+          ],
+
+          meta: [
+            {
+              $count: "total",
+            },
+          ],
         },
       },
     ];
 
     const agg = await TestTemplate.aggregate(pipeline);
-    const result = agg[0] || { data: [], meta: [] };
+
+    const result = agg[0] || {
+      data: [],
+      meta: [],
+    };
+
     const total = result.meta[0]?.total || 0;
-    const pages = Math.ceil(total / limitNum || 1);
+
+    const pages = Math.ceil(
+      total / limitNum || 1
+    );
 
     return res.json({
       success: true,
+
       data: result.data,
+
       pagination: {
         total,
         page: pageNum,
@@ -280,7 +472,11 @@ export const listTestTemplates = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("listTestTemplates error:", err);
+    console.error(
+      "listTestTemplates error:",
+      err
+    );
+
     return res.status(500).json({
       success: false,
       message: "Failed to fetch tests",

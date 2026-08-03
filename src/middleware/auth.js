@@ -110,7 +110,7 @@ export const ensureCoursePurchase = async (req, res, next) => {
 
     const purchase = await PurchasedCourse.findOne({
       user: userId,
-      course: courseId,
+      itemId: courseId,
       isActive: true,
       $or: [
         { accessExpiresAt: { $exists: false } },
@@ -137,7 +137,7 @@ export const ensureCourseQuery = async (req, res, next) => {
 
     const purchase = await PurchasedCourse.findOne({
       user: userId,
-      course: course,
+      itemId: course,
       isActive: true,
       $or: [
         { accessExpiresAt: { $exists: false } },

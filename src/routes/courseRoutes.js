@@ -18,11 +18,11 @@ const router = express.Router();
 router.route('/')
   .get(protect, getCourses);
 
-router.route('/featured')
-  .get(protect, getFeaturedCourses);
+// router.route('/featured')
+//   .get(protect, getFeaturedCourses);
 
-router.route('/upcoming')
-  .get(protect, getUpcomingCourses);
+// router.route('/upcoming')
+//   .get(protect, getUpcomingCourses);
 
 router.route('/category/:categoryId')
   .get(protect, getCoursesByCategory);

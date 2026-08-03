@@ -221,9 +221,45 @@ const getCourses = asyncHandler(async (req, res, next) => {
       }
     },
     {
+      $lookup: {
+        from: 'purchasedcourses',
+        let: { courseId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$itemId', '$$courseId'] },
+                  {
+                    $eq: [
+                      '$user',
+                      new mongoose.Types.ObjectId(req.user._id)
+                    ]
+                  },
+                  { $eq: ['$itemType', 'Course'] },
+                  { $eq: ['$isActive', true] },
+                  {
+                    $or: [
+                      { $eq: ['$accessExpiresAt', null] },
+                      { $gt: ['$accessExpiresAt', new Date()] }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          { $limit: 1 }
+        ],
+        as: 'purchaseInfo'
+      }
+    },
+    {
       $addFields: {
         categoryInfo: { $arrayElemAt: ['$categoryDetails', 0] },
         subcategoryInfo: { $arrayElemAt: ['$subcategoryDetails', 0] },
+        isPurchased: {
+          $gt: [{ $size: '$purchaseInfo' }, 0]
+        },
         instructorNames: {
           $map: {
             input: '$instructorDetails',
@@ -241,7 +277,8 @@ const getCourses = asyncHandler(async (req, res, next) => {
       $project: {
         categoryDetails: 0,
         subcategoryDetails: 0,
-        instructorDetails: 0
+        instructorDetails: 0,
+        purchaseInfo: 0
       }
     },
     { $sort: sort }
@@ -307,9 +344,45 @@ const getCourse = asyncHandler(async (req, res, next) => {
       }
     },
     {
+      $lookup: {
+        from: 'purchasedcourses',
+        let: { courseId: '$_id' },
+        pipeline: [
+          {
+            $match: {
+              $expr: {
+                $and: [
+                  { $eq: ['$itemId', '$$courseId'] },
+                  {
+                    $eq: [
+                      '$user',
+                      new mongoose.Types.ObjectId(req.user._id)
+                    ]
+                  },
+                  { $eq: ['$itemType', 'Course'] },
+                  { $eq: ['$isActive', true] },
+                  {
+                    $or: [
+                      { $eq: ['$accessExpiresAt', null] },
+                      { $gt: ['$accessExpiresAt', new Date()] }
+                    ]
+                  }
+                ]
+              }
+            }
+          },
+          { $limit: 1 }
+        ],
+        as: 'purchaseInfo'
+      }
+    },
+    {
       $addFields: {
         categoryInfo: { $arrayElemAt: ['$categoryDetails', 0] },
         subcategoryInfo: { $arrayElemAt: ['$subcategoryDetails', 0] },
+        isPurchased: {
+          $gt: [{ $size: '$purchaseInfo' }, 0]
+        },
         instructorNames: {
           $map: {
             input: '$instructorDetails',
@@ -330,7 +403,8 @@ const getCourse = asyncHandler(async (req, res, next) => {
       $project: {
         categoryDetails: 0,
         subcategoryDetails: 0,
-        instructorDetails: 0
+        instructorDetails: 0,
+        purchaseInfo: 0
       }
     }
   ];
@@ -807,6 +881,7 @@ const getCourseCurriculum = async (req, res) => {
                 isFree: 1,
                 duration: 1,
                 questions: 1,
+                slug: 1,
                 'content.pages': 1,
                 testType: 1
               }
@@ -881,6 +956,7 @@ const getCourseCurriculum = async (req, res) => {
                   }
                 },
                 isPreview: '$$item.isFree',
+                slug: '$$item.slug',
                 isLocked: {
                   $and: [
                     { $ne: ['$$item.isFree', true] },
