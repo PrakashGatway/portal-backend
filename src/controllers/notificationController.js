@@ -1,5 +1,6 @@
 import Notification from "../models/Notification.js";
 import User from "../models/User.js";
+import mongoose from "mongoose";
 
 
 export const createNotification = async (req, res) => {
@@ -108,6 +109,7 @@ export const createNotification = async (req, res) => {
 };
 
 
+
 export const getMyNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
@@ -115,135 +117,132 @@ export const getMyNotifications = async (req, res) => {
     const {
       page = 1,
       limit = 20,
-      status,
-      type,
       isActive,
       category,
       course,
+      status,
+      type,
     } = req.query;
 
-    const skip = (Number(page) - 1) * Number(limit);
+    if (!isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "isActive is required.",
+      });
+    }
 
-    const orConditions = [];
+    const selectedDate = new Date(isActive);
 
-    // User notifications
-    orConditions.push({
-      recipient: userId,
-      isGlobal: false,
-    });
+    if (isNaN(selectedDate.getTime())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid isActive date.",
+      });
+    }
 
-    // Global notifications
-    orConditions.push({
-      isGlobal: true,
-    });
+    const pageNumber = Math.max(Number(page) || 1, 1);
+    const limitNumber = Math.max(Number(limit) || 20, 1);
+    const skip = (pageNumber - 1) * limitNumber;
 
-    // Status
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+    const day = String(selectedDate.getDate()).padStart(2, "0");
+
+    const selectedDateString = `${year}-${month}-${day}`;
+
+    const optionalConditions = [];
+
+    if (category) {
+      if (!mongoose.Types.ObjectId.isValid(category)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid category ID.",
+        });
+      }
+
+      optionalConditions.push({
+        Category: new mongoose.Types.ObjectId(category),
+      });
+    }
+
+    if (course) {
+      if (!mongoose.Types.ObjectId.isValid(course)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid course ID.",
+        });
+      }
+
+      optionalConditions.push({
+        Courses: new mongoose.Types.ObjectId(course),
+      });
+    }
+
     if (status) {
-      orConditions.push({
+      optionalConditions.push({
         status,
       });
     }
 
-    // Type
     if (type) {
-      orConditions.push({
+      optionalConditions.push({
         type,
       });
     }
 
-    // Category
-    if (category) {
-      orConditions.push({
-        Category: category,
-      });
-    }
-
-    // Course
-    if (course) {
-      orConditions.push({
-        Courses: course,
-      });
-    }
-
-    // Active Date
-    if (isActive) {
-      const start = new Date(isActive);
-      start.setHours(0, 0, 0, 0);
-
-      const end = new Date(isActive);
-      end.setHours(23, 59, 59, 999);
-
-      orConditions.push({
-        from: { $lte: end },
-        to: { $gte: start },
-      });
-    }
-    
-    // const query = {
-    //   $or: orConditions,
-    // };
-
-
-    const query1 = {
-  $and: [
-    {
-      $or: [
-        { recipient: userId, isGlobal: false },
-        { isGlobal: true },
+    const query = {
+      $and: [
+        {
+          $or: [
+            {
+              isGlobal: true,
+            },
+            {
+              isGlobal: false,
+              recipient: userId,
+            },
+          ],
+        },
+        {
+          from: {
+            $lte: selectedDateString,
+          },
+          to: {
+            $gte: selectedDateString,
+          },
+        },
       ],
-    },
-  ],
-};
+    };
 
-// isActive is REQUIRED
-if (isActive) {
-  const start = new Date(isActive);
-  start.setHours(0, 0, 0, 0);
+    if (optionalConditions.length > 0) {
+      query.$and.push({
+        $or: optionalConditions,
+      });
+    }
 
-  const end = new Date(isActive);
-  end.setHours(23, 59, 59, 999);
-
-  query1.$and.push({
-    from: { $lte: end },
-    to: { $gte: start },
-  });
-}
-
-const optionalFilters = [];
-
-if (category) optionalFilters.push({ Category: category });
-if (course) optionalFilters.push({ Courses: course });
-if (status) optionalFilters.push({ status });
-if (type) optionalFilters.push({ type });
-
-// If any optional filters are provided, at least one must match
-if (optionalFilters.length > 0) {
-  query1.$and.push({
-    $or: optionalFilters,
-  });
-}
-
-    console.log(query1, "notification ")
     const [notifications, total] = await Promise.all([
-      Notification.find(query1)
+      Notification.find(query)
         .populate("sender", "name email profileImage")
+        .populate("Category")
+        .populate("Courses")
         .populate("data.courseId", "name title")
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(Number(limit)),
+        .limit(limitNumber)
+        .lean(),
 
-      Notification.countDocuments(query1),
+      Notification.countDocuments(query),
     ]);
 
     return res.status(200).json({
       success: true,
-      total,
-      count: notifications.length,
+      message: "Notifications fetched successfully.",
       data: notifications,
       pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        totalPages: Math.ceil(total / Number(limit)),
+        total,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages: Math.ceil(total / limitNumber),
       },
     });
   } catch (error) {
@@ -256,6 +255,193 @@ if (optionalFilters.length > 0) {
     });
   }
 };
+
+// export const getMyNotifications = async (req, res) => {
+//   try {
+//     const userId = req.user._id;
+
+//     const {
+//       page = 1,
+//       limit = 20,
+//       status,
+//       type,
+//       isActive,
+//       category,
+//       course,
+//     } = req.query;
+
+//     const pageNumber = Math.max(Number(page) || 1, 1);
+//     const limitNumber = Math.max(Number(limit) || 20, 1);
+//     const skip = (pageNumber - 1) * limitNumber;
+
+
+//     if (!isActive) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "isActive is required.",
+//       });
+//     }
+
+
+//     const selectedDate = new Date(isActive);
+
+//     if (isNaN(selectedDate.getTime())) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid isActive date.",
+//       });
+//     }
+
+
+//     const year = selectedDate.getFullYear();
+//     const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+//     const day = String(selectedDate.getDate()).padStart(2, "0");
+
+//     const selectedDateString = `${year}-${month}-${day}`;
+
+
+//     const audienceCondition = {
+//       $or: [
+//         {
+//           isGlobal: true,
+//         },
+//         {
+//           recipient: userId,
+//           isGlobal: false,
+//         },
+//       ],
+//     };
+
+
+//     const activeCondition = {
+//       $or: [
+//         {
+//           from: {
+//             $lte: selectedDateString,
+//           },
+//           to: {
+//             $gte: selectedDateString,
+//           },
+//         },
+//         {
+//           to: {
+//             $lte: selectedDateString,
+//           },
+//           from: {
+//             $gte: selectedDateString,
+//           },
+//         },
+//       ],
+//     };
+
+
+//     const optionalConditions = [];
+
+
+//     if (category) {
+
+//       optionalConditions.push({
+//         Category: new mongoose.Types.ObjectId(category),
+//       });
+//     }
+
+
+//     if (course) {
+//       if (!mongoose.Types.ObjectId.isValid(course)) {
+//         return res.status(400).json({
+//           success: false,
+//           message: "Invalid course ID.",
+//         });
+//       }
+
+//       optionalConditions.push({
+//         Courses: new mongoose.Types.ObjectId(course),
+//       });
+//     }
+
+
+//     if (status) {
+//       optionalConditions.push({
+//         status: status,
+//       });
+//     }
+
+
+//     if (type) {
+//       optionalConditions.push({
+//         type: type,
+//       });
+//     }
+
+
+//     const query = {
+//       $and: [
+//         audienceCondition,
+//         activeCondition,
+//       ],
+//     };
+
+    
+//     if (optionalConditions.length > 0) {
+//       query.$and.push({
+//         $or: optionalConditions,
+//       });
+//     }
+
+
+//     console.log("======================================");
+//     console.log("USER ID:", userId);
+//     console.log("isActive:", isActive);
+//     console.log("selectedDateString:", selectedDateString);
+//     console.log("category:", category);
+//     console.log("course:", course);
+//     console.log("status:", status);
+//     console.log("type:", type);
+
+//     console.log(
+//       "FINAL NOTIFICATION QUERY:",
+//       JSON.stringify(query, null, 2)
+//     );
+
+//     console.log("======================================");
+
+
+//     const [notifications, total] = await Promise.all([
+//       Notification.find(query)
+//         .populate("sender", "name email profileImage")
+//         .populate("data.courseId", "name title")
+//         .sort({ createdAt: -1 })
+//         .skip(skip)
+//         .limit(limitNumber)
+//         .lean(),
+
+//       Notification.countDocuments(query),
+//     ]);
+
+    
+
+//     return res.status(200).json({
+//       success: true,
+//       message: "Notifications fetched successfully.",
+//       data: notifications,
+//       pagination: {
+//         total,
+//         page: pageNumber,
+//         limit: limitNumber,
+//         totalPages: Math.ceil(total / limitNumber),
+//       },
+//     });
+
+//   } catch (error) {
+//     console.error("Notification Error:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch notifications.",
+//       error: error.message,
+//     });
+//   }
+// };
 
 
 
