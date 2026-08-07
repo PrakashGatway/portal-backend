@@ -12,10 +12,12 @@ import {
   getArticles,
   getArticle,
   createArticle,
+  getArticleSlugs,
   updateArticle,
   deleteArticle,
   toggleArticleStatus,
-  logReadTime
+  logReadTime,
+  getBlogSlugs
 } from '../controllers//Websites/blogController.js';
 import { Lead } from '../models/Leads.js';
 
@@ -47,7 +49,10 @@ router.route('/cat/:id')
   .put(updateCategory)
   .delete(deleteCategory);
 
+router.get('/blogss/slugs', getBlogSlugs);
+
 router.get('/blog', getArticles);
+router.get('/blog/slugs', getArticleSlugs);
 router.get('/blog/:slug', getArticle);
 
 router.post('/blog/', createArticle);

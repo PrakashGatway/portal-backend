@@ -94,14 +94,14 @@ app.use("/uploads", cors({
 
 const io = new Server(server, {
   cors: {
-    origin: ["https://dashboard.gatewayabroadeducations.com"],
+    origin: allowedOrigins,
     // origin: "*",
     methods: ["GET", "POST"],
     credentials: true
   }
 });
 
-// global.io = io;
+global.io = io;
 // const leadIO = io.of("/lead-notifications");
 
 // leadIO.use(leadSocketAuth);

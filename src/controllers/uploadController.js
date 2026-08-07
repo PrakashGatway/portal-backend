@@ -1,3 +1,4 @@
+import fs from "fs/promises";
 import User from "../models/User.js";
 import cloudinary from "../utils/cloudnary.js";
 
@@ -64,6 +65,62 @@ export const uploadThumbnail = async (req, res) => {
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Cloudinary upload failed" });
+  }
+};
+
+
+export const uploadBlogs = async (req, res) => {
+  let tempFilePath = null;
+
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: "No image uploaded",
+      });
+    }
+
+    tempFilePath = req.file.path;
+
+    const result = await cloudinary.uploader.upload(tempFilePath, {
+      folder: "blogs",
+      resource_type: "image",
+
+      transformation: [
+        {
+          quality: "auto",
+          fetch_format: "auto",
+        },
+      ],
+    });
+
+    await fs.unlink(tempFilePath);
+    tempFilePath = null;
+
+    return res.status(200).json({
+      success: true,
+      message: "Image uploaded successfully",
+      data: {
+        url: result.secure_url,
+        publicId: result.public_id
+      },
+    });
+  } catch (error) {
+    if (tempFilePath) {
+      try {
+        await fs.unlink(tempFilePath);
+      } catch (unlinkError) {
+        console.error(
+          "Failed to delete temporary file:",
+          unlinkError
+        );
+      }
+    }
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to upload image",
+    });
   }
 };
 
