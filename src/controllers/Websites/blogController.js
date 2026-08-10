@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 import { Category } from "../../models/WebsiteSchecmas/WebsiteSchemas.js";
 import { Article } from '../../models/WebsiteSchecmas/WebsiteSchemas.js';
-
+import secondDB from '../../config/webDb.js';
 
 export const getArticles = async (req, res) => {
     try {
@@ -66,6 +66,60 @@ export const getArticle = async (req, res) => {
     }
 };
 
+
+export const getBlogSlugs = async (req, res) => {
+  try {
+    const blogsCollection = secondDB.collection("blogs")
+
+    const blogs = await blogsCollection
+      .find(
+        {
+          Slug: { $exists: true, $ne: "" },
+        },
+        {
+          projection: {
+            _id: 0,
+            Slug: 1,
+            createdAt: 1,
+          },
+        }
+      )
+      .toArray();
+
+    return res.status(200).json({
+      success: true,
+      data: blogs,
+    });
+  } catch (error) {
+    console.error("Get blog slugs error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch blog slugs",
+    });
+  }
+};
+
+export const getArticleSlugs = async (req, res) => {
+  try {
+    const articles = await Article.find({
+      status: true,
+      slug: { $exists: true, $ne: "" },
+    })
+      .select("slug -_id createdAt")
+      .lean();
+
+    return res.status(200).json({
+      success: true,
+      data: articles,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch article slugs",
+    });
+  }
+};
 
 export const createArticle = async (req, res) => {
     try {
