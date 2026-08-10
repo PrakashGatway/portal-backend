@@ -1,8 +1,4 @@
-<<<<<<< HEAD
-import { deleteFile } from "../middleware/upload.js";
-=======
 import fs from "fs/promises";
->>>>>>> 0d21311ec1a578860b9d9d48f6f6c70aa6e9f4cc
 import User from "../models/User.js";
 import cloudinary from "../utils/cloudnary.js";
 
