@@ -36,6 +36,31 @@ export const getAllBanners = async (req, res) => {
   }
 };
 
+
+export const getBanners = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const banners = await Banner.find({
+      'key': id
+      // 'key': new RegExp(id, 'i')
+    }).sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      count: banners.length,
+      data: banners,
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
+
+
+
 // Update Banner
 export const updateBanner = async (req, res) => {
   try {
