@@ -99,8 +99,8 @@ supportTicketSchema.pre("save", async function (next) {
     return next();
   }
   const count = await this.constructor.countDocuments();
-  const sequence = String(count + 1).padStart(5, "0");
-  const date = new Date().toJSON().slice(0, 5).replace(/-/g, "");
+  const sequence = String(count + 1);
+  const date = new Date().toISOString().slice(2, 10).replace(/-/g, "");
   this.ticketId = `TKT-${date}${sequence}`;
   next();
 });
