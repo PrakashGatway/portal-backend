@@ -98,17 +98,14 @@ supportTicketSchema.pre("save", async function (next) {
   if (!this.isNew || this.ticketId) {
     return next();
   }
-
   const count = await this.constructor.countDocuments();
-
-  const sequence = String(count + 1).padStart(6, "0");
-
-  this.ticketId = `TKT-${1000 + sequence}`;
-
+  const sequence = String(count + 1).padStart(5, "0");
+  const date = new Date().toJSON().slice(0, 5).replace(/-/g, "");
+  this.ticketId = `TKT-${date}${sequence}`;
   next();
 });
 
 supportTicketSchema.index({ userId: 1 });
-supportTicketSchema.index({ ticketId: 1 });
+supportTicketSchema.index({ ticketId: 1 }, { unique: true });
 
 export const SupportTicket = model("SupportTicket", supportTicketSchema);
