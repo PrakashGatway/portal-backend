@@ -38,7 +38,35 @@ import { protect } from '../middleware/auth.js';
 import axios from 'axios';
 
 
+import {
+  getBlogs,
+  getBlog,
+  getBlogSlugs1,
+  createBlog,
+  updateBlog,
+  deleteBlog,
+  toggleBlogstatus,
+  logReadTime1,
+} from "../controllers/Websites/articleController.js";
+
+
+
+
 const router = Router();
+
+
+
+
+router.get("/article", getBlogs);
+router.get("/article/slugs", getBlogSlugs1);
+router.get("/article/slug/:slug", getBlog);
+router.post("/article", createBlog);
+router.put("/article/:id", updateBlog);
+router.delete("/article/:id", deleteBlog);
+router.patch("/article/:id/status", toggleBlogstatus);
+router.post("/article/:id/view", logReadTime1);
+
+
 
 router.route('/cat')
   .get(getCategories)
