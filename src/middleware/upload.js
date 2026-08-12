@@ -89,6 +89,25 @@ export const uploadIeltsAnswerAudio = multer({
   limits: { fileSize: 20 * 1024 * 1024 }
 });
 
+export const deleteFile = async (filePath) => {
+  try {
+    const absolutePath = path.resolve(filePath);
+    console.log(absolutePath);
+    if (fs.existsSync(absolutePath)) {
+      await fs.promises.unlink(absolutePath);
+      console.log("File deleted successfully");
+      return true;
+    }
+
+    console.log("File does not exist");
+    return false;
+  } catch (error) {
+    console.error("Error deleting file:", error);
+    throw error;
+  }
+};
+
+
 const upload = multer({
   storage,
   limits: { fileSize: 2 * 1024 * 1024 }, // 2MB limit

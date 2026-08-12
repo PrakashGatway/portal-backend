@@ -4,10 +4,19 @@ import cloudinary from "../utils/cloudnary.js";
 
 export const uploadSingleImage = (req, res) => {
   try {
+    
+    const oldFile = req.body.oldfile; 
+    
+    if (oldFile) {
+      console.log("Old file to delete: ", oldFile);
+      deleteFile(`uploads/${oldFile}`);
+    }
+    
     if (!req.file) {
       return res.status(400).json({ success: false, message: "No file uploaded" });
     }
 
+    
     res.status(200).json({
       success: true,
       message: "Image uploaded successfully",
