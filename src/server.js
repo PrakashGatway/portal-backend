@@ -56,6 +56,7 @@ import { Question } from './models/GGSschema/questionSchema.js';
 import { Leadlogs } from './models/leadLogs.js';
 import { Lead } from './models/Leads.js';
 import { startLeadCron } from './cronJob/insertOneByOne.js';
+import feedbackRoutes from "./routes/feedbackRoutes.js"
 
 // startLeadCron("one","68ff57a3a22ea2bcbd574d33")
 // startLeadCron("sid","68ff57a3a22ea2bcbd574d33")
@@ -172,6 +173,7 @@ app.use('/api', aiRoutes);
 app.use('/api/v1/json', jsonRoutes);
 app.use('/api/v1/Banner',bannerRoutes);
 app.use('/api/v1/notification', notificationRoutes);
+app.use('/api/v1/feedback',feedbackRoutes)
 
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
