@@ -3,7 +3,7 @@ import express from "express";
 import {
   createFeedback,
   getFeedback,
-} from "../controllers/feedback.controller.js";
+} from "../controllers/feedbackController.js";
 
 const router = express.Router();
 
