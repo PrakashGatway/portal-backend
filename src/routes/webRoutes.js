@@ -49,12 +49,22 @@ import {
   logReadTime1,
 } from "../controllers/Websites/articleController.js";
 
+import {
+  getFaq,
+createFaq,
+updateFaq,
+deleteFaq
+} from "../controllers/Websites/faqController.js"
 
 
 
 const router = Router();
 
 
+router.get("/faq",getFaq);
+router.post("/faq",createFaq);
+router.put("/faq/:id",updateFaq);
+router.delete("/faq/:id",deleteFaq);
 
 
 router.get("/article", getBlogs);

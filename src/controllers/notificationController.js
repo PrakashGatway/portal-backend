@@ -167,11 +167,10 @@ export const getMyNotifications = async (req, res) => {
       query.$and.push({ _id: { $nin: archivedIds } });
     }
 
-    console.log(category,'category')
+    // console.log(category,'category')
 
     if (category) {
       if (!mongoose.Types.ObjectId.isValid(category)) {
-        console.log(category,'category')
         return res.status(400).json({ success: false, message: "Invalid category ID." });
       }
       query.$and.push({ Category: new mongoose.Types.ObjectId(category) });
@@ -184,9 +183,7 @@ export const getMyNotifications = async (req, res) => {
     //   query.$and.push({ Courses: new mongoose.Types.ObjectId(course) });
     // }
 
-
-    // status/type filters only make sense reliably for personal notifications
-    // here (global read/archived state lives in NotificationRec, merged below)
+    
     if (status && status !== "archived") {
       query.$and.push({
         $or: [
