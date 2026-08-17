@@ -47,21 +47,20 @@ const quizConfigSchema = new Schema({
 // ⭐ NEW pricing block for a single test
 const testPricingSchema = new Schema(
   {
-    isSellable: { type: Boolean, default: true }, 
-    isFree: { type: Boolean, default: false },    
-    price: { type: Number, default: 0 },      
-    salePrice: { type: Number },                
+    isSellable: { type: Boolean, default: true },
+    isFree: { type: Boolean, default: false },
+    price: { type: Number, default: 0 },
+    salePrice: { type: Number },
     currency: { type: String, default: "INR" },
     seriesOnly: { type: Boolean, default: false },
   },
-  { _id: false }
+  { _id: false },
 );
 
 const testTemplateSchema = new Schema(
   {
     title: { type: String, required: true },
     description: String,
-
     exam: {
       type: Schema.Types.ObjectId,
       ref: "Exam",

@@ -42,6 +42,7 @@ import mcuRoutes from './routes/mcuRoutes.js';
 import jsonRoutes from './routes/jsonRoutes.js';
 import bannerRoutes from './routes/bannerRoutes.js';
 import notificationRoutes from './routes/notificationRoutes.js'
+import ieltsRoutes from './routes/ieltsRoutes.js';
 
 
 import paymentRoutes from './routes/paymentRoutes.js';
@@ -125,7 +126,6 @@ app.use(cors({
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(origin);
       callback(new Error("Not allowed by CORS"));
     }
   },
@@ -174,6 +174,7 @@ app.use('/api/v1/json', jsonRoutes);
 app.use('/api/v1/Banner',bannerRoutes);
 app.use('/api/v1/notification', notificationRoutes);
 app.use('/api/v1/feedback',feedbackRoutes)
+app.use("/api/v1/ielts", ieltsRoutes);
 
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
