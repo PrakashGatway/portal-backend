@@ -1,5 +1,51 @@
 import mongoose from "mongoose";
 
+const questionSetSchema = new mongoose.Schema(
+  {
+    title: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    instructions: {
+      type: String,
+      default: null,
+    },
+    questions: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "ieltsQuestion",
+      },
+    ],
+    questionRange: {
+      from: {
+        type: Number,
+        default: null,
+      },
+      to: {
+        type: Number,
+        default: null,
+      },
+    },
+    choices: {
+      type: [
+        {
+          label: {
+            type: String,
+            required: true,
+          },
+          text: {
+            type: String,
+            required: true,
+          },
+        },
+      ],
+      default: undefined,
+    },
+  },
+  { _id: true },
+);
+
 const groupQuestionSchema = new mongoose.Schema(
   {
     section: {
@@ -33,55 +79,24 @@ const groupQuestionSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    questions: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "ieltsQuestion",
-      },
-    ],
+    questionSets: {
+      type: [questionSetSchema],
+      default: [],
+    },
+    // questions: [
+    //   {
+    //     type: mongoose.Schema.Types.ObjectId,
+    //     ref: "ieltsQuestion",
+    //   },
+    // ],
     passage: {
-      type :mongoose.Schema.Types.ObjectId,
-      ref: "IeltsPassage"
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "IeltsPassage",
+      default: null,
     },
     content: {
       type: String,
       default: null,
-    },
-    choices: {
-      type: [
-        {
-          label: {
-            type: String,
-            required: true,
-          },
-
-          text: {
-            type: String,
-            required: true,
-          },
-        },
-      ],
-      default: undefined,
-    },
-    media: {
-      audioUrl: {
-        type: String,
-        default: null,
-      },
-      imageUrl: {
-        type: String,
-        default: null,
-      },
-    },
-    questionRange: {
-      from: {
-        type: Number,
-        default: null,
-      },
-      to: {
-        type: Number,
-        default: null,
-      },
     },
     isActive: {
       type: Boolean,

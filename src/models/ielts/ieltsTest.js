@@ -24,10 +24,9 @@ const ieltsTestSchema = new Schema(
       type: String,
       default: null,
     },
-    exam: {
+    category: {
       type: Schema.Types.ObjectId,
-      ref: "Exam",
-      required: true,
+      ref: "Category"
     },
     testType: {
       type: String,
@@ -82,10 +81,6 @@ const ieltsTestSchema = new Schema(
         ],
       },
     ],
-    totalQuestions: {
-      type: Number,
-      default: 0,
-    },
     duration: {
       type: Number,
       default: 0,
@@ -141,15 +136,7 @@ const ieltsTestSchema = new Schema(
     isFeatured: {
       type: Boolean,
       default: false,
-    },
-    tags: {
-      type: [String],
-      default: [],
-    },
-    createdBy: {
-      type: Schema.Types.ObjectId,
-      ref: "User",
-    },
+    }
   },
   {
     timestamps: true,

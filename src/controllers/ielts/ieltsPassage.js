@@ -3,7 +3,7 @@ import IeltsPassage from "../../models/ielts/ieltsPassage.js";
 
 export const createPassage = async (req, res) => {
   try {
-    const { title, content, topic } = req.body;
+    const { title, content,contentType,instructions, topic } = req.body;
 
     if (!title?.trim()) {
       return res.status(400).json({
@@ -22,6 +22,8 @@ export const createPassage = async (req, res) => {
     const passage = await IeltsPassage.create({
       title: title.trim(),
       content,
+      contentType,
+      instructions,
       topic: topic?.trim() || null,
     });
 
@@ -46,7 +48,7 @@ export const getPassages = async (req, res) => {
     const {
       page = 1,
       limit = 10,
-
+      contentType,
       search,
       topic,
 
@@ -136,6 +138,10 @@ export const getPassages = async (req, res) => {
     const sort = {
       [safeSortBy]: safeSortOrder,
     };
+
+    if (contentType) {
+      filter.contentType = contentType;
+    }
 
     // ---------------------------------------------
     // QUERY
@@ -240,7 +246,7 @@ export const updatePassage = async (req, res) => {
       });
     }
 
-    const allowedFields = ["title", "content", "topic"];
+    const allowedFields = ["title", "content","contentType","instructions", "topic"];
 
     const updateData = {};
 

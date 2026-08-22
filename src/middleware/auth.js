@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import PurchasedCourse from '../models/PurchasedCourse.js';
+import { Content } from '../models/Content.js';
 
 export const protect = async (req, res, next) => {
   try {
@@ -113,6 +114,39 @@ export const ensureCoursePurchase = async (req, res, next) => {
     const purchase = await PurchasedCourse.findOne({
       user: userId,
       itemId: courseId,
+      isActive: true,
+      $or: [
+        { accessExpiresAt: { $exists: false } },
+        { accessExpiresAt: { $gte: new Date() } }
+      ]
+    });
+
+    req.hasPurchasedCourse = !!purchase;
+    next();
+  } catch (error) {
+    console.error('Purchase check error:', error);
+    res.status(500).json({ message: 'Server error during verification' });
+  }
+};
+
+export const ensurePurchased = async (req, res, next) => {
+  try {
+    const { slug } = req.params;
+    const userId = req.user?._id;
+
+    if (!userId) {
+      return res.status(401).json({ message: 'Authentication required' });
+    }
+
+    const content = await Content.findOne({
+      slug,
+      status: "published",
+    })
+    console.log(content);
+
+    const purchase = await PurchasedCourse.findOne({
+      user: userId,
+      itemId: content.course,
       isActive: true,
       $or: [
         { accessExpiresAt: { $exists: false } },

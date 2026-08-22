@@ -7,7 +7,11 @@ const passageSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-
+    contentType: {
+      type: String,
+      required: true,
+    },
+    instructions: String,
     content: {
       type: String,
       required: true,
