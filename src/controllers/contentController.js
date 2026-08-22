@@ -1,32 +1,39 @@
 // controllers/contentController.js
-import mongoose from 'mongoose';
-import { Content, LiveClass, RecordedClass, Test, StudyMaterial } from '../models/Content.js';
-import asyncHandler from '../middleware/async.js';
-import Modules from '../models/Modules.js';
-import ErrorResponse from '../utils/errorResponse.js';
-import PurchasedCourse from '../models/PurchasedCourse.js';
+import mongoose from "mongoose";
+import {
+  Content,
+  LiveClass,
+  RecordedClass,
+  StudyMaterial,
+  Session,
+  Test,
+} from "../models/Content.js";
+import asyncHandler from "../middleware/async.js";
+import Modules from "../models/Modules.js";
+import ErrorResponse from "../utils/errorResponse.js";
+import PurchasedCourse from "../models/PurchasedCourse.js";
 
 const validateContentInput = (req, res, next) => {
   const { title, course, instructor } = req.body;
   const errors = [];
 
   if (!title || title.trim().length === 0) {
-    errors.push('Title is required');
+    errors.push("Title is required");
   }
 
   req.body.slug = title
     .toLowerCase()
     .trim()
-    .replace(/[^\w\s-]/g, '') // remove special chars
-    .replace(/\s+/g, '-')     // replace spaces with -
-    .replace(/-+/g, '-');     // remove duplicate -
+    .replace(/[^\w\s-]/g, "") // remove special chars
+    .replace(/\s+/g, "-") // replace spaces with -
+    .replace(/-+/g, "-"); // remove duplicate -
 
   if (!course) {
-    errors.push('Course is required');
+    errors.push("Course is required");
   }
 
   if (errors.length > 0) {
-    return next(new ErrorResponse(errors.join(', '), 400));
+    return next(new ErrorResponse(errors.join(", "), 400));
   }
 
   next();
@@ -49,7 +56,8 @@ const getAllContent = asyncHandler(async (req, res, next) => {
 
   if (req.query.status) match.status = req.query.status;
   if (req.query.contentType) match.__t = req.query.contentType;
-  if (req.query.isFree !== undefined) match.isFree = req.query.isFree === 'true';
+  if (req.query.isFree !== undefined)
+    match.isFree = req.query.isFree === "true";
 
   if (req.query.publishedFrom || req.query.publishedTo) {
     match.publishedAt = {};
@@ -63,17 +71,17 @@ const getAllContent = asyncHandler(async (req, res, next) => {
 
   if (req.query.search) {
     match.$or = [
-      { title: { $regex: req.query.search, $options: 'i' } },
-      { description: { $regex: req.query.search, $options: 'i' } },
-      { tags: { $in: [req.query.search] } }
+      { title: { $regex: req.query.search, $options: "i" } },
+      { description: { $regex: req.query.search, $options: "i" } },
+      { tags: { $in: [req.query.search] } },
     ];
   }
 
   let sort = {};
   if (req.query.sort) {
-    const sortBy = req.query.sort.split(',');
-    sortBy.forEach(field => {
-      if (field.startsWith('-')) {
+    const sortBy = req.query.sort.split(",");
+    sortBy.forEach((field) => {
+      if (field.startsWith("-")) {
         sort[field.substring(1)] = -1;
       } else {
         sort[field] = 1;
@@ -87,64 +95,64 @@ const getAllContent = asyncHandler(async (req, res, next) => {
     { $match: match },
     {
       $lookup: {
-        from: 'courses',
-        localField: 'course',
-        foreignField: '_id',
-        as: 'courseDetails'
-      }
+        from: "courses",
+        localField: "course",
+        foreignField: "_id",
+        as: "courseDetails",
+      },
     },
     {
       $lookup: {
-        from: 'users',
-        localField: 'instructor',
-        foreignField: '_id',
-        as: 'instructorDetails'
-      }
+        from: "users",
+        localField: "instructor",
+        foreignField: "_id",
+        as: "instructorDetails",
+      },
     },
     {
       $lookup: {
-        from: 'modules',
-        localField: 'module',
-        foreignField: '_id',
-        as: 'moduleDetails'
-      }
+        from: "modules",
+        localField: "module",
+        foreignField: "_id",
+        as: "moduleDetails",
+      },
     },
     {
       $addFields: {
-        courseInfo: { $arrayElemAt: ['$courseDetails', 0] },
-        instructorInfo: { $arrayElemAt: ['$instructorDetails', 0] },
-        moduleInfo: { $arrayElemAt: ['$moduleDetails', 0] },
+        courseInfo: { $arrayElemAt: ["$courseDetails", 0] },
+        instructorInfo: { $arrayElemAt: ["$instructorDetails", 0] },
+        moduleInfo: { $arrayElemAt: ["$moduleDetails", 0] },
         isLive: {
           $cond: {
             if: { $eq: ["$__t", "LiveClass"] },
             then: true,
-            else: false
-          }
+            else: false,
+          },
         },
         isRecorded: {
           $cond: {
             if: { $eq: ["$__t", "RecordedClass"] },
             then: true,
-            else: false
-          }
+            else: false,
+          },
         },
         isTest: {
           $cond: {
             if: { $eq: ["$__t", "Test"] },
             then: true,
-            else: false
-          }
-        }
-      }
+            else: false,
+          },
+        },
+      },
     },
     {
       $project: {
         courseDetails: 0,
         instructorDetails: 0,
-        moduleDetails: 0
-      }
+        moduleDetails: 0,
+      },
     },
-    { $sort: sort }
+    { $sort: sort },
   ];
 
   // Add pagination
@@ -160,19 +168,15 @@ const getAllContent = asyncHandler(async (req, res, next) => {
   const content = await Content.aggregate(pipeline);
 
   // Get total count for pagination
-  const totalPipeline = [
-    { $match: match },
-    { $count: 'total' }
-  ];
+  const totalPipeline = [{ $match: match }, { $count: "total" }];
   const totalCount = await Content.aggregate(totalPipeline);
   const total = totalCount.length > 0 ? totalCount[0].total : 0;
-
 
   res.status(200).json({
     success: true,
     count: content.length,
     total,
-    data: content
+    data: content,
   });
 });
 
@@ -188,34 +192,25 @@ const getContentByType = asyncHandler(async (req, res, next) => {
   }
 
   if (req.query.status) match.status = req.query.status;
-  if (req.query.isFree !== undefined) match.isFree = req.query.isFree === 'true';
+  if (req.query.isFree !== undefined)
+    match.isFree = req.query.isFree === "true";
 
   // Type-specific filters
   switch (type) {
-    case 'LiveClass':
+    case "LiveClass":
       if (req.query.liveStatus) match.liveStatus = req.query.liveStatus;
-      if (req.query.upcoming === 'true') {
+      if (req.query.upcoming === "true") {
         match.scheduledStart = { $gte: new Date() };
-        match.liveStatus = 'scheduled';
+        match.liveStatus = "scheduled";
       }
       break;
-    case 'RecordedClass':
-      if (req.query.minDuration) match['video.duration'].$gte = parseInt(req.query.minDuration);
-      if (req.query.maxDuration) match['video.duration'].$lte = parseInt(req.query.maxDuration);
+    case "RecordedClass":
+      if (req.query.minDuration)
+        match["video.duration"].$gte = parseInt(req.query.minDuration);
+      if (req.query.maxDuration)
+        match["video.duration"].$lte = parseInt(req.query.maxDuration);
       break;
-    case 'Test':
-      if (req.query.testType) match.testType = req.query.testType;
-      if (req.query.available === 'true') {
-        match['availability.published'] = true;
-        match['availability.startDate'] = { $lte: new Date() };
-        const orConditions = [
-          { 'availability.endDate': { $exists: false } },
-          { 'availability.endDate': { $gte: new Date() } }
-        ];
-        match.$or = orConditions;
-      }
-      break;
-    case 'StudyMaterial':
+    case "StudyMaterial":
       if (req.query.materialType) match.materialType = req.query.materialType;
       break;
   }
@@ -223,9 +218,9 @@ const getContentByType = asyncHandler(async (req, res, next) => {
   // Build sort
   let sort = {};
   if (req.query.sort) {
-    const sortBy = req.query.sort.split(',');
-    sortBy.forEach(field => {
-      if (field.startsWith('-')) {
+    const sortBy = req.query.sort.split(",");
+    sortBy.forEach((field) => {
+      if (field.startsWith("-")) {
         sort[field.substring(1)] = -1;
       } else {
         sort[field] = 1;
@@ -240,77 +235,79 @@ const getContentByType = asyncHandler(async (req, res, next) => {
     { $match: match },
     {
       $lookup: {
-        from: 'courses',
-        localField: 'course',
-        foreignField: '_id',
-        as: 'courseDetails'
-      }
+        from: "courses",
+        localField: "course",
+        foreignField: "_id",
+        as: "courseDetails",
+      },
     },
     {
       $lookup: {
-        from: 'users',
-        localField: 'instructor',
-        foreignField: '_id',
-        as: 'instructorDetails'
-      }
+        from: "users",
+        localField: "instructor",
+        foreignField: "_id",
+        as: "instructorDetails",
+      },
     },
     {
       $lookup: {
-        from: 'modules',
-        localField: 'module',
-        foreignField: '_id',
-        as: 'moduleDetails'
-      }
-    }
+        from: "modules",
+        localField: "module",
+        foreignField: "_id",
+        as: "moduleDetails",
+      },
+    },
   ];
 
   // Add type-specific lookups
   switch (type) {
-    case 'LiveClass':
+    case "LiveClass":
       pipeline.push({
         $lookup: {
-          from: 'users',
-          localField: 'attendees',
-          foreignField: '_id',
-          as: 'attendeeDetails'
-        }
+          from: "users",
+          localField: "attendees",
+          foreignField: "_id",
+          as: "attendeeDetails",
+        },
       });
       pipeline.push({
         $addFields: {
-          attendeesCount: { $size: '$attendees' }
-        }
+          attendeesCount: { $size: "$attendees" },
+        },
       });
       break;
-    case 'RecordedClass':
+    case "RecordedClass":
       pipeline.push({
         $addFields: {
           formattedDuration: {
             $concat: [
-              { $toString: { $floor: { $divide: ['$video.duration', 60] } } },
+              { $toString: { $floor: { $divide: ["$video.duration", 60] } } },
               ":",
               {
                 $substr: [
                   {
                     $concat: [
                       "0",
-                      { $toString: { $mod: ['$video.duration', 60] } }
-                    ]
+                      { $toString: { $mod: ["$video.duration", 60] } },
+                    ],
                   },
                   -2,
-                  2
-                ]
-              }
-            ]
-          }
-        }
+                  2,
+                ],
+              },
+            ],
+          },
+        },
       });
       break;
-    case 'Test':
+    case "Test":
       pipeline.push({
         $addFields: {
-          questionsCount: { $size: '$questions' },
-          hasTimeLimit: { $cond: [{ $gt: ['$settings.timeLimit', 0] }, true, false] }
-        }
+          questionsCount: { $size: "$questions" },
+          hasTimeLimit: {
+            $cond: [{ $gt: ["$settings.timeLimit", 0] }, true, false],
+          },
+        },
       });
       break;
   }
@@ -318,18 +315,18 @@ const getContentByType = asyncHandler(async (req, res, next) => {
   // Add common projections
   pipeline.push({
     $addFields: {
-      courseInfo: { $arrayElemAt: ['$courseDetails', 0] },
-      instructorInfo: { $arrayElemAt: ['$instructorDetails', 0] },
-      moduleInfo: { $arrayElemAt: ['$moduleDetails', 0] }
-    }
+      courseInfo: { $arrayElemAt: ["$courseDetails", 0] },
+      instructorInfo: { $arrayElemAt: ["$instructorDetails", 0] },
+      moduleInfo: { $arrayElemAt: ["$moduleDetails", 0] },
+    },
   });
 
   pipeline.push({
     $project: {
       courseDetails: 0,
       instructorDetails: 0,
-      moduleDetails: 0
-    }
+      moduleDetails: 0,
+    },
   });
 
   pipeline.push({ $sort: sort });
@@ -346,10 +343,7 @@ const getContentByType = asyncHandler(async (req, res, next) => {
   const content = await Content.aggregate(pipeline);
 
   // Get total count
-  const totalPipeline = [
-    { $match: match },
-    { $count: 'total' }
-  ];
+  const totalPipeline = [{ $match: match }, { $count: "total" }];
   const totalCount = await Content.aggregate(totalPipeline);
   const total = totalCount.length > 0 ? totalCount[0].total : 0;
 
@@ -358,61 +352,56 @@ const getContentByType = asyncHandler(async (req, res, next) => {
     count: content.length,
     total,
     type,
-    data: content
+    data: content,
   });
 });
 
 const getContent = asyncHandler(async (req, res, next) => {
-  const { courseId, id } = req.params;
+  const { courseId, id, slug } = req.params;
   const userId = req.user?._id;
   const hasPurchased = req.hasPurchasedCourse || false;
-
-  if (!mongoose.Types.ObjectId.isValid(courseId)) {
-    return next(new ErrorResponse('Invalid course ID', 400));
-  }
 
   const pipeline = [
     {
       $match: {
-        course: new mongoose.Types.ObjectId(courseId),
         $or: [
           mongoose.Types.ObjectId.isValid(id)
             ? { _id: new mongoose.Types.ObjectId(id) }
-            : { slug: id }
-        ]
-      }
+            : { slug: id || slug },
+        ],
+      },
     },
     {
       $lookup: {
-        from: 'courses',
-        localField: 'course',
-        foreignField: '_id',
-        as: 'courseDetails'
-      }
+        from: "courses",
+        localField: "course",
+        foreignField: "_id",
+        as: "courseDetails",
+      },
     },
     {
       $lookup: {
-        from: 'users',
-        localField: 'instructor',
-        foreignField: '_id',
-        as: 'instructorDetails'
-      }
+        from: "users",
+        localField: "instructor",
+        foreignField: "_id",
+        as: "instructorDetails",
+      },
     },
     {
       $lookup: {
-        from: 'modules',
-        localField: 'module',
-        foreignField: '_id',
-        as: 'moduleDetails'
-      }
+        from: "modules",
+        localField: "module",
+        foreignField: "_id",
+        as: "moduleDetails",
+      },
     },
     {
       $addFields: {
-        courseInfo: { $arrayElemAt: ['$courseDetails', 0] },
-        instructorInfo: { $arrayElemAt: ['$instructorDetails', 0] },
-        moduleInfo: { $arrayElemAt: ['$moduleDetails', 0] },
-        contentType: '$__t'
-      }
+        courseInfo: { $arrayElemAt: ["$courseDetails", 0] },
+        instructorInfo: { $arrayElemAt: ["$instructorDetails", 0] },
+        moduleInfo: { $arrayElemAt: ["$moduleDetails", 0] },
+        contentType: "$__t",
+      },
     },
     {
       $project: {
@@ -447,7 +436,7 @@ const getContent = asyncHandler(async (req, res, next) => {
           title: 1,
           description: 1,
           thumbnail: 1,
-          slug: 1
+          slug: 1,
         },
         instructorInfo: {
           _id: 1,
@@ -459,25 +448,25 @@ const getContent = asyncHandler(async (req, res, next) => {
           title: 1,
           description: 1,
           icon: 1,
-          isPublished: 1
+          isPublished: 1,
         },
-      }
-    }
+      },
+    },
   ];
 
   pipeline.push({
     $lookup: {
-      from: 'progresses',
-      localField: '_id',
-      foreignField: 'content',
-      as: 'progressDetails'
-    }
+      from: "progresses",
+      localField: "_id",
+      foreignField: "content",
+      as: "progressDetails",
+    },
   });
 
   pipeline.push({
     $addFields: {
-      progressCount: { $size: '$progressDetails' }
-    }
+      progressCount: { $size: "$progressDetails" },
+    },
   });
 
   pipeline.push({
@@ -485,8 +474,8 @@ const getContent = asyncHandler(async (req, res, next) => {
       courseDetails: 0,
       instructorDetails: 0,
       moduleDetails: 0,
-      progressDetails: 0
-    }
+      progressDetails: 0,
+    },
   });
 
   const contentResult = await Content.aggregate(pipeline);
@@ -502,16 +491,20 @@ const getContent = asyncHandler(async (req, res, next) => {
   }
 
   if (!userId) {
-    return next(new ErrorResponse('Authentication required to access this content', 401));
+    return next(
+      new ErrorResponse("Authentication required to access this content", 401),
+    );
   }
 
   if (!hasPurchased) {
-    return next(new ErrorResponse('You are not authorized to access this content', 403));
+    return next(
+      new ErrorResponse("You are not authorized to access this content", 403),
+    );
   }
 
   res.status(200).json({
     success: true,
-    data: content
+    data: content,
   });
 });
 
@@ -521,28 +514,35 @@ const createLiveClass = [
     const { scheduledStart, scheduledEnd, course, module, order } = req.body;
 
     if (new Date(scheduledStart) >= new Date(scheduledEnd)) {
-      return next(new ErrorResponse('End time must be after start time', 400));
+      return next(new ErrorResponse("End time must be after start time", 400));
     }
 
     if (new Date(scheduledStart) <= new Date()) {
-      return next(new ErrorResponse('Scheduled start time must be in the future', 400));
+      return next(
+        new ErrorResponse("Scheduled start time must be in the future", 400),
+      );
     }
 
     if (!course || !mongoose.Types.ObjectId.isValid(course)) {
-      return next(new ErrorResponse('Valid course ID is required', 400));
+      return next(new ErrorResponse("Valid course ID is required", 400));
     }
 
     if (!module || !mongoose.Types.ObjectId.isValid(module)) {
-      return next(new ErrorResponse('Valid module ID is required', 400));
+      return next(new ErrorResponse("Valid module ID is required", 400));
     }
 
     const moduleDoc = await Modules.findById(module);
     if (!moduleDoc) {
-      return next(new ErrorResponse('Module not found', 404));
+      return next(new ErrorResponse("Module not found", 404));
     }
 
     if (moduleDoc.course.toString() !== course) {
-      return next(new ErrorResponse('Module does not belong to the specified course', 400));
+      return next(
+        new ErrorResponse(
+          "Module does not belong to the specified course",
+          400,
+        ),
+      );
     }
 
     let finalOrder = order;
@@ -550,25 +550,25 @@ const createLiveClass = [
     if (order === undefined || order === null) {
       const maxOrderContent = await Content.findOne({ module })
         .sort({ order: -1 })
-        .select('order');
+        .select("order");
 
       finalOrder = maxOrderContent ? maxOrderContent.order + 1 : 1;
     } else {
-      if (typeof order !== 'number' || order < 0) {
-        return next(new ErrorResponse('Order must be a positive number', 400));
+      if (typeof order !== "number" || order < 0) {
+        return next(new ErrorResponse("Order must be a positive number", 400));
       }
     }
 
     const duration = Math.round(
-      (new Date(scheduledEnd) - new Date(scheduledStart)) / (1000 * 60)
+      (new Date(scheduledEnd) - new Date(scheduledStart)) / 1000,
     );
 
     const liveClass = await LiveClass.create({
       ...req.body,
-      __t: 'LiveClasses',
+      __t: "LiveClasses",
       order: finalOrder,
       duration: duration,
-      liveStatus: 'scheduled'
+      liveStatus: "scheduled",
     });
 
     // const populatedLiveClass = await LiveClass.findById(liveClass._id)
@@ -579,7 +579,77 @@ const createLiveClass = [
     res.status(201).json({
       success: true,
     });
-  })
+  }),
+];
+
+const createSession = [
+  validateContentInput,
+  asyncHandler(async (req, res, next) => {
+    const { scheduledStart, scheduledEnd, course, module, order } = req.body;
+
+    if (new Date(scheduledStart) >= new Date(scheduledEnd)) {
+      return next(new ErrorResponse("End time must be after start time", 400));
+    }
+
+    if (new Date(scheduledStart) <= new Date()) {
+      return next(
+        new ErrorResponse("Scheduled start time must be in the future", 400),
+      );
+    }
+
+    if (!course || !mongoose.Types.ObjectId.isValid(course)) {
+      return next(new ErrorResponse("Valid course ID is required", 400));
+    }
+
+    if (!module || !mongoose.Types.ObjectId.isValid(module)) {
+      return next(new ErrorResponse("Valid module ID is required", 400));
+    }
+
+    const moduleDoc = await Modules.findById(module);
+    if (!moduleDoc) {
+      return next(new ErrorResponse("Module not found", 404));
+    }
+
+    if (moduleDoc.course.toString() !== course) {
+      return next(
+        new ErrorResponse(
+          "Module does not belong to the specified course",
+          400,
+        ),
+      );
+    }
+
+    let finalOrder = order;
+
+    if (order === undefined || order === null) {
+      const maxOrderContent = await Content.findOne({ module })
+        .sort({ order: -1 })
+        .select("order");
+
+      finalOrder = maxOrderContent ? maxOrderContent.order + 1 : 1;
+    } else {
+      if (typeof order !== "number" || order < 0) {
+        return next(new ErrorResponse("Order must be a positive number", 400));
+      }
+    }
+
+    const duration = Math.round(
+      (new Date(scheduledEnd) - new Date(scheduledStart)) / 1000,
+    );
+
+    const liveClass = await Session.create({
+      ...req.body,
+      __t: "Sessions",
+      order: finalOrder,
+      duration: duration,
+      liveStatus: "scheduled",
+    });
+
+    res.status(201).json({
+      success: true,
+      data: liveClass._id,
+    });
+  }),
 ];
 
 const createRecordedClass = [
@@ -587,75 +657,44 @@ const createRecordedClass = [
   asyncHandler(async (req, res, next) => {
     const { video, course, module, order } = req.body;
     if (!course || !mongoose.Types.ObjectId.isValid(course)) {
-      return next(new ErrorResponse('Valid course ID is required', 400));
+      return next(new ErrorResponse("Valid course ID is required", 400));
     }
     if (!module || !mongoose.Types.ObjectId.isValid(module)) {
-      return next(new ErrorResponse('Valid module ID is required', 400));
+      return next(new ErrorResponse("Valid module ID is required", 400));
     }
     const moduleDoc = await Modules.findById(module);
     if (!moduleDoc) {
-      return next(new ErrorResponse('Module not found', 404));
+      return next(new ErrorResponse("Module not found", 404));
     }
     if (moduleDoc.course.toString() !== course) {
-      return next(new ErrorResponse('Module does not belong to the specified course', 400));
+      return next(
+        new ErrorResponse(
+          "Module does not belong to the specified course",
+          400,
+        ),
+      );
     }
-    let finalOrder = typeof order === 'number' ? order : 0;
+    let finalOrder = typeof order === "number" ? order : 0;
     if (finalOrder <= 0) {
       const maxOrderContent = await Content.findOne({ module })
         .sort({ order: -1 })
-        .select('order');
-      finalOrder = maxOrderContent && maxOrderContent.order > 0
-        ? maxOrderContent.order + 1
-        : 1;
+        .select("order");
+      finalOrder =
+        maxOrderContent && maxOrderContent.order > 0
+          ? maxOrderContent.order + 1
+          : 1;
     }
     const recordedClass = await RecordedClass.create({
       ...req.body,
-      __t: 'RecordedClasses', // Fixed: was 'RecordedClasses'
+      __t: "RecordedClasses", // Fixed: was 'RecordedClasses'
       order: finalOrder,
     });
 
     res.status(201).json({
       success: true,
-      message: 'Recorded class created successfully',
+      message: "Recorded class created successfully",
     });
-  })
-];
-
-
-const createTest = [
-  validateContentInput,
-  asyncHandler(async (req, res, next) => {
-    const { questions, settings } = req.body;
-
-    if (!questions || questions.length === 0) {
-      return next(new ErrorResponse('At least one question is required', 400));
-    }
-
-    for (let i = 0; i < questions.length; i++) {
-      const question = questions[i];
-      if (!question.question || !question.type) {
-        return next(new ErrorResponse(`Question ${i + 1} must have question text and type`, 400));
-      }
-
-      if (question.type === 'multiple-choice' && (!question.options || question.options.length < 2)) {
-        return next(new ErrorResponse(`Multiple choice question ${i + 1} must have at least 2 options`, 400));
-      }
-    }
-    const test = await Test.create({
-      ...req.body,
-      __t: 'Tests'
-    });
-
-    const populatedTest = await Test.findById(test._id)
-      .populate('course', 'title code')
-      .populate('instructor', 'name email')
-      .populate('module', 'title');
-
-    res.status(201).json({
-      success: true,
-      data: populatedTest
-    });
-  })
+  }),
 ];
 
 const createStudyMaterial = [
@@ -664,27 +703,137 @@ const createStudyMaterial = [
     const { materialType, file, externalLink } = req.body;
 
     if (!materialType) {
-      return next(new ErrorResponse('Material type is required', 400));
+      return next(new ErrorResponse("Material type is required", 400));
     }
 
-    if (materialType !== 'link' && !file && !externalLink) {
-      return next(new ErrorResponse('File or external link is required for this material type', 400));
+    if (materialType !== "link" && !file && !externalLink) {
+      return next(
+        new ErrorResponse(
+          "File or external link is required for this material type",
+          400,
+        ),
+      );
     }
 
     const studyMaterial = await StudyMaterial.create({
       ...req.body,
-      __t: 'StudyMaterials'
+      __t: "StudyMaterials",
     });
-    const populatedStudyMaterial = await StudyMaterial.findById(studyMaterial._id)
-      .populate('course', 'title code')
-      .populate('module', 'title');
+    const populatedStudyMaterial = await StudyMaterial.findById(
+      studyMaterial._id,
+    )
+      .populate("course", "title code")
+      .populate("module", "title");
 
     res.status(201).json({
       success: true,
-      data: populatedStudyMaterial
+      data: populatedStudyMaterial,
     });
-  })
+  }),
 ];
+
+const createTest = [
+  validateContentInput,
+  asyncHandler(async (req, res, next) => {
+    const { testId } = req.body;
+
+    if (!testId || !mongoose.Types.ObjectId.isValid(testId)) {
+      return next(new ErrorResponse("Material type is required", 400));
+    }
+
+    const studyMaterial = await Test.create({
+      ...req.body,
+      __t: "Tests",
+    });
+
+    const populatedStudyMaterial = await Test.findById(studyMaterial._id);
+
+    res.status(201).json({
+      success: true,
+      data: populatedStudyMaterial,
+    });
+  }),
+];
+
+export const getCalendarClasses = async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+
+    const filter = {
+      __t: { $in: ["LiveClasses", "Sessions"] },
+    };
+
+    // -----------------------------------------
+    // DATE FILTER
+    // -----------------------------------------
+    if (startDate || endDate) {
+      filter.scheduledStart = {};
+
+      if (startDate) {
+        const start = new Date(startDate);
+
+        // Start of the day
+        start.setHours(0, 0, 0, 0);
+
+        filter.scheduledStart.$gte = start;
+      }
+
+      if (endDate) {
+        const end = new Date(endDate);
+
+        // End of the day
+        end.setHours(23, 59, 59, 999);
+
+        filter.scheduledStart.$lte = end;
+      }
+    }
+
+    const classes = await Content.find(filter)
+      .select(
+        "title slug __t scheduledStart scheduledEnd status instructor meetingId meetingUrl",
+      )
+      .populate("instructor", "name email")
+      .sort({ scheduledStart: 1 })
+      .lean();
+
+    const data = classes.map((item) => ({
+      _id: item._id,
+      title: item.title,
+      slug: item.slug,
+
+      type: item.__t === "LiveClasses" ? "liveClass" : "session",
+
+      contentType: item.__t,
+
+      scheduledStart: item.scheduledStart,
+      scheduledEnd: item.scheduledEnd,
+
+      status: item.status,
+
+      instructor: item.instructor
+        ? {
+            _id: item.instructor._id,
+            name: item.instructor.name,
+            email: item.instructor.email,
+          }
+        : null
+    }));
+
+    return res.status(200).json({
+      success: true,
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error("getCalendarClasses error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch calendar classes",
+      error: error.message,
+    });
+  }
+};
 
 const updateContent = [
   validateContentInput,
@@ -692,81 +841,76 @@ const updateContent = [
     let content = await Content.findById(req.params.id);
 
     if (!content) {
-      return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
-    }
-    if (content.__t === 'LiveClasses') {
-      const { scheduledStart, scheduledEnd } = req.body;
-      if (scheduledStart && scheduledEnd && new Date(scheduledStart) >= new Date(scheduledEnd)) {
-        return next(new ErrorResponse('End time must be after start time', 400));
-      }
-    } else if (content.__t === 'Tests') {
-      if (questions) {
-        for (let i = 0; i < questions.length; i++) {
-          const question = questions[i];
-          if (question.type === 'multiple-choice' && question.options && question.options.length < 2) {
-            return next(new ErrorResponse(`Multiple choice question ${i + 1} must have at least 2 options`, 400));
-          }
-        }
-      }
-    }
-    if (content.__t === 'LiveClasses') {
-      await LiveClass.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        {
-          new: true,
-          runValidators: true
-        }
+      return next(
+        new ErrorResponse(`Content not found with id ${req.params.id}`, 404),
       );
     }
-    if (content.__t === 'RecordedClasses') {
-      await RecordedClass.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        {
-          new: true,
-          runValidators: true
-        }
-      )
-    };
-
-    if (content.__t == "StudyMaterials") {
-      await StudyMaterial.findByIdAndUpdate(
-        req.params.id,
-        req.body,
-        {
-          new: true,
-          runValidators: true
-        }
-      )
+    if (content.__t === "LiveClasses" || content.__t === "Sessions") {
+      const { scheduledStart, scheduledEnd } = req.body;
+      if (
+        scheduledStart &&
+        scheduledEnd &&
+        new Date(scheduledStart) >= new Date(scheduledEnd)
+      ) {
+        return next(
+          new ErrorResponse("End time must be after start time", 400),
+        );
+      }
     }
 
+    if (content.__t === "LiveClasses") {
+      await LiveClass.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+    }
+    if (content.__t === "Sessions") {
+      await Session.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+    }
+    if (content.__t === "RecordedClasses") {
+      await RecordedClass.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+    }
 
+    if (content.__t == "StudyMaterials") {
+      await StudyMaterial.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+    }
 
-
-    // const populatedContent = await Content.findById(content._id)
-    //   .populate('course', 'title code')
-    //   .populate('instructor', 'name email')
-    //   .populate('module', 'title');
+    if (content.__t == "Tests") {
+      await Test.findByIdAndUpdate(req.params.id, req.body, {
+        new: true,
+        runValidators: true,
+      });
+    }
 
     res.status(200).json({
-      success: true
+      success: true,
     });
-  })
+  }),
 ];
 
 const deleteContent = asyncHandler(async (req, res, next) => {
   const content = await Content.findById(req.params.id);
 
   if (!content) {
-    return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
+    return next(
+      new ErrorResponse(`Content not found with id ${req.params.id}`, 404),
+    );
   }
 
   await content.deleteOne();
 
   res.status(200).json({
     success: true,
-    data: {}
+    data: {},
   });
 });
 
@@ -785,21 +929,21 @@ const getContentStats = asyncHandler(async (req, res, next) => {
     { $match: match },
     {
       $group: {
-        _id: '$__t',
+        _id: "$__t",
         count: { $sum: 1 },
-        totalDuration: { $sum: '$duration' },
-        avgOrder: { $avg: '$order' }
-      }
+        totalDuration: { $sum: "$duration" },
+        avgOrder: { $avg: "$order" },
+      },
     },
     {
       $project: {
-        contentType: '$_id',
+        contentType: "$_id",
         count: 1,
         totalDuration: 1,
-        avgOrder: { $round: ['$avgOrder', 2] },
-        _id: 0
-      }
-    }
+        avgOrder: { $round: ["$avgOrder", 2] },
+        _id: 0,
+      },
+    },
   ];
 
   const stats = await Content.aggregate(statsPipeline);
@@ -808,17 +952,17 @@ const getContentStats = asyncHandler(async (req, res, next) => {
     { $match: match },
     {
       $group: {
-        _id: '$status',
-        count: { $sum: 1 }
-      }
+        _id: "$status",
+        count: { $sum: 1 },
+      },
     },
     {
       $project: {
-        status: '$_id',
+        status: "$_id",
         count: 1,
-        _id: 0
-      }
-    }
+        _id: 0,
+      },
+    },
   ];
 
   const statusStats = await Content.aggregate(statusPipeline);
@@ -827,18 +971,17 @@ const getContentStats = asyncHandler(async (req, res, next) => {
     success: true,
     data: {
       contentTypes: stats,
-      statusDistribution: statusStats
-    }
+      statusDistribution: statusStats,
+    },
   });
 });
-
 
 const getUpcomingLiveClasses = asyncHandler(async (req, res, next) => {
   const now = new Date();
   const match = {
-    __t: 'LiveClass',
+    __t: "LiveClass",
     scheduledStart: { $gte: now },
-    liveStatus: 'scheduled'
+    liveStatus: "scheduled",
   };
 
   if (req.query.course) {
@@ -849,45 +992,42 @@ const getUpcomingLiveClasses = asyncHandler(async (req, res, next) => {
     { $match: match },
     {
       $lookup: {
-        from: 'courses',
-        localField: 'course',
-        foreignField: '_id',
-        as: 'courseDetails'
-      }
+        from: "courses",
+        localField: "course",
+        foreignField: "_id",
+        as: "courseDetails",
+      },
     },
     {
       $lookup: {
-        from: 'users',
-        localField: 'instructor',
-        foreignField: '_id',
-        as: 'instructorDetails'
-      }
+        from: "users",
+        localField: "instructor",
+        foreignField: "_id",
+        as: "instructorDetails",
+      },
     },
     {
       $addFields: {
-        courseInfo: { $arrayElemAt: ['$courseDetails', 0] },
-        instructorInfo: { $arrayElemAt: ['$instructorDetails', 0] },
+        courseInfo: { $arrayElemAt: ["$courseDetails", 0] },
+        instructorInfo: { $arrayElemAt: ["$instructorDetails", 0] },
         daysUntilStart: {
           $divide: [
-            { $subtract: ['$scheduledStart', now] },
-            1000 * 60 * 60 * 24
-          ]
+            { $subtract: ["$scheduledStart", now] },
+            1000 * 60 * 60 * 24,
+          ],
         },
         hoursUntilStart: {
-          $divide: [
-            { $subtract: ['$scheduledStart', now] },
-            1000 * 60 * 60
-          ]
-        }
-      }
+          $divide: [{ $subtract: ["$scheduledStart", now] }, 1000 * 60 * 60],
+        },
+      },
     },
     {
       $project: {
         courseDetails: 0,
-        instructorDetails: 0
-      }
+        instructorDetails: 0,
+      },
     },
-    { $sort: { scheduledStart: 1 } }
+    { $sort: { scheduledStart: 1 } },
   ];
 
   // Add pagination
@@ -901,10 +1041,7 @@ const getUpcomingLiveClasses = asyncHandler(async (req, res, next) => {
   const liveClasses = await LiveClass.aggregate(pipeline);
 
   // Get total count
-  const totalPipeline = [
-    { $match: match },
-    { $count: 'total' }
-  ];
+  const totalPipeline = [{ $match: match }, { $count: "total" }];
   const totalCount = await LiveClass.aggregate(totalPipeline);
   const total = totalCount.length > 0 ? totalCount[0].total : 0;
 
@@ -912,63 +1049,64 @@ const getUpcomingLiveClasses = asyncHandler(async (req, res, next) => {
     success: true,
     count: liveClasses.length,
     total,
-    data: liveClasses
+    data: liveClasses,
   });
 });
-
 
 const getCourseContentStructure = asyncHandler(async (req, res, next) => {
   const courseId = req.params.courseId;
 
   if (!mongoose.Types.ObjectId.isValid(courseId)) {
-    return next(new ErrorResponse('Invalid course ID', 400));
+    return next(new ErrorResponse("Invalid course ID", 400));
   }
 
   const pipeline = [
     {
       $match: {
         course: new mongoose.Types.ObjectId(courseId),
-        status: 'published'
-      }
+        status: "published",
+      },
     },
     {
       $lookup: {
-        from: 'modules',
-        localField: 'module',
-        foreignField: '_id',
-        as: 'moduleDetails'
-      }
+        from: "modules",
+        localField: "module",
+        foreignField: "_id",
+        as: "moduleDetails",
+      },
     },
     {
       $addFields: {
-        moduleInfo: { $arrayElemAt: ['$moduleDetails', 0] },
-        moduleName: { $ifNull: [{ $arrayElemAt: ['$moduleDetails.title', 0] }, 'No Module'] },
-        moduleId: { $ifNull: ['$module', null] }
-      }
+        moduleInfo: { $arrayElemAt: ["$moduleDetails", 0] },
+        moduleName: {
+          $ifNull: [{ $arrayElemAt: ["$moduleDetails.title", 0] }, "No Module"],
+        },
+        moduleId: { $ifNull: ["$module", null] },
+      },
     },
     {
       $group: {
-        _id: '$moduleId',
-        moduleName: { $first: '$moduleName' },
+        _id: "$moduleId",
+        moduleName: { $first: "$moduleName" },
         content: {
           $push: {
-            _id: '$_id',
-            title: '$title',
-            type: '$__t',
-            order: '$order',
-            duration: '$duration',
-            isFree: '$isFree'
-          }
+            _id: "$_id",
+            title: "$title",
+            type: "$__t",
+            order: "$order",
+            duration: "$duration",
+            isFree: "$isFree",
+          },
         },
-        count: { $sum: 1 }
-      }
+        count: { $sum: 1 },
+      },
     },
     {
       $sort: {
-        'moduleInfo.order': 1,
-        'content.order': 1
-      }
-    }
+        "moduleInfo.order": 1,
+        "content.order": 1,
+      },
+    },
   ];
 
   const structure = await Content.aggregate(pipeline);
@@ -976,7 +1114,7 @@ const getCourseContentStructure = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     count: structure.length,
-    data: structure
+    data: structure,
   });
 });
 
@@ -990,25 +1128,27 @@ export const updateContentStatus = [
 
     let content = await Content.findById(req.params.id);
     if (!content) {
-      return next(new ErrorResponse(`Content not found with id ${req.params.id}`, 404));
+      return next(
+        new ErrorResponse(`Content not found with id ${req.params.id}`, 404),
+      );
     }
     if (content.__t === "LiveClasses") {
       await LiveClass.findByIdAndUpdate(
         req.params.id,
         { status },
-        { new: true, runValidators: true }
+        { new: true, runValidators: true },
       );
     } else if (content.__t === "RecordedClasses") {
       await RecordedClass.findByIdAndUpdate(
         req.params.id,
         { status },
-        { new: true, runValidators: true }
+        { new: true, runValidators: true },
       );
     } else {
       await Content.findByIdAndUpdate(
         req.params.id,
         { status },
-        { new: true, runValidators: true }
+        { new: true, runValidators: true },
       );
     }
 
@@ -1065,7 +1205,6 @@ export const getFreeStudyMaterials = async (req, res) => {
     });
   }
 };
-
 
 export const getContentBySlug = async (req, res) => {
   try {
@@ -1138,13 +1277,14 @@ export {
   getAllContent,
   getContentByType,
   getContent,
+  createTest,
   createLiveClass,
   createRecordedClass,
-  createTest,
+  createSession,
   createStudyMaterial,
   updateContent,
   deleteContent,
   getContentStats,
   getUpcomingLiveClasses,
-  getCourseContentStructure
+  getCourseContentStructure,
 };
