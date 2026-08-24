@@ -9,7 +9,6 @@ export const uploadSingleImage = (req, res) => {
     const oldFile = req.body.oldfile; 
     
     if (oldFile) {
-      console.log("Old file to delete: ", oldFile);
       deleteFile(`uploads/${oldFile}`);
     }
     
