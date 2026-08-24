@@ -92,7 +92,6 @@ export const uploadIeltsAnswerAudio = multer({
 export const deleteFile = async (filePath) => {
   try {
     const absolutePath = path.resolve(filePath);
-    console.log(absolutePath);
     if (fs.existsSync(absolutePath)) {
       await fs.promises.unlink(absolutePath);
       console.log("File deleted successfully");

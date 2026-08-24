@@ -1,6 +1,7 @@
 import fs from "fs/promises";
 import User from "../models/User.js";
 import cloudinary from "../utils/cloudnary.js";
+import { deleteFile } from "../middleware/upload.js";
 
 export const uploadSingleImage = (req, res) => {
   try {
