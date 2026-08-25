@@ -138,6 +138,14 @@ const getUserPurchasedCourses = asyncHandler(async (req, res) => {
         localField: "itemId",
         foreignField: "_id",
         as: "item",
+        pipeline: [
+          {
+            $project: {
+              sections:0,
+              pricing:0
+            },
+          },
+        ],
       },
     },
     {
@@ -172,6 +180,31 @@ const getUserPurchasedCourses = asyncHandler(async (req, res) => {
       $limit: limitNumber,
     },
   ];
+
+  if(type == "TestTemplate" ){
+    pipeline.push({
+      $lookup: {
+        from: "exams",
+        localField: "item.exam",
+        foreignField: "_id",
+        as: "exam",
+        pipeline: [
+          {
+            $project: {
+              _id: 1,
+              name: 1
+            },
+          }
+        ]
+      },
+    })
+    pipeline.push({
+      $unwind: {
+        path: "$exam",
+        preserveNullAndEmptyArrays: true,
+      },
+    })
+  }
 
   const [data, total] = await Promise.all([
     PurchasedCourse.aggregate(pipeline),

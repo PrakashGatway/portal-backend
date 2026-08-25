@@ -738,7 +738,7 @@ const createTest = [
     const { testId } = req.body;
 
     if (!testId || !mongoose.Types.ObjectId.isValid(testId)) {
-      return next(new ErrorResponse("Material type is required", 400));
+      return next(new ErrorResponse("Test is required", 400));
     }
 
     const studyMaterial = await Test.create({

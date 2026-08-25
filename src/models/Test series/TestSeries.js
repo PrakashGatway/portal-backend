@@ -102,12 +102,6 @@ const testSeriesSchema = new Schema(
             type: Boolean,
             default: true,
         },
-        courseAccess: [
-            {
-                type: Schema.Types.ObjectId,
-                ref: 'Course',
-            }
-        ],
         isTimed: {
             type: Boolean,
             default: true,

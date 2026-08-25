@@ -863,8 +863,14 @@ const getCourseCurriculum = async (req, res) => {
     const hasPurchased = req.hasPurchasedCourse || false;
 
     const curriculum = await Modules.aggregate([
-      { $match: { course: new mongoose.Types.ObjectId(courseId) } },
+      {
+        $match: {
+          course: new mongoose.Types.ObjectId(courseId),
+        },
+      },
+
       { $sort: { order: 1 } },
+
       {
         $lookup: {
           from: "contents",
@@ -874,18 +880,23 @@ const getCourseCurriculum = async (req, res) => {
           pipeline: [
             {
               $match: {
-                status: { $nin: ["draft", "deleted"] },
+                status: {
+                  $nin: ["draft", "deleted"],
+                },
                 __t: {
                   $in: [
                     "LiveClasses",
                     "RecordedClasses",
                     "StudyMaterials",
                     "Sessions",
+                    "Tests",
                   ],
                 },
               },
             },
+
             { $sort: { order: 1 } },
+
             {
               $project: {
                 _id: 1,
@@ -894,30 +905,98 @@ const getCourseCurriculum = async (req, res) => {
                 isFree: 1,
                 duration: 1,
                 questions: 1,
-                materialType: 1, // ✅ ADD THIS
+                materialType: 1,
                 scheduledStart: 1,
                 scheduledEnd: 1,
                 slug: 1,
+                // IMPORTANT
+                testId: 1,
                 "content.pages": 1,
-                testType: 1,
+              },
+            },
+
+            // Lookup Test only for Test content
+            {
+              $lookup: {
+                from: "testtemplates",
+                let: {
+                  testId: "$testId",
+                  contentType: "$__t",
+                },
+                pipeline: [
+                  {
+                    $match: {
+                      $expr: {
+                        $and: [
+                          {
+                            $eq: ["$$contentType", "Tests"],
+                          },
+                          {
+                            $eq: ["$_id", "$$testId"],
+                          },
+                        ],
+                      },
+                    },
+                  },
+                  {
+                    $project: {
+                      _id: 1,
+                      title: 1,
+                      description: 1,
+                      testType: 1,
+                      difficultyLabel: 1,
+                      totalDurationMinutes: 1,
+                      totalQuestions: 1,
+                      isActive: 1,
+                    },
+                  },
+                ],
+                as: "testDetails",
+              },
+            },
+
+            // Convert testDetails array into object
+            {
+              $addFields: {
+                testDetails: {
+                  $cond: [
+                    {
+                      $eq: ["$__t", "Tests"],
+                    },
+                    {
+                      $arrayElemAt: ["$testDetails", 0],
+                    },
+                    null,
+                  ],
+                },
               },
             },
           ],
         },
       },
+
       {
         $addFields: {
           items: {
             $map: {
               input: "$items",
               as: "item",
+
               in: {
                 _id: "$$item._id",
                 title: "$$item.title",
                 type: "$$item.__t",
+
+                // Test ID
+                testId: "$$item.test",
+
+                // Test basic details
+                test: "$$item.testDetails",
+
                 scheduledStart: "$$item.scheduledStart",
                 scheduledEnd: "$$item.scheduledEnd",
                 materialType: "$$item.materialType",
+
                 duration: {
                   $switch: {
                     branches: [
@@ -934,7 +1013,9 @@ const getCourseCurriculum = async (req, res) => {
                               $toString: {
                                 $ceil: {
                                   $divide: [
-                                    { $ifNull: ["$$item.duration", 0] },
+                                    {
+                                      $ifNull: ["$$item.duration", 0],
+                                    },
                                     60,
                                   ],
                                 },
@@ -944,23 +1025,34 @@ const getCourseCurriculum = async (req, res) => {
                           ],
                         },
                       },
+
                       {
-                        case: { $eq: ["$$item.__t", "StudyMaterials"] },
+                        case: {
+                          $eq: ["$$item.__t", "StudyMaterials"],
+                        },
                         then: {
                           $let: {
                             vars: {
-                              pages: { $ifNull: ["$$item.content.pages", 0] },
+                              pages: {
+                                $ifNull: ["$$item.content.pages", 0],
+                              },
                             },
                             in: {
                               $cond: {
-                                if: { $gt: ["$$pages", 0] },
+                                if: {
+                                  $gt: ["$$pages", 0],
+                                },
                                 then: {
                                   $concat: [
-                                    { $toString: "$$pages" },
+                                    {
+                                      $toString: "$$pages",
+                                    },
                                     " ",
                                     {
                                       $cond: {
-                                        if: { $eq: ["$$pages", 1] },
+                                        if: {
+                                          $eq: ["$$pages", 1],
+                                        },
                                         then: "page",
                                         else: "pages",
                                       },
@@ -974,15 +1066,23 @@ const getCourseCurriculum = async (req, res) => {
                         },
                       },
                     ],
+
                     default: "—",
                   },
                 },
+
                 isPreview: "$$item.isFree",
+
                 slug: "$$item.slug",
+
                 isLocked: {
                   $and: [
-                    { $ne: ["$$item.isFree", true] },
-                    { $not: [hasPurchased] },
+                    {
+                      $ne: ["$$item.isFree", true],
+                    },
+                    {
+                      $not: [hasPurchased],
+                    },
                   ],
                 },
               },
@@ -990,6 +1090,7 @@ const getCourseCurriculum = async (req, res) => {
           },
         },
       },
+
       {
         $project: {
           _id: 1,
@@ -998,7 +1099,6 @@ const getCourseCurriculum = async (req, res) => {
         },
       },
     ]);
-    console.log(curriculum[0].items);
     res.json({ curriculum });
   } catch (error) {
     res.status(500).json({ message: "Failed to load curriculum" });
