@@ -6,7 +6,6 @@ import { load } from "cheerio";
 import { evaluateGreAnalyticalWriting } from "../../cronJob/greCronJob.js";
 import PurchasedCourse from "../../models/PurchasedCourse.js";
 
-
 const { Types } = mongoose;
 
 const buildSectionsForAttempt = async (template) => {
@@ -16,7 +15,7 @@ const buildSectionsForAttempt = async (template) => {
   if (template.testType === "quiz") {
     const cfg = template.quizConfig || {};
     const match = {
-      exam: template.exam?._id
+      exam: template.exam?._id,
     };
 
     if (cfg.allowedQuestionTypes?.length) {
@@ -46,8 +45,8 @@ const buildSectionsForAttempt = async (template) => {
       order: idx + 1,
       answerOptionIndexes: [],
       answerText: "",
-      selections: {},           // Map field – Mongoose will cast
-      dropdownSelections: {},   // Map field – Mongoose will cast
+      selections: {}, // Map field – Mongoose will cast
+      dropdownSelections: {}, // Map field – Mongoose will cast
       timeSpentSeconds: 0,
       isAnswered: false,
       markedForReview: false,
@@ -86,7 +85,7 @@ const buildSectionsForAttempt = async (template) => {
           isAnswered: false,
           markedForReview: false,
           isCorrect: false,
-          marksAwarded: 0
+          marksAwarded: 0,
         });
       });
     } else if (secCfg.selectionMode === "random") {
@@ -105,7 +104,8 @@ const buildSectionsForAttempt = async (template) => {
         match.tags = { $in: secCfg.randomConfig.tags };
       }
 
-      const size = secCfg.randomConfig?.questionCount || secCfg.questionCount || 0;
+      const size =
+        secCfg.randomConfig?.questionCount || secCfg.questionCount || 0;
 
       const qs = await Question.aggregate([
         { $match: match },
@@ -208,52 +208,23 @@ export const startTestAttempt = async (req, res) => {
     const { testTemplateId } = req.body;
     const userId = req.user._id;
 
-    if (!testTemplateId || !Types.ObjectId.isValid(testTemplateId)) {
-      return res.status(400).json({
+    const access = req.testAccess;
+
+    if (!access.allowed) {
+      return res.status(access.code === "AUTH_REQUIRED" ? 401 : 403).json({
         success: false,
-        message: "testTemplateId is required",
+        message: access.message,
+        code: access.code,
       });
     }
 
-    const template = await TestTemplate.findById(testTemplateId)
-      .populate("exam")
-      .populate("sections.section")
-      .lean();
+    const template = access.testTemplate;
 
-    if (!template || !template.isActive) {
+    if (!template) {
       return res.status(404).json({
         success: false,
-        message: "Test not found or inactive",
+        message: "Invalid test template.",
       });
-    }
-
-    const isFree = template?.pricing?.isFree === true;
-
-    if (!isFree) {
-      const purchase = await PurchasedCourse.findOne({
-        user: userId,
-        itemId: template._id,
-        itemType: "TestTemplate",
-        isActive: true,
-
-        // Access never expires OR hasn't expired yet
-        $or: [
-          { accessExpiresAt: null },
-          { accessExpiresAt: { $exists: false } },
-          { accessExpiresAt: { $gt: new Date() } },
-        ],
-      })
-        .select("_id accessExpiresAt")
-        .lean();
-
-      // User hasn't purchased this test
-      if (!purchase) {
-        return res.status(403).json({
-          success: false,
-          message: "Please purchase this test before attempting it.",
-          code: "TEST_NOT_PURCHASED",
-        });
-      }
     }
 
     const existing = await TestAttempt.findOne({
@@ -274,7 +245,7 @@ export const startTestAttempt = async (req, res) => {
 
     const totalQuestions = sectionsForAttempt.reduce(
       (sum, s) => sum + (s.questions?.length || 0),
-      0
+      0,
     );
 
     const attempt = await TestAttempt.create({
@@ -287,7 +258,7 @@ export const startTestAttempt = async (req, res) => {
       sections: sectionsForAttempt,
       overallStats: {
         totalQuestions,
-      }
+      },
     });
 
     return res.status(201).json({
@@ -416,7 +387,10 @@ export const getTestAttemptById = async (req, res) => {
       _id: { $in: allQuestionIds },
     }).lean();
 
-    const sanitized = attempt.status == "completed" ? questionDocs : sanitizeQuestionsForClient(questionDocs);
+    const sanitized =
+      attempt.status == "completed"
+        ? questionDocs
+        : sanitizeQuestionsForClient(questionDocs);
 
     const questionMap = {};
     sanitized.forEach((q) => {
@@ -459,10 +433,14 @@ export const saveTestProgress = async (req, res) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
-    const { updates, totalTimeUsedSeconds, gmatPhase,
+    const {
+      updates,
+      totalTimeUsedSeconds,
+      gmatPhase,
       currentSectionIndex,
       currentQuestionIndex,
-      reviewEditsUsed, } = req.body;
+      reviewEditsUsed,
+    } = req.body;
     // updates: [{ sectionIndex, questionIndex, answerOptionIndexes, answerText, isAnswered, markedForReview, timeSpentSeconds }]
 
     if (!Types.ObjectId.isValid(id)) {
@@ -552,7 +530,6 @@ export const saveTestProgress = async (req, res) => {
       attempt.gmatMeta.currentQuestionIndex = currentQuestionIndex;
     }
 
-
     await attempt.save();
 
     return res.json({
@@ -632,7 +609,8 @@ export const submitTestAttempt = async (req, res) => {
 
         const answered =
           (aq.answerOptionIndexes && aq.answerOptionIndexes.length > 0) ||
-          (typeof aq.answerText === "string" && aq.answerText.trim().length > 0)
+          (typeof aq.answerText === "string" &&
+            aq.answerText.trim().length > 0);
 
         if (!answered) {
           secSkipped += 1;
@@ -671,7 +649,7 @@ export const submitTestAttempt = async (req, res) => {
                       ? jsonAnswer.twoPart.get(colId)
                       : jsonAnswer.twoPart?.[colId];
                   return sel === correctOptId;
-                }
+                },
               );
               break;
             }
@@ -702,42 +680,50 @@ export const submitTestAttempt = async (req, res) => {
           const result = await evaluateGreAnalyticalWriting({
             answerText: aq.answerText,
             questionText1: qDoc.stimulus,
-            questionText2: qDoc.questionText
+            questionText2: qDoc.questionText,
           });
           isCorrect = result.isCorrect;
           aq.evaluationMeta = {
             score: result.score,
             feedback: result.feedback,
-            evaluatedAt: new Date()
+            evaluatedAt: new Date(),
           };
-        } else if (qDoc.questionType === "pte_fill_drag" || qDoc.questionType === "pte_fill_in_blanks" || qDoc.questionType === "pte_fill_listening") {
+        } else if (
+          qDoc.questionType === "pte_fill_drag" ||
+          qDoc.questionType === "pte_fill_in_blanks" ||
+          qDoc.questionType === "pte_fill_listening"
+        ) {
           const jsonAnswer = JSON.parse(aq.answerText);
 
-          const userAnswers = Object.values(jsonAnswer).map(v =>
-            v.trim().toLowerCase()
+          const userAnswers = Object.values(jsonAnswer).map((v) =>
+            v.trim().toLowerCase(),
           );
 
           const correctAnswers = qDoc.correctAnswerText
-            ? qDoc.correctAnswerText.split(",").map(v => v.trim().toLowerCase())
+            ? qDoc.correctAnswerText
+                .split(",")
+                .map((v) => v.trim().toLowerCase())
             : [];
 
           isCorrect = false;
 
           if (userAnswers.length == correctAnswers.length) {
-            isCorrect = correctAnswers.every(ans =>
-              userAnswers.includes(ans)
+            isCorrect = correctAnswers.every((ans) =>
+              userAnswers.includes(ans),
             );
           }
         } else if (qDoc.questionType === "pte_reorder") {
           const jsonAnswer = JSON.parse(aq.answerText);
 
           const correctAnswers = qDoc.correctAnswerText
-            ? qDoc.correctAnswerText.split("||").map(v => v.trim().toLowerCase())
+            ? qDoc.correctAnswerText
+                .split("||")
+                .map((v) => v.trim().toLowerCase())
             : [];
           isCorrect = false;
           if (jsonAnswer.length == correctAnswers.length) {
-            isCorrect = correctAnswers.every((ans, idx) =>
-              ans == jsonAnswer[idx].trim().toLowerCase()
+            isCorrect = correctAnswers.every(
+              (ans, idx) => ans == jsonAnswer[idx].trim().toLowerCase(),
             );
           }
         } else if (qDoc.questionType === "pte_highlight") {
@@ -748,18 +734,19 @@ export const submitTestAttempt = async (req, res) => {
             .get();
 
           const correctAnswers = qDoc.correctAnswerText
-            ? qDoc.correctAnswerText.split(",").map(v => v.trim().toLowerCase())
+            ? qDoc.correctAnswerText
+                .split(",")
+                .map((v) => v.trim().toLowerCase())
             : [];
 
           isCorrect = false;
 
           if (userAnswers.length === correctAnswers.length) {
-            isCorrect = correctAnswers.every(ans =>
-              userAnswers.includes(ans)
+            isCorrect = correctAnswers.every((ans) =>
+              userAnswers.includes(ans),
             );
           }
-        }
-        else if (qDoc.options && qDoc.options.length) {
+        } else if (qDoc.options && qDoc.options.length) {
           const correctIndexes = [];
           qDoc.options.forEach((opt, idx) => {
             if (opt.isCorrect) correctIndexes.push(idx);
@@ -858,5 +845,3 @@ export const submitTestAttempt = async (req, res) => {
 //   console.log(isCorrect)
 // }
 // isCorrectAnswer()
-
-

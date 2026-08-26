@@ -251,24 +251,49 @@ const getModule = asyncHandler(async (req, res, next) => {
 });
 
 const getModuleDetails = asyncHandler(async (req, res, next) => {
-  const hasPurchased = req.hasPurchasedCourse || false;
+  const hasPurchased = req.hasPurchasedCourse === true;
 
+  // Validate module ID
   if (!mongoose.Types.ObjectId.isValid(req.params.id)) {
     return next(
-      new ErrorResponse(`Invalid module ID format: ${req.params.id}`, 400),
+      new ErrorResponse(
+        `Invalid module ID format: ${req.params.id}`,
+        400
+      )
+    );
+  }
+
+  // Validate course ID
+  if (
+    !req.query.course ||
+    !mongoose.Types.ObjectId.isValid(req.query.course)
+  ) {
+    return next(
+      new ErrorResponse(
+        `Invalid course ID format: ${req.query.course}`,
+        400
+      )
     );
   }
 
   const moduleId = new mongoose.Types.ObjectId(req.params.id);
+  const courseId = new mongoose.Types.ObjectId(req.query.course);
 
   const pipeline = [
+    // --------------------------------------------------
+    // Module
+    // --------------------------------------------------
     {
       $match: {
         _id: moduleId,
         isPublished: true,
-        course: new mongoose.Types.ObjectId(req.query.course),
+        course: courseId,
       },
     },
+
+    // --------------------------------------------------
+    // Course
+    // --------------------------------------------------
     {
       $lookup: {
         from: "courses",
@@ -277,6 +302,10 @@ const getModuleDetails = asyncHandler(async (req, res, next) => {
         as: "courseDetails",
       },
     },
+
+    // --------------------------------------------------
+    // Content
+    // --------------------------------------------------
     {
       $lookup: {
         from: "contents",
@@ -285,139 +314,311 @@ const getModuleDetails = asyncHandler(async (req, res, next) => {
         as: "contentDetails",
       },
     },
+
+    // --------------------------------------------------
+    // Separate content types
+    // --------------------------------------------------
     {
       $addFields: {
-        courseInfo: { $arrayElemAt: ["$courseDetails", 0] },
+        courseInfo: {
+          $arrayElemAt: ["$courseDetails", 0],
+        },
+
+        // Live Classes
         liveClasses: {
           $filter: {
             input: "$contentDetails",
             as: "content",
             cond: {
               $and: [
-                { $eq: ["$$content.__t", "LiveClasses"] },
                 {
-                  $in: ["$$content.status", ["published", "live", "scheduled"]], // Include published and scheduled
+                  $eq: ["$$content.__t", "LiveClasses"],
+                },
+                {
+                  $in: [
+                    "$$content.status",
+                    ["published", "live", "scheduled"],
+                  ],
                 },
               ],
             },
           },
         },
+
+        // Recorded Classes
         recordedClasses: {
           $filter: {
             input: "$contentDetails",
             as: "content",
             cond: {
               $and: [
-                { $eq: ["$$content.__t", "RecordedClasses"] },
-                { $eq: ["$$content.status", "published"] }, // Only published recorded classes
+                {
+                  $eq: ["$$content.__t", "RecordedClasses"],
+                },
+                {
+                  $eq: ["$$content.status", "published"],
+                },
               ],
             },
           },
         },
+
+        // Study Materials
         studyMaterials: {
           $filter: {
             input: "$contentDetails",
             as: "content",
             cond: {
               $and: [
-                { $eq: ["$$content.__t", "StudyMaterials"] },
-                { $eq: ["$$content.status", "published"] }, // Only published study materials
+                {
+                  $eq: ["$$content.__t", "StudyMaterials"],
+                },
+                {
+                  $eq: ["$$content.status", "published"],
+                },
               ],
             },
           },
         },
       },
     },
+
+    // --------------------------------------------------
+    // Response
+    // --------------------------------------------------
     {
       $project: {
         title: 1,
         description: 1,
         icon: 1,
+        slug:1,
         isPublished: 1,
         order: 1,
         duration: 1,
         publishedAt: 1,
         createdAt: 1,
         updatedAt: 1,
+
+        // ------------------------------------------------
+        // Course
+        // ------------------------------------------------
         courseInfo: {
           title: 1,
           description: 1,
           thumbnail: 1,
         },
+
+        // =================================================
+        // LIVE CLASSES
+        // =================================================
         liveClasses: {
           $map: {
             input: "$liveClasses",
             as: "liveClass",
+
             in: {
               _id: "$$liveClass._id",
+
               title: "$$liveClass.title",
+              slug: "$$liveClass.slug",
               description: "$$liveClass.description",
+
               isFree: "$$liveClass.isFree",
+
+              // Purchased = unlocked
+              // Free = unlocked
+              // Paid + not purchased = locked
+              locked: {
+                $cond: [
+                  {
+                    $or: [
+                      {
+                        $eq: [hasPurchased, true],
+                      },
+                      {
+                        $eq: ["$$liveClass.isFree", true],
+                      },
+                    ],
+                  },
+                  false,
+                  true,
+                ],
+              },
+
               duration: "$$liveClass.duration",
-              status: "$$liveClass.status", // This will be 'published' or 'scheduled'
-              scheduledStart: "$$liveClass.scheduledStart",
-              scheduledEnd: "$$liveClass.scheduledEnd",
-              thumbnailPic: "$$liveClass.thumbnailPic", // Include thumbnail if available
+
+              status: "$$liveClass.status",
+
+              scheduledStart:
+                "$$liveClass.scheduledStart",
+
+              scheduledEnd:
+                "$$liveClass.scheduledEnd",
+
+              thumbnailPic:
+                "$$liveClass.thumbnailPic",
             },
           },
         },
+
+        // =================================================
+        // RECORDED CLASSES
+        // =================================================
         recordedClasses: {
           $map: {
             input: "$recordedClasses",
             as: "recordedClass",
+
             in: {
               _id: "$$recordedClass._id",
+
               title: "$$recordedClass.title",
-              description: "$$recordedClass.description",
-              status: "$$recordedClass.status", // This will be 'published'
-              thumbnailPic: "$$recordedClass.thumbnailPic", // Include thumbnail
-              duration: "$$recordedClass.duration", // Include duration if available
+              slug: "$$recordedClass.slug",
+
+              description:
+                "$$recordedClass.description",
+
+              isFree: "$$recordedClass.isFree",
+
+              // Purchased = unlocked
+              // Free = unlocked
+              // Paid + not purchased = locked
+              locked: {
+                $cond: [
+                  {
+                    $or: [
+                      {
+                        $eq: [hasPurchased, true],
+                      },
+                      {
+                        $eq: [
+                          "$$recordedClass.isFree",
+                          true,
+                        ],
+                      },
+                    ],
+                  },
+                  false,
+                  true,
+                ],
+              },
+
+              status: "$$recordedClass.status",
+
+              thumbnailPic:
+                "$$recordedClass.thumbnailPic",
+
+              duration:
+                "$$recordedClass.duration",
+
               video: {
-                // Include basic video info if needed
-                duration: "$$recordedClass.video.duration",
+                duration:
+                  "$$recordedClass.video.duration",
               },
             },
           },
         },
+
+        // =================================================
+        // STUDY MATERIALS
+        // =================================================
         studyMaterials: {
           $map: {
             input: "$studyMaterials",
             as: "material",
+
             in: {
               _id: "$$material._id",
+
               title: "$$material.title",
-              description: "$$material.description",
-              status: "$$material.status", // This will be 'published'
-              materialType: "$$material.materialType",
-              thumbnailPic: "$$material.thumbnailPic", // Include thumbnail if available
+              slug: "$$material.slug",
+
+              description:
+                "$$material.description",
+
+              isFree: "$$material.isFree",
+
+              // Purchased = unlocked
+              // Free = unlocked
+              // Paid + not purchased = locked
+              locked: {
+                $cond: [
+                  {
+                    $or: [
+                      {
+                        $eq: [hasPurchased, true],
+                      },
+                      {
+                        $eq: [
+                          "$$material.isFree",
+                          true,
+                        ],
+                      },
+                    ],
+                  },
+                  false,
+                  true,
+                ],
+              },
+
+              status: "$$material.status",
+
+              materialType:
+                "$$material.materialType",
+
+              thumbnailPic:
+                "$$material.thumbnailPic",
+
               file: {
-                // Include basic file info if needed
-                mimeType: "$$material.file.mimeType",
+                mimeType:
+                  "$$material.file.mimeType",
               },
             },
           },
         },
-        liveClassesCount: { $size: "$liveClasses" },
-        recordedClassesCount: { $size: "$recordedClasses" },
-        studyMaterialsCount: { $size: "$studyMaterials" },
+
+        // ------------------------------------------------
+        // Counts
+        // ------------------------------------------------
+        liveClassesCount: {
+          $size: "$liveClasses",
+        },
+
+        recordedClassesCount: {
+          $size: "$recordedClasses",
+        },
+
+        studyMaterialsCount: {
+          $size: "$studyMaterials",
+        },
       },
     },
   ];
 
   const modules = await Module.aggregate(pipeline);
 
+  // ----------------------------------------------------
+  // Module not found
+  // ----------------------------------------------------
   if (!modules || modules.length === 0) {
     return next(
       new ErrorResponse(
         `Published module not found with id ${req.params.id}`,
-        404,
-      ),
+        404
+      )
     );
   }
 
-  res.status(200).json({
+  // ----------------------------------------------------
+  // Response
+  // ----------------------------------------------------
+  return res.status(200).json({
     success: true,
-    data: modules[0], // Return the first (and should be only) module
+
+    // Useful for frontend
+    hasPurchased,
+
+    data: modules[0],
   });
 });
 

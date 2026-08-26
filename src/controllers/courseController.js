@@ -909,6 +909,7 @@ const getCourseCurriculum = async (req, res) => {
                 scheduledStart: 1,
                 scheduledEnd: 1,
                 slug: 1,
+                thumbnailPic:1,
                 // IMPORTANT
                 testId: 1,
                 "content.pages": 1,
@@ -989,6 +990,7 @@ const getCourseCurriculum = async (req, res) => {
 
                 // Test ID
                 testId: "$$item.test",
+
 
                 // Test basic details
                 test: "$$item.testDetails",
@@ -1074,7 +1076,7 @@ const getCourseCurriculum = async (req, res) => {
                 isPreview: "$$item.isFree",
 
                 slug: "$$item.slug",
-
+                thumbnailPic:"$$item.thumbnailPic",
                 isLocked: {
                   $and: [
                     {

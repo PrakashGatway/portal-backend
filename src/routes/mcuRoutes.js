@@ -19,13 +19,13 @@ import {
 } from "../controllers/GGSschema/testTemplateController.js";
 
 import {
-  startTestAttempt, getTestAttemptById,
+  startTestAttempt,
+  getTestAttemptById,
   saveTestProgress,
   submitTestAttempt,
-  setGmatOrder
+  setGmatOrder,
 } from "../controllers/GGSschema/testAttemptcontroller.js";
 import { protect } from "../middleware/auth.js";
-
 
 import {
   createTestSeries,
@@ -36,7 +36,7 @@ import {
   deleteTestSeries,
   togglePublishSeries,
 } from "../controllers/GGSschema/testSeriesController.js";
-
+import { checkTestAttemptAccess } from "../middleware/checkTestAccess.js";
 
 const router = Router();
 
@@ -51,7 +51,6 @@ router.get("/questions/random/list", /* requireAuth, */ getRandomQuestions);
 router.put("/questions/:id", updateQuestion);
 router.delete("/questions/:id", deleteQuestion);
 
-
 router.get("/test", protect, listTestTemplates);
 router.post("/test", protect, createTestTemplate);
 router.get("/test/:id", protect, getTestTemplateById);
@@ -59,7 +58,7 @@ router.put("/test/:id", protect, updateTestTemplate);
 router.delete("/test/:id", protect, deleteTestTemplate);
 // router.get("/public/store", listStoreTests);
 
-router.post("/start", protect, startTestAttempt);
+router.post("/start", protect, checkTestAttemptAccess, startTestAttempt);
 router.get("/attempts/:id", protect, getTestAttemptById);
 router.patch("/attempts/:id/save-progress", protect, saveTestProgress);
 router.post("/attempts/:id/submit", protect, submitTestAttempt);
