@@ -70,10 +70,12 @@ export const getTeacherDashboard = async (req, res, next) => {
       });
     }
 
-    const courseId =
-      req.query.courseId && ObjectId.isValid(req.query.courseId)
-        ? new ObjectId(req.query.courseId)
-        : null;
+    // const courseId =
+    //   req.query.courseId && mongoose.Types.ObjectId.isValid(req.query.courseId)
+    //     ? new ObjectId(req.query.courseId)
+    //     : null;
+
+    const courseId = null;
 
     const teacherCourseMatch = {
       instructors: teacherObjectId,
