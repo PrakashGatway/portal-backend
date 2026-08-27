@@ -58,6 +58,8 @@ import { Leadlogs } from './models/leadLogs.js';
 import { Lead } from './models/Leads.js';
 import { startLeadCron } from './cronJob/insertOneByOne.js';
 import feedbackRoutes from "./routes/feedbackRoutes.js"
+import { protect } from './middleware/auth.js';
+import getTeacherDashboard from './routes/analyticsRoutes.js';
 
 // startLeadCron("one","68ff57a3a22ea2bcbd574d33")
 // startLeadCron("sid","68ff57a3a22ea2bcbd574d33")
@@ -178,7 +180,7 @@ app.use("/api/v1/ielts", ieltsRoutes);
 
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
-// app.use('/api/v1/analytics', analyticsRoutes);
+app.get('/api/v1/teacher/dashboard',protect,getTeacherDashboard );
 
 app.get('/api/health', (req, res) => {
   res.status(200).json({

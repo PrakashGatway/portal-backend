@@ -903,6 +903,7 @@ const getCourseCurriculum = async (req, res) => {
                 title: 1,
                 __t: 1,
                 isFree: 1,
+                description: 1,
                 duration: 1,
                 questions: 1,
                 materialType: 1,
@@ -986,13 +987,9 @@ const getCourseCurriculum = async (req, res) => {
               in: {
                 _id: "$$item._id",
                 title: "$$item.title",
+                description: "$$item.description",
                 type: "$$item.__t",
-
-                // Test ID
                 testId: "$$item.test",
-
-
-                // Test basic details
                 test: "$$item.testDetails",
 
                 scheduledStart: "$$item.scheduledStart",
