@@ -1,65 +1,64 @@
-import express from 'express';
-import cors from 'cors';
-import helmet from 'helmet';
-import morgan from 'morgan';
-import compression from 'compression';
-import rateLimit from 'express-rate-limit';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
-import dotenv from 'dotenv';
+import express from "express";
+import cors from "cors";
+import helmet from "helmet";
+import morgan from "morgan";
+import compression from "compression";
+import rateLimit from "express-rate-limit";
+import { createServer } from "http";
+import { Server } from "socket.io";
+import dotenv from "dotenv";
 import cookieParser from "cookie-parser";
-import crypto from 'crypto';
+import crypto from "crypto";
 
 import axios from "axios";
-import connectDB from './config/database.js';
+import connectDB from "./config/database.js";
 // import secondDB from './config/webDb.js';
-import { errorHandler, notFound } from './middleware/errorMiddleware.js';
-import { leadSocketAuth, socketAuth } from './middleware/socketMiddleware.js';
+import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
+import { leadSocketAuth, socketAuth } from "./middleware/socketMiddleware.js";
 
-import chatController from "./controllers/chatController.js"
+import chatController from "./controllers/chatController.js";
 
-
-import authRoutes from './routes/authRoutes.js';
-import userRoutes from './routes/userRoutes.js';
-import courseRoutes from './routes/courseRoutes.js';
-import pageRoutes from './routes/pagesRoutes.js';
-import uploadRoutes from './routes/uploadRoutes.js';
-import entityRoutes from './routes/entitiesRoutes.js';
-import categoryRoutes from './routes/categoriesRoutes.js';
-import moduleRoutes from './routes/modulesRoutes.js';
-import contentRoutes from './routes/contentRoutes.js';
+import authRoutes from "./routes/authRoutes.js";
+import userRoutes from "./routes/userRoutes.js";
+import courseRoutes from "./routes/courseRoutes.js";
+import pageRoutes from "./routes/pagesRoutes.js";
+import uploadRoutes from "./routes/uploadRoutes.js";
+import entityRoutes from "./routes/entitiesRoutes.js";
+import categoryRoutes from "./routes/categoriesRoutes.js";
+import moduleRoutes from "./routes/modulesRoutes.js";
+import contentRoutes from "./routes/contentRoutes.js";
 // import tokenRoutes from './routes/tokenRoutes.js'
-import vimeoRoutes from './routes/vimeoRoutes.js';
-import promoRoutes from './routes/promoRoutes.js';
-import walletRoutes from './routes/walletRoutes.js';
-import purchaseRoutes from './routes/purchaseRoutes.js';
-import leadRoutes from './routes/leadRoutes.js'
-import testRoutes from './routes/testRoutes.js';
-import webRoutes from './routes/webRoutes.js';
-import aiRoutes from './services/speakingService.js'
-import supportRoutes from './routes/supportRoutes.js';
-import mcuRoutes from './routes/mcuRoutes.js';
-import jsonRoutes from './routes/jsonRoutes.js';
-import bannerRoutes from './routes/bannerRoutes.js';
-import notificationRoutes from './routes/notificationRoutes.js'
-import ieltsRoutes from './routes/ieltsRoutes.js';
+import vimeoRoutes from "./routes/vimeoRoutes.js";
+import promoRoutes from "./routes/promoRoutes.js";
+import walletRoutes from "./routes/walletRoutes.js";
+import purchaseRoutes from "./routes/purchaseRoutes.js";
+import leadRoutes from "./routes/leadRoutes.js";
+import testRoutes from "./routes/testRoutes.js";
+import webRoutes from "./routes/webRoutes.js";
+import aiRoutes from "./services/speakingService.js";
+import supportRoutes from "./routes/supportRoutes.js";
+import mcuRoutes from "./routes/mcuRoutes.js";
+import jsonRoutes from "./routes/jsonRoutes.js";
+import bannerRoutes from "./routes/bannerRoutes.js";
+import notificationRoutes from "./routes/notificationRoutes.js";
+import ieltsRoutes from "./routes/ieltsRoutes.js";
 
+import paymentRoutes from "./routes/paymentRoutes.js";
 
-import paymentRoutes from './routes/paymentRoutes.js';
-
-import { runManualCheck, setupWalletCronJob } from './cronJob/cronJobs.js';
+import { runManualCheck, setupWalletCronJob } from "./cronJob/cronJobs.js";
 // import "./cronJob/leadAutoAssign.js"
 // import "./cronJob/convertNmber.js"
 // import "./cronJob/pteCronJob.js";
 
-
-import { Question } from './models/GGSschema/questionSchema.js';
-import { Leadlogs } from './models/leadLogs.js';
-import { Lead } from './models/Leads.js';
-import { startLeadCron } from './cronJob/insertOneByOne.js';
-import feedbackRoutes from "./routes/feedbackRoutes.js"
-import { protect } from './middleware/auth.js';
-import getTeacherDashboard from './routes/analyticsRoutes.js';
+import { Question } from "./models/GGSschema/questionSchema.js";
+import { Leadlogs } from "./models/leadLogs.js";
+import { Lead } from "./models/Leads.js";
+import { startLeadCron } from "./cronJob/insertOneByOne.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
+import { protect } from "./middleware/auth.js";
+import getTeacherDashboard, {
+  getAdminDashboard,
+} from "./routes/analyticsRoutes.js";
 
 // startLeadCron("one","68ff57a3a22ea2bcbd574d33")
 // startLeadCron("sid","68ff57a3a22ea2bcbd574d33")
@@ -88,21 +87,25 @@ const allowedOrigins = [
   "http://localhost:5173",
   "https://6dtmqkkr-5173.inc1.devtunnels.ms",
   "https://portal-virid-eta.vercel.app",
-  "https://m8j3lq9z-5173.inc1.devtunnels.ms"
+  "https://m8j3lq9z-5173.inc1.devtunnels.ms",
 ];
 
-app.use("/uploads", cors({
-  origin: allowedOrigins,
-  credentials: true
-}), express.static("uploads"));
+app.use(
+  "/uploads",
+  cors({
+    origin: allowedOrigins,
+    credentials: true,
+  }),
+  express.static("uploads"),
+);
 
 const io = new Server(server, {
   cors: {
     origin: allowedOrigins,
     // origin: "*",
     methods: ["GET", "POST"],
-    credentials: true
-  }
+    credentials: true,
+  },
 });
 
 global.io = io;
@@ -120,25 +123,26 @@ io.use(socketAuth);
 
 app.use(helmet());
 
-
 // app.use(cors());
 
-app.use(cors({
-  origin: function (origin, callback) {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
-  credentials: true
-}));
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }),
+);
 
 app.use(cookieParser());
 app.use(compression());
 // app.use(morgan('dev'));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
 
 // const limiter = rateLimit({
 //   windowMs: 15 * 60 * 1000,
@@ -152,58 +156,58 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/users', userRoutes);
-app.use('/api/v1/categories', categoryRoutes);
-app.use('/api/v1/courses', courseRoutes);
+app.use("/api/v1/auth", authRoutes);
+app.use("/api/v1/users", userRoutes);
+app.use("/api/v1/categories", categoryRoutes);
+app.use("/api/v1/courses", courseRoutes);
 app.use("/api/v1/upload", uploadRoutes);
-app.use('/api/v1/page', pageRoutes);
-app.use('/api/v1/entities', entityRoutes);
-app.use('/api/v1/content', contentRoutes);
-app.use('/api/v1/modules', moduleRoutes);
-app.use('/api/v1/promo-codes', promoRoutes);
-app.use('/api/v1/wallet', walletRoutes);
-app.use('/api/v1/payments', paymentRoutes);
-app.use('/api/v1/purchase', purchaseRoutes);
-app.use('/api/v1/leads', leadRoutes)
-app.use('/api/v1/live', vimeoRoutes);
-app.use('/api/v1/test', testRoutes);
-app.use('/api/v1/web', webRoutes);
-app.use('/api/v1/support', supportRoutes);
-app.use('/api/v1/mcu', mcuRoutes);
-app.use('/api', aiRoutes);
-app.use('/api/v1/json', jsonRoutes);
-app.use('/api/v1/Banner',bannerRoutes);
-app.use('/api/v1/notification', notificationRoutes);
-app.use('/api/v1/feedback',feedbackRoutes)
+app.use("/api/v1/page", pageRoutes);
+app.use("/api/v1/entities", entityRoutes);
+app.use("/api/v1/content", contentRoutes);
+app.use("/api/v1/modules", moduleRoutes);
+app.use("/api/v1/promo-codes", promoRoutes);
+app.use("/api/v1/wallet", walletRoutes);
+app.use("/api/v1/payments", paymentRoutes);
+app.use("/api/v1/purchase", purchaseRoutes);
+app.use("/api/v1/leads", leadRoutes);
+app.use("/api/v1/live", vimeoRoutes);
+app.use("/api/v1/test", testRoutes);
+app.use("/api/v1/web", webRoutes);
+app.use("/api/v1/support", supportRoutes);
+app.use("/api/v1/mcu", mcuRoutes);
+app.use("/api", aiRoutes);
+app.use("/api/v1/json", jsonRoutes);
+app.use("/api/v1/Banner", bannerRoutes);
+app.use("/api/v1/notification", notificationRoutes);
+app.use("/api/v1/feedback", feedbackRoutes);
 app.use("/api/v1/ielts", ieltsRoutes);
 
 // app.use('/api/v1/tokens', tokenRoutes);
 // app.use('/api/v1/notifications', notificationRoutes);
-app.get('/api/v1/teacher/dashboard',protect,getTeacherDashboard );
+app.get("/api/v1/teacher/dashboard", protect, getTeacherDashboard);
+app.get("/api/v1/admin/dashboard", protect, getAdminDashboard);
 
-app.get('/api/health', (req, res) => {
+app.get("/api/health", (req, res) => {
   res.status(200).json({
-    status: 'OK',
-    message: 'API is running',
+    status: "OK",
+    message: "API is running",
     timestamp: new Date().toISOString(),
   });
 });
 
-io.on('connection', (socket) => {
-  socket.on('joinClass', (joinData) => {
+io.on("connection", (socket) => {
+  socket.on("joinClass", (joinData) => {
     chatController.handleJoinClass(socket, io, joinData);
   });
 
-  socket.on('message', chatController.handleMessage(socket, io));
+  socket.on("message", chatController.handleMessage(socket, io));
 
-  socket.on('typing', chatController.handleTyping(socket));
+  socket.on("typing", chatController.handleTyping(socket));
 
-  socket.on('adminAction', chatController.handleAdminAction(socket, io));
+  socket.on("adminAction", chatController.handleAdminAction(socket, io));
 
-  socket.on('disconnect', chatController.handleDisconnect(socket, io));
+  socket.on("disconnect", chatController.handleDisconnect(socket, io));
 });
-
 
 app.use(notFound);
 app.use(errorHandler);
@@ -232,6 +236,5 @@ const API_KEY = "cHJha2FzaGphbmdpcjQyOUBnbWFpbC5jb20:rSpaFaKcjrurOvxr6v-UH";
 //   }
 // }
 // checkStatus("tlk_ztnmVb4rSWkdRX8ehXrAG")
-
 
 export default app;

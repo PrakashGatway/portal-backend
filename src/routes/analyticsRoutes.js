@@ -1,10 +1,16 @@
 import mongoose from "mongoose";
-
 import User from "../models/User.js";
 import Course from "../models/Course.js";
 import Module from "../models/Modules.js";
 import PurchasedCourse from "../models/PurchasedCourse.js";
-import Transaction from "../models/Payment.js";
+import asyncHandler from '../middleware/async.js';
+
+import Payment from "../models/Payment.js";
+import { Lead } from "../models/Leads.js";
+import { SupportTicket } from "../models/Support.js";
+import { Notification } from "../models/Notification.js";
+import { TestAttempt } from "../models/GGSschema/attemptSchema.js";
+import IELTSAttempt from "../models/ielts/ieltsAttempt.js";
 
 import {
   Content,
@@ -22,7 +28,6 @@ const { ObjectId } = mongoose;
 export const getTeacherDashboard = async (req, res, next) => {
   try {
     const teacherId = req.user._id;
-
 
     const teacherObjectId = new mongoose.Types.ObjectId(teacherId);
 
@@ -43,13 +48,14 @@ export const getTeacherDashboard = async (req, res, next) => {
     if (!fromDate) {
       const period = req.query.period || "30d";
 
-      const days = {
-        "7d": 7,
-        "30d": 30,
-        "90d": 90,
-        "6m": 180,
-        "1y": 365,
-      }[period] || 30;
+      const days =
+        {
+          "7d": 7,
+          "30d": 30,
+          "90d": 90,
+          "6m": 180,
+          "1y": 365,
+        }[period] || 30;
 
       fromDate = new Date(now);
       fromDate.setDate(fromDate.getDate() - days);
@@ -143,7 +149,7 @@ export const getTeacherDashboard = async (req, res, next) => {
     if (!courseIds.length) {
       const teacher = await User.findById(teacherObjectId)
         .select(
-          "name email phoneNumber profilePic profile skills education experience achievements lastActive isVerified"
+          "name email phoneNumber profilePic profile skills education experience achievements lastActive isVerified",
         )
         .lean();
 
@@ -211,7 +217,7 @@ export const getTeacherDashboard = async (req, res, next) => {
 
       upcomingClasses,
 
-      recentContent
+      recentContent,
     ] = await Promise.all([
       /* =======================================================
          TEACHER
@@ -219,7 +225,7 @@ export const getTeacherDashboard = async (req, res, next) => {
 
       User.findById(teacherObjectId)
         .select(
-          "name email phoneNumber profilePic profile skills education experience achievements lastActive isVerified isActive"
+          "name email phoneNumber profilePic profile skills education experience achievements lastActive isVerified isActive",
         )
         .lean(),
 
@@ -321,8 +327,7 @@ export const getTeacherDashboard = async (req, res, next) => {
 
       getRecentContent({
         courseIds,
-      })
-
+      }),
     ]);
 
     /* ---------------------------------------------------------
@@ -400,21 +405,12 @@ export const getTeacherDashboard = async (req, res, next) => {
   }
 };
 
-
 /* =============================================================
    SUMMARY
 ============================================================= */
 
-const getTeacherSummary = async ({
-  courseIds,
-  fromDate,
-  toDate,
-}) => {
-  const [
-    enrollmentStats,
-    contentStats,
-    ratingStats,
-  ] = await Promise.all([
+const getTeacherSummary = async ({ courseIds, fromDate, toDate }) => {
+  const [enrollmentStats, contentStats, ratingStats] = await Promise.all([
     PurchasedCourse.aggregate([
       {
         $match: {
@@ -572,24 +568,17 @@ const getTeacherSummary = async ({
 
     publishedContent: content.published?.[0]?.count || 0,
 
-    averageRating: Number(
-      (ratings.averageRating || 0).toFixed(2)
-    ),
+    averageRating: Number((ratings.averageRating || 0).toFixed(2)),
 
     totalReviews: ratings.totalReviews || 0,
   };
 };
 
-
 /* =============================================================
    COURSE ANALYTICS
 ============================================================= */
 
-const getCourseAnalytics = async ({
-  courseIds,
-  fromDate,
-  toDate,
-}) => {
+const getCourseAnalytics = async ({ courseIds, fromDate, toDate }) => {
   return Course.aggregate([
     {
       $match: {
@@ -629,11 +618,7 @@ const getCourseAnalytics = async ({
 
               activeStudents: {
                 $sum: {
-                  $cond: [
-                    { $eq: ["$isActive", true] },
-                    1,
-                    0,
-                  ],
+                  $cond: [{ $eq: ["$isActive", true] }, 1, 0],
                 },
               },
               newStudents: {
@@ -642,16 +627,10 @@ const getCourseAnalytics = async ({
                     {
                       $and: [
                         {
-                          $gte: [
-                            "$enrolledAt",
-                            fromDate,
-                          ],
+                          $gte: ["$enrolledAt", fromDate],
                         },
                         {
-                          $lte: [
-                            "$enrolledAt",
-                            toDate,
-                          ],
+                          $lte: ["$enrolledAt", toDate],
                         },
                       ],
                     },
@@ -727,10 +706,7 @@ const getCourseAnalytics = async ({
           {
             $match: {
               $expr: {
-                $eq: [
-                  "$video.course",
-                  "$$courseId",
-                ],
+                $eq: ["$video.course", "$$courseId"],
               },
               type: "rate_video",
               rating: {
@@ -805,10 +781,7 @@ const getCourseAnalytics = async ({
         enrollmentCompletionRate: {
           $cond: [
             {
-              $gt: [
-                "$enrollment.totalStudents",
-                0,
-              ],
+              $gt: ["$enrollment.totalStudents", 0],
             },
             {
               $multiply: [
@@ -838,11 +811,7 @@ const getCourseAnalytics = async ({
    CONTENT ANALYTICS
 ============================================================= */
 
-const getContentAnalytics = async ({
-  courseIds,
-  fromDate,
-  toDate,
-}) => {
+const getContentAnalytics = async ({ courseIds, fromDate, toDate }) => {
   return Content.aggregate([
     {
       $match: {
@@ -867,10 +836,7 @@ const getContentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $eq: [
-                        "$status",
-                        "published",
-                      ],
+                      $eq: ["$status", "published"],
                     },
                     1,
                     0,
@@ -882,10 +848,7 @@ const getContentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $eq: [
-                        "$status",
-                        "draft",
-                      ],
+                      $eq: ["$status", "draft"],
                     },
                     1,
                     0,
@@ -897,10 +860,7 @@ const getContentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $eq: [
-                        "$status",
-                        "archived",
-                      ],
+                      $eq: ["$status", "archived"],
                     },
                     1,
                     0,
@@ -912,10 +872,7 @@ const getContentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $eq: [
-                        "$status",
-                        "scheduled",
-                      ],
+                      $eq: ["$status", "scheduled"],
                     },
                     1,
                     0,
@@ -937,10 +894,7 @@ const getContentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $eq: [
-                        "$status",
-                        "published",
-                      ],
+                      $eq: ["$status", "published"],
                     },
                     1,
                     0,
@@ -993,16 +947,11 @@ const getContentAnalytics = async ({
   ]);
 };
 
-
 /* =============================================================
    LIVE CLASS ANALYTICS
 ============================================================= */
 
-const getLiveClassAnalytics = async ({
-  courseIds,
-  fromDate,
-  toDate,
-}) => {
+const getLiveClassAnalytics = async ({ courseIds, fromDate, toDate }) => {
   const result = await LiveClass.aggregate([
     {
       $match: {
@@ -1029,16 +978,10 @@ const getLiveClassAnalytics = async ({
                     {
                       $and: [
                         {
-                          $ne: [
-                            "$actualStart",
-                            null,
-                          ],
+                          $ne: ["$actualStart", null],
                         },
                         {
-                          $ne: [
-                            "$actualEnd",
-                            null,
-                          ],
+                          $ne: ["$actualEnd", null],
                         },
                       ],
                     },
@@ -1052,10 +995,7 @@ const getLiveClassAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $gt: [
-                        "$scheduledStart",
-                        new Date(),
-                      ],
+                      $gt: ["$scheduledStart", new Date()],
                     },
                     1,
                     0,
@@ -1067,10 +1007,7 @@ const getLiveClassAnalytics = async ({
                 $sum: {
                   $divide: [
                     {
-                      $subtract: [
-                        "$scheduledEnd",
-                        "$scheduledStart",
-                      ],
+                      $subtract: ["$scheduledEnd", "$scheduledStart"],
                     },
                     60000,
                   ],
@@ -1083,26 +1020,17 @@ const getLiveClassAnalytics = async ({
                     {
                       $and: [
                         {
-                          $ne: [
-                            "$actualStart",
-                            null,
-                          ],
+                          $ne: ["$actualStart", null],
                         },
                         {
-                          $ne: [
-                            "$actualEnd",
-                            null,
-                          ],
+                          $ne: ["$actualEnd", null],
                         },
                       ],
                     },
                     {
                       $divide: [
                         {
-                          $subtract: [
-                            "$actualEnd",
-                            "$actualStart",
-                          ],
+                          $subtract: ["$actualEnd", "$actualStart"],
                         },
                         60000,
                       ],
@@ -1163,14 +1091,11 @@ const getLiveClassAnalytics = async ({
   };
 };
 
-
 /* =============================================================
    RECORDED CLASS ANALYTICS
 ============================================================= */
 
-const getRecordedAnalytics = async ({
-  courseIds,
-}) => {
+const getRecordedAnalytics = async ({ courseIds }) => {
   const result = await RecordedClass.aggregate([
     {
       $match: {
@@ -1190,37 +1115,25 @@ const getRecordedAnalytics = async ({
 
         totalViews: {
           $sum: {
-            $ifNull: [
-              "$analytics.views",
-              0,
-            ],
+            $ifNull: ["$analytics.views", 0],
           },
         },
 
         totalLikes: {
           $sum: {
-            $ifNull: [
-              "$analytics.likes",
-              0,
-            ],
+            $ifNull: ["$analytics.likes", 0],
           },
         },
 
         averageWatchTime: {
           $avg: {
-            $ifNull: [
-              "$analytics.averageWatchTime",
-              0,
-            ],
+            $ifNull: ["$analytics.averageWatchTime", 0],
           },
         },
 
         totalVideoDuration: {
           $sum: {
-            $ifNull: [
-              "$video.duration",
-              0,
-            ],
+            $ifNull: ["$video.duration", 0],
           },
         },
       },
@@ -1271,28 +1184,16 @@ const getRecordedAnalytics = async ({
           title: "$course.title",
         },
         views: {
-          $ifNull: [
-            "$analytics.views",
-            0,
-          ],
+          $ifNull: ["$analytics.views", 0],
         },
         likes: {
-          $ifNull: [
-            "$analytics.likes",
-            0,
-          ],
+          $ifNull: ["$analytics.likes", 0],
         },
         averageWatchTime: {
-          $ifNull: [
-            "$analytics.averageWatchTime",
-            0,
-          ],
+          $ifNull: ["$analytics.averageWatchTime", 0],
         },
         duration: {
-          $ifNull: [
-            "$video.duration",
-            0,
-          ],
+          $ifNull: ["$video.duration", 0],
         },
       },
     },
@@ -1311,14 +1212,11 @@ const getRecordedAnalytics = async ({
   };
 };
 
-
 /* =============================================================
    MODULE ANALYTICS
 ============================================================= */
 
-const getModuleAnalytics = async ({
-  courseIds,
-}) => {
+const getModuleAnalytics = async ({ courseIds }) => {
   return Module.aggregate([
     {
       $match: {
@@ -1347,11 +1245,7 @@ const getModuleAnalytics = async ({
 
         publishedModules: {
           $sum: {
-            $cond: [
-              "$isPublished",
-              1,
-              0,
-            ],
+            $cond: ["$isPublished", 1, 0],
           },
         },
 
@@ -1397,16 +1291,11 @@ const getModuleAnalytics = async ({
   ]);
 };
 
-
 /* =============================================================
    FEEDBACK ANALYTICS
 ============================================================= */
 
-const getFeedbackAnalytics = async ({
-  courseIds,
-  fromDate,
-  toDate,
-}) => {
+const getFeedbackAnalytics = async ({ courseIds, fromDate, toDate }) => {
   const result = await Feedback.aggregate([
     {
       $lookup: {
@@ -1444,10 +1333,7 @@ const getFeedbackAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $ne: [
-                        "$rating",
-                        null,
-                      ],
+                      $ne: ["$rating", null],
                     },
                     1,
                     0,
@@ -1463,10 +1349,7 @@ const getFeedbackAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $eq: [
-                        "$type",
-                        "report_issue",
-                      ],
+                      $eq: ["$type", "report_issue"],
                     },
                     1,
                     0,
@@ -1478,10 +1361,7 @@ const getFeedbackAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $eq: [
-                        "$severity",
-                        "high",
-                      ],
+                      $eq: ["$severity", "high"],
                     },
                     1,
                     0,
@@ -1587,27 +1467,19 @@ const getFeedbackAnalytics = async ({
       highSeverityIssues: 0,
     },
 
-    ratingDistribution:
-      result[0]?.ratingDistribution || [],
+    ratingDistribution: result[0]?.ratingDistribution || [],
 
-    issueTypes:
-      result[0]?.issueTypes || [],
+    issueTypes: result[0]?.issueTypes || [],
 
-    recent:
-      result[0]?.recent || [],
+    recent: result[0]?.recent || [],
   };
 };
-
 
 /* =============================================================
    STUDENT ANALYTICS
 ============================================================= */
 
-const getStudentAnalytics = async ({
-  courseIds,
-  fromDate,
-  toDate,
-}) => {
+const getStudentAnalytics = async ({ courseIds, fromDate, toDate }) => {
   const result = await PurchasedCourse.aggregate([
     {
       $match: {
@@ -1631,21 +1503,13 @@ const getStudentAnalytics = async ({
 
               activeStudents: {
                 $sum: {
-                  $cond: [
-                    "$isActive",
-                    1,
-                    0,
-                  ],
+                  $cond: ["$isActive", 1, 0],
                 },
               },
 
               completedStudents: {
                 $sum: {
-                  $cond: [
-                    "$isCompleted",
-                    1,
-                    0,
-                  ],
+                  $cond: ["$isCompleted", 1, 0],
                 },
               },
 
@@ -1661,10 +1525,7 @@ const getStudentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $gte: [
-                        "$percentage",
-                        80,
-                      ],
+                      $gte: ["$percentage", 80],
                     },
                     1,
                     0,
@@ -1676,10 +1537,7 @@ const getStudentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $lt: [
-                        "$percentage",
-                        20,
-                      ],
+                      $lt: ["$percentage", 20],
                     },
                     1,
                     0,
@@ -1691,10 +1549,7 @@ const getStudentAnalytics = async ({
                 $sum: {
                   $cond: [
                     {
-                      $gte: [
-                        "$lastAccessedAt",
-                        fromDate,
-                      ],
+                      $gte: ["$lastAccessedAt", fromDate],
                     },
                     1,
                     0,
@@ -1709,14 +1564,7 @@ const getStudentAnalytics = async ({
           {
             $bucket: {
               groupBy: "$percentage",
-              boundaries: [
-                0,
-                20,
-                40,
-                60,
-                80,
-                101,
-              ],
+              boundaries: [0, 20, 40, 60, 80, 101],
               default: "unknown",
               output: {
                 students: {
@@ -1777,22 +1625,17 @@ const getStudentAnalytics = async ({
       recentlyActive: 0,
     },
 
-    progressDistribution:
-      result[0]?.progressDistribution || [],
+    progressDistribution: result[0]?.progressDistribution || [],
 
-    activityTrend:
-      result[0]?.activityTrend || [],
+    activityTrend: result[0]?.activityTrend || [],
   };
 };
-
 
 /* =============================================================
    RECENT ENROLLMENTS
 ============================================================= */
 
-const getRecentEnrollments = async ({
-  courseIds,
-}) => {
+const getRecentEnrollments = async ({ courseIds }) => {
   return PurchasedCourse.aggregate([
     {
       $match: {
@@ -1877,9 +1720,7 @@ const getRecentEnrollments = async ({
    UPCOMING CLASSES
 ============================================================= */
 
-const getUpcomingClasses = async ({
-  courseIds,
-}) => {
+const getUpcomingClasses = async ({ courseIds }) => {
   const now = new Date();
 
   return LiveClass.aggregate([
@@ -1948,14 +1789,11 @@ const getUpcomingClasses = async ({
   ]);
 };
 
-
 /* =============================================================
    RECENT CONTENT
 ============================================================= */
 
-const getRecentContent = async ({
-  courseIds,
-}) => {
+const getRecentContent = async ({ courseIds }) => {
   return Content.aggregate([
     {
       $match: {
@@ -2031,39 +1869,29 @@ const generateTeacherInsights = ({
 }) => {
   const insights = [];
 
-  const averageProgress =
-    studentAnalytics?.overview?.averageProgress || 0;
+  const averageProgress = studentAnalytics?.overview?.averageProgress || 0;
 
-  const averageRating =
-    summary?.averageRating || 0;
+  const averageRating = summary?.averageRating || 0;
 
-  const totalStudents =
-    summary?.totalStudents || 0;
+  const totalStudents = summary?.totalStudents || 0;
 
-  const activeStudents =
-    summary?.activeStudents || 0;
+  const activeStudents = summary?.activeStudents || 0;
 
-  const published =
-    summary?.publishedContent || 0;
+  const published = summary?.publishedContent || 0;
 
-  const totalContent =
-    summary?.totalContent || 0;
+  const totalContent = summary?.totalContent || 0;
 
   /* -----------------------------------------------------------
      STUDENT ENGAGEMENT
   ----------------------------------------------------------- */
 
-  if (
-    totalStudents > 0 &&
-    activeStudents / totalStudents < 0.4
-  ) {
+  if (totalStudents > 0 && activeStudents / totalStudents < 0.4) {
     insights.push({
       type: "warning",
       category: "engagement",
       priority: "high",
       title: "Student engagement is low",
-      message:
-        "Less than 40% of enrolled students are currently active.",
+      message: "Less than 40% of enrolled students are currently active.",
       action:
         "Consider sending reminders, assignments or live-session notifications.",
     });
@@ -2079,9 +1907,7 @@ const generateTeacherInsights = ({
       category: "progress",
       priority: "high",
       title: "Low average course progress",
-      message: `Average student progress is ${averageProgress.toFixed(
-        1
-      )}%.`,
+      message: `Average student progress is ${averageProgress.toFixed(1)}%.`,
       action:
         "Review module difficulty and increase student engagement activities.",
     });
@@ -2093,11 +1919,8 @@ const generateTeacherInsights = ({
       category: "progress",
       priority: "medium",
       title: "Students are progressing well",
-      message: `Average course progress is ${averageProgress.toFixed(
-        1
-      )}%.`,
-      action:
-        "Continue the current teaching strategy.",
+      message: `Average course progress is ${averageProgress.toFixed(1)}%.`,
+      action: "Continue the current teaching strategy.",
     });
   }
 
@@ -2105,19 +1928,14 @@ const generateTeacherInsights = ({
      CONTENT
   ----------------------------------------------------------- */
 
-  if (
-    totalContent > 0 &&
-    published / totalContent < 0.6
-  ) {
+  if (totalContent > 0 && published / totalContent < 0.6) {
     insights.push({
       type: "warning",
       category: "content",
       priority: "medium",
       title: "Content publishing gap",
-      message:
-        "A significant portion of your course content is not published.",
-      action:
-        "Review draft and scheduled content before the next class.",
+      message: "A significant portion of your course content is not published.",
+      action: "Review draft and scheduled content before the next class.",
     });
   }
 
@@ -2125,37 +1943,25 @@ const generateTeacherInsights = ({
      RATING
   ----------------------------------------------------------- */
 
-  if (
-    summary.totalReviews >= 5 &&
-    averageRating < 3.5
-  ) {
+  if (summary.totalReviews >= 5 && averageRating < 3.5) {
     insights.push({
       type: "warning",
       category: "quality",
       priority: "high",
       title: "Course rating needs attention",
-      message: `Average learner rating is ${averageRating.toFixed(
-        1
-      )}/5.`,
-      action:
-        "Review recent feedback and identify recurring issues.",
+      message: `Average learner rating is ${averageRating.toFixed(1)}/5.`,
+      action: "Review recent feedback and identify recurring issues.",
     });
   }
 
-  if (
-    summary.totalReviews >= 5 &&
-    averageRating >= 4.5
-  ) {
+  if (summary.totalReviews >= 5 && averageRating >= 4.5) {
     insights.push({
       type: "success",
       category: "quality",
       priority: "medium",
       title: "Excellent learner satisfaction",
-      message: `Average learner rating is ${averageRating.toFixed(
-        1
-      )}/5.`,
-      action:
-        "Continue using the current teaching and content strategy.",
+      message: `Average learner rating is ${averageRating.toFixed(1)}/5.`,
+      action: "Continue using the current teaching and content strategy.",
     });
   }
 
@@ -2172,10 +1978,8 @@ const generateTeacherInsights = ({
       category: "video",
       priority: "medium",
       title: "Recorded content has low visibility",
-      message:
-        "Your recorded classes have not generated meaningful views yet.",
-      action:
-        "Promote recorded lessons through course announcements.",
+      message: "Your recorded classes have not generated meaningful views yet.",
+      action: "Promote recorded lessons through course announcements.",
     });
   }
 
@@ -2183,9 +1987,7 @@ const generateTeacherInsights = ({
      LIVE CLASSES
   ----------------------------------------------------------- */
 
-  if (
-    liveClassAnalytics?.summary?.upcoming > 0
-  ) {
+  if (liveClassAnalytics?.summary?.upcoming > 0) {
     insights.push({
       type: "info",
       category: "live_classes",
@@ -2204,9 +2006,7 @@ const generateTeacherInsights = ({
   if (courseAnalytics?.length) {
     const topCourse = courseAnalytics[0];
 
-    if (
-      topCourse?.enrollment?.totalStudents > 0
-    ) {
+    if (topCourse?.enrollment?.totalStudents > 0) {
       insights.push({
         type: "success",
         category: "course",
@@ -2221,7 +2021,6 @@ const generateTeacherInsights = ({
   return insights;
 };
 
-
 /* =============================================================
    HELPER
 ============================================================= */
@@ -2232,5 +2031,547 @@ const courseMatch = (courseIds) => ({
   },
 });
 
-
 export default getTeacherDashboard;
+
+const getStartDate = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  return date;
+};
+
+const getPreviousStartDate = (days) => {
+  const date = new Date();
+  date.setDate(date.getDate() - days * 2);
+  return date;
+};
+
+const getPercentageChange = (current, previous) => {
+  if (!previous) {
+    return current > 0 ? 100 : 0;
+  }
+
+  return Number((((current - previous) / previous) * 100).toFixed(2));
+};
+
+const getAmount = (payment) => {
+  return (
+    payment.amount ??
+    payment.totalAmount ??
+    payment.paidAmount ??
+    payment.finalAmount ??
+    payment.price ??
+    payment.total ??
+    0
+  );
+};
+
+export const getAdminDashboard = asyncHandler(async (req, res) => {
+  const days = Math.min(Math.max(Number(req.query.days) || 30, 7), 365);
+
+  const startDate = getStartDate(days);
+  const previousStartDate = getPreviousStartDate(days);
+
+  const now = new Date();
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  /*
+   * -------------------------------------------------------
+   * BASIC COUNTS
+   * -------------------------------------------------------
+   */
+
+  const [
+    totalUsers,
+    totalCourses,
+    totalPurchases,
+    totalPayments,
+    totalNotifications,
+    totalTestAttempts,
+    totalIELTSAttempts,
+  ] = await Promise.all([
+    User.countDocuments(),
+
+    Course.countDocuments(),
+
+    PurchasedCourse.countDocuments(),
+
+    Payment.countDocuments(),
+
+    Notification.countDocuments(),
+
+    TestAttempt.countDocuments(),
+
+    IELTSAttempt.countDocuments(),
+  ]);
+
+  /*
+   * -------------------------------------------------------
+   * USER STATISTICS
+   * -------------------------------------------------------
+   */
+
+  const [newUsersToday, newUsersPeriod, newUsersPreviousPeriod] =
+    await Promise.all([
+      User.countDocuments({
+        createdAt: {
+          $gte: startOfToday,
+        },
+      }),
+
+      User.countDocuments({
+        createdAt: {
+          $gte: startDate,
+        },
+      }),
+
+      User.countDocuments({
+        createdAt: {
+          $gte: previousStartDate,
+          $lt: startDate,
+        },
+      }),
+    ]);
+
+  const userGrowth = getPercentageChange(
+    newUsersPeriod,
+    newUsersPreviousPeriod,
+  );
+
+  /*
+   * -------------------------------------------------------
+   * COURSE STATISTICS
+   * -------------------------------------------------------
+   */
+
+  const publishedCourses = await Course.countDocuments({
+    $or: [{ isPublished: true }, { published: true }, { status: "published" }],
+  });
+
+  /*
+   * -------------------------------------------------------
+   * PAYMENT / REVENUE
+   * -------------------------------------------------------
+   */
+
+  const successfulPaymentFilter = {
+    $or: [
+      { status: "success" },
+      { status: "successful" },
+      { status: "completed" },
+      { paymentStatus: "success" },
+      { paymentStatus: "successful" },
+      { paymentStatus: "completed" },
+    ],
+  };
+
+  const [
+    successfulPayments,
+    monthPayments,
+    todayPayments,
+    periodPayments,
+    previousPeriodPayments,
+  ] = await Promise.all([
+    Payment.find(successfulPaymentFilter)
+      .select("amount totalAmount paidAmount finalAmount price total")
+      .lean(),
+
+    Payment.find({
+      ...successfulPaymentFilter,
+      createdAt: {
+        $gte: startOfMonth,
+      },
+    })
+      .select("amount totalAmount paidAmount finalAmount price total")
+      .lean(),
+
+    Payment.find({
+      ...successfulPaymentFilter,
+      createdAt: {
+        $gte: startOfToday,
+      },
+    })
+      .select("amount totalAmount paidAmount finalAmount price total")
+      .lean(),
+
+    Payment.find({
+      ...successfulPaymentFilter,
+      createdAt: {
+        $gte: startDate,
+      },
+    })
+      .select("amount totalAmount paidAmount finalAmount price total")
+      .lean(),
+
+    Payment.find({
+      ...successfulPaymentFilter,
+      createdAt: {
+        $gte: previousStartDate,
+        $lt: startDate,
+      },
+    })
+      .select("amount totalAmount paidAmount finalAmount price total")
+      .lean(),
+  ]);
+
+  const totalRevenue = successfulPayments.reduce(
+    (sum, payment) => sum + getAmount(payment),
+    0,
+  );
+
+  const monthRevenue = monthPayments.reduce(
+    (sum, payment) => sum + getAmount(payment),
+    0,
+  );
+
+  const todayRevenue = todayPayments.reduce(
+    (sum, payment) => sum + getAmount(payment),
+    0,
+  );
+
+  const periodRevenue = periodPayments.reduce(
+    (sum, payment) => sum + getAmount(payment),
+    0,
+  );
+
+  const previousPeriodRevenue = previousPeriodPayments.reduce(
+    (sum, payment) => sum + getAmount(payment),
+    0,
+  );
+
+  const revenueGrowth = getPercentageChange(
+    periodRevenue,
+    previousPeriodRevenue,
+  );
+
+  /*
+   * -------------------------------------------------------
+   * PURCHASE STATISTICS
+   * -------------------------------------------------------
+   */
+
+  const [purchasesPeriod, purchasesPreviousPeriod] = await Promise.all([
+    PurchasedCourse.countDocuments({
+      createdAt: {
+        $gte: startDate,
+      },
+    }),
+
+    PurchasedCourse.countDocuments({
+      createdAt: {
+        $gte: previousStartDate,
+        $lt: startDate,
+      },
+    }),
+  ]);
+
+  const purchaseGrowth = getPercentageChange(
+    purchasesPeriod,
+    purchasesPreviousPeriod,
+  );
+
+
+  /*
+   * -------------------------------------------------------
+   * SUPPORT
+   * -------------------------------------------------------
+   */
+
+  const openSupportTickets = await SupportTicket.countDocuments({
+    $or: [
+      { status: "open" },
+      { status: "pending" },
+      { status: "Open" },
+      { status: "Pending" },
+    ],
+  });
+
+  /*
+   * -------------------------------------------------------
+   * PAYMENT STATUS
+   * -------------------------------------------------------
+   */
+
+  const [pendingPayments, failedPayments] = await Promise.all([
+    Payment.countDocuments({
+      $or: [{ status: "pending" }, { paymentStatus: "pending" }],
+    }),
+
+    Payment.countDocuments({
+      $or: [{ status: "failed" }, { paymentStatus: "failed" }],
+    }),
+  ]);
+
+  /*
+   * -------------------------------------------------------
+   * RECENT USERS
+   * -------------------------------------------------------
+   */
+
+  const recentUsers = await User.find()
+    .sort({ createdAt: -1 })
+    .limit(8)
+    .select("_id name email avatar profileImage createdAt role")
+    .lean();
+
+  /*
+   * -------------------------------------------------------
+   * RECENT PAYMENTS
+   * -------------------------------------------------------
+   */
+
+  const recentPayments = await Payment.find()
+    .sort({ createdAt: -1 })
+    .limit(8)
+    .select(
+      "_id user amount totalAmount paidAmount finalAmount price status paymentStatus createdAt",
+    )
+    .populate("user", "name email")
+    .lean();
+
+  /*
+   * -------------------------------------------------------
+   * RECENT PURCHASES
+   * -------------------------------------------------------
+   */
+
+  const recentPurchases = await PurchasedCourse.find()
+    .sort({ createdAt: -1 })
+    .limit(8)
+    .populate("user", "name email")
+    .populate("itemType", "title name thumbnail image")
+    .lean();
+
+  /*
+   * -------------------------------------------------------
+   * RECENT SUPPORT REQUESTS
+   * -------------------------------------------------------
+   */
+
+  const recentSupport = await SupportTicket.find()
+    .sort({ createdAt: -1 })
+    .limit(8)
+    .lean();
+
+  /*
+   * -------------------------------------------------------
+   * MONTHLY USER GROWTH
+   * -------------------------------------------------------
+   */
+
+  const userGrowthChart = await User.aggregate([
+    {
+      $match: {
+        createdAt: {
+          $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+        },
+      },
+    },
+
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+
+    {
+      $sort: {
+        "_id.year": 1,
+        "_id.month": 1,
+      },
+    },
+  ]);
+
+  /*
+   * -------------------------------------------------------
+   * MONTHLY PURCHASE GROWTH
+   * -------------------------------------------------------
+   */
+
+  const purchaseGrowthChart = await PurchasedCourse.aggregate([
+    {
+      $match: {
+        createdAt: {
+          $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+        },
+      },
+    },
+
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+
+        count: {
+          $sum: 1,
+        },
+      },
+    },
+
+    {
+      $sort: {
+        "_id.year": 1,
+        "_id.month": 1,
+      },
+    },
+  ]);
+
+  /*
+   * -------------------------------------------------------
+   * MONTHLY REVENUE
+   * -------------------------------------------------------
+   */
+
+  const revenueChart = await Payment.aggregate([
+    {
+      $match: {
+        ...successfulPaymentFilter,
+        createdAt: {
+          $gte: new Date(now.getFullYear(), now.getMonth() - 5, 1),
+        },
+      },
+    },
+
+    {
+      $group: {
+        _id: {
+          year: { $year: "$createdAt" },
+          month: { $month: "$createdAt" },
+        },
+
+        revenue: {
+          $sum: {
+            $ifNull: [
+              "$amount",
+              {
+                $ifNull: [
+                  "$totalAmount",
+                  {
+                    $ifNull: [
+                      "$paidAmount",
+                      {
+                        $ifNull: [
+                          "$finalAmount",
+                          {
+                            $ifNull: ["$price", "$total"],
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        },
+      },
+    },
+
+    {
+      $sort: {
+        "_id.year": 1,
+        "_id.month": 1,
+      },
+    },
+  ]);
+
+  /*
+   * -------------------------------------------------------
+   * RESPONSE
+   * -------------------------------------------------------
+   */
+
+  return res.status(200).json({
+    success: true,
+
+    message: "Admin dashboard fetched successfully",
+
+    data: {
+      period: {
+        days,
+        startDate,
+        endDate: now,
+      },
+
+      overview: {
+        users: {
+          total: totalUsers,
+          today: newUsersToday,
+          period: newUsersPeriod,
+          growth: userGrowth,
+        },
+
+        revenue: {
+          total: totalRevenue,
+          today: todayRevenue,
+          month: monthRevenue,
+          period: periodRevenue,
+          growth: revenueGrowth,
+        },
+
+        courses: {
+          total: totalCourses,
+          published: publishedCourses,
+        },
+
+        purchases: {
+          total: totalPurchases,
+          period: purchasesPeriod,
+          growth: purchaseGrowth,
+        },
+      },
+
+      stats: {
+        payments: {
+          total: totalPayments,
+          pending: pendingPayments,
+          failed: failedPayments,
+          successful: successfulPayments.length,
+        },
+
+        tests: {
+          totalAttempts: totalTestAttempts,
+          ieltsAttempts: totalIELTSAttempts,
+        },
+
+        support: {
+          open: openSupportTickets,
+        },
+
+        notifications: {
+          total: totalNotifications,
+        },
+      },
+
+      charts: {
+        userGrowth: userGrowthChart,
+
+        purchaseGrowth: purchaseGrowthChart,
+
+        revenue: revenueChart,
+      },
+
+      recent: {
+        users: recentUsers,
+
+        payments: recentPayments,
+
+        purchases: recentPurchases,
+
+        support: recentSupport,
+      },
+    },
+  });
+});
