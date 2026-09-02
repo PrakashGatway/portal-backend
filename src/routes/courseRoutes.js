@@ -34,10 +34,10 @@ router.route('/curriculum/:courseId')
   .get(protect, ensureCoursePurchase, getCourseCurriculum);
 
 router.route('/')
-  .post(protect, authorize('admin'), createCourse);
+  .post(protect, authorize('admin',"teacher"), createCourse);
 
 router.route('/:id')
-  .put(protect, authorize('admin'), updateCourse)
+  .put(protect, authorize('admin',"teacher"), updateCourse)
   .delete(protect, authorize('admin'), deleteCourse);
 
 export default router;

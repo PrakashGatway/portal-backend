@@ -8,14 +8,7 @@ const { Types } = mongoose;
 
 // Helper: build filter object from query params
 const buildQuestionMatch = (query) => {
-  const {
-    examId,
-    sectionId,
-    questionType,
-    difficulty,
-    tag,
-    search,
-  } = query;
+  const { examId, sectionId, questionType, difficulty, tag, search } = query;
 
   const match = {};
 
@@ -29,17 +22,23 @@ const buildQuestionMatch = (query) => {
 
   if (questionType) {
     // support multiple comma-separated types
-    const types = String(questionType).split(",").map((t) => t.trim());
+    const types = String(questionType)
+      .split(",")
+      .map((t) => t.trim());
     match.questionType = { $in: types };
   }
 
   if (difficulty) {
-    const diff = String(difficulty).split(",").map((d) => d.trim());
+    const diff = String(difficulty)
+      .split(",")
+      .map((d) => d.trim());
     match.difficulty = { $in: diff };
   }
 
   if (tag) {
-    const tags = String(tag).split(",").map((t) => t.trim());
+    const tags = String(tag)
+      .split(",")
+      .map((t) => t.trim());
     match.tags = { $in: tags };
   }
 
@@ -76,7 +75,7 @@ export const createQuestion = async (req, res) => {
       negativeMarks,
       explanation,
       source,
-      dataInsights
+      dataInsights,
     } = req.body;
 
     if (!exam || !section || !questionType || !questionText) {
@@ -93,10 +92,14 @@ export const createQuestion = async (req, res) => {
     ]);
 
     if (!examDoc) {
-      return res.status(404).json({ success: false, message: "Exam not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Exam not found" });
     }
     if (!sectionDoc) {
-      return res.status(404).json({ success: false, message: "Section not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Section not found" });
     }
 
     const question = await Question.create({
@@ -114,7 +117,7 @@ export const createQuestion = async (req, res) => {
       negativeMarks,
       explanation,
       source,
-      dataInsights
+      dataInsights,
     });
 
     return res.status(201).json({
@@ -168,11 +171,25 @@ export const bulkCreateQuestions = async (req, res) => {
  */
 export const listQuestions = async (req, res) => {
   try {
-    let { page = 1, limit = 10, sortBy = "createdAt", sortOrder = "desc" } =
-      req.query;
+    let {
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+      ids,
+    } = req.query;
 
     const match = buildQuestionMatch(req.query);
 
+    if (ids && Array.isArray(ids)) {
+      const validIds = ids
+        .filter((id) => mongoose.Types.ObjectId.isValid(id))
+        .map((id) => new mongoose.Types.ObjectId(id));
+
+      match._id = {
+        $in: validIds,
+      };
+    }
     const pageNum = Number(page) || 1;
     const limitNum = Number(limit) || 10;
     const skip = (pageNum - 1) * limitNum;
@@ -250,7 +267,9 @@ export const getQuestionById = async (req, res) => {
   try {
     const { id } = req.params;
     if (!Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid question id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid question id" });
     }
 
     const pipeline = [
@@ -277,7 +296,9 @@ export const getQuestionById = async (req, res) => {
 
     const [question] = await Question.aggregate(pipeline);
     if (!question) {
-      return res.status(404).json({ success: false, message: "Question not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Question not found" });
     }
 
     return res.json({ success: true, data: question });
@@ -299,7 +320,9 @@ export const updateQuestion = async (req, res) => {
   try {
     const { id } = req.params;
     if (!Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid question id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid question id" });
     }
 
     const updated = await Question.findByIdAndUpdate(id, req.body, {
@@ -307,7 +330,9 @@ export const updateQuestion = async (req, res) => {
     });
 
     if (!updated) {
-      return res.status(404).json({ success: false, message: "Question not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Question not found" });
     }
 
     return res.json({
@@ -329,12 +354,16 @@ export const deleteQuestion = async (req, res) => {
   try {
     const { id } = req.params;
     if (!Types.ObjectId.isValid(id)) {
-      return res.status(400).json({ success: false, message: "Invalid question id" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid question id" });
     }
 
     const deleted = await Question.findByIdAndDelete(id);
     if (!deleted) {
-      return res.status(404).json({ success: false, message: "Question not found" });
+      return res
+        .status(404)
+        .json({ success: false, message: "Question not found" });
     }
 
     return res.json({

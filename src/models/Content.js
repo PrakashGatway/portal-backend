@@ -151,14 +151,6 @@ const studyMaterialSchema = new mongoose.Schema({
     size: Number,
     mimeType: String,
   },
-  content: {
-    text: String,
-    pages: Number,
-    downloadCount: {
-      type: Number,
-      default: 0,
-    },
-  },
   externalLink: String,
   isDownloadable: {
     type: Boolean,

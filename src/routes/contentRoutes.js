@@ -33,7 +33,7 @@ router.route("/").get(protect, authorize("teacher", "admin"), getAllContent);
 
 router.route("/resources").get(getFreeStudyMaterials);
 
-router.route("/resources/:slug").get(protect, getContentBySlug);
+router.route("/resources/:slug").get(protect,ensurePurchased, getContentBySlug);
 
 router.route("/stats").get(getContentStats);
 

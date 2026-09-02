@@ -1,7 +1,7 @@
-import jwt from 'jsonwebtoken';
-import User from '../models/User.js';
-import PurchasedCourse from '../models/PurchasedCourse.js';
-import { Content } from '../models/Content.js';
+import jwt from "jsonwebtoken";
+import User from "../models/User.js";
+import PurchasedCourse from "../models/PurchasedCourse.js";
+import { Content } from "../models/Content.js";
 
 export const protect = async (req, res, next) => {
   try {
@@ -10,15 +10,17 @@ export const protect = async (req, res, next) => {
     const cookieToken = req.cookies.auth_token;
 
     if (!cookieToken) {
-      if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-        token = req.headers.authorization.split(' ')[1];
+      if (
+        req.headers.authorization &&
+        req.headers.authorization.startsWith("Bearer")
+      ) {
+        token = req.headers.authorization.split(" ")[1];
       }
     } else {
       token = cookieToken;
     }
 
     if (!token) {
-      
       // res.clearCookie("auth_token", {
       //   httpOnly: true,
       //   secure: false,
@@ -29,26 +31,26 @@ export const protect = async (req, res, next) => {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        domain: "gatewayabroadeducations.com" // same as when you set it
+        domain: "gatewayabroadeducations.com", // same as when you set it
       });
       res.clearCookie("auth_token", {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        domain: "ooshasprep.com" // same as when you set it
+        domain: "ooshasprep.com", // same as when you set it
       });
       return res.status(400).json({
         success: false,
-        message: 'Not authorized, no token'
+        message: "Not authorized, no token",
       });
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    const user = await User.findOne({ _id: decoded.id, isActive: true })
+    const user = await User.findOne({ _id: decoded.id, isActive: true });
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Not authorized, user not found'
+        message: "Not authorized, user not found",
       });
     }
 
@@ -60,7 +62,7 @@ export const protect = async (req, res, next) => {
     console.error(error);
     return res.status(401).json({
       success: false,
-      message: 'Not authorized, token failed'
+      message: "Not authorized, token failed",
     });
   }
 };
@@ -70,7 +72,7 @@ export const authorize = (...roles) => {
     if (!roles.includes(req.user.role)) {
       return res.status(403).json({
         success: false,
-        message: `Role ${req.user.role} is not authorized to access this route`
+        message: `Role ${req.user.role} is not authorized to access this route`,
       });
     }
     next();
@@ -81,12 +83,17 @@ export const optionalAuth = async (req, res, next) => {
   try {
     let token;
 
-    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
-      token = req.headers.authorization.split(' ')[1];
+    if (
+      req.headers.authorization &&
+      req.headers.authorization.startsWith("Bearer")
+    ) {
+      token = req.headers.authorization.split(" ")[1];
 
       if (token) {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        const user = await User.findById(decoded.id).select('-password -refreshTokens');
+        const user = await User.findById(decoded.id).select(
+          "-password -refreshTokens",
+        );
 
         if (user) {
           user.lastActive = new Date();
@@ -108,7 +115,11 @@ export const ensureCoursePurchase = async (req, res, next) => {
     const userId = req.user?._id;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
+    }
+    if (req.user.role === "admin" || req.user.role === "teacher") {
+      req.hasPurchasedCourse = true;
+      return next();
     }
 
     const purchase = await PurchasedCourse.findOne({
@@ -117,15 +128,15 @@ export const ensureCoursePurchase = async (req, res, next) => {
       isActive: true,
       $or: [
         { accessExpiresAt: { $exists: false } },
-        { accessExpiresAt: { $gte: new Date() } }
-      ]
+        { accessExpiresAt: { $gte: new Date() } },
+      ],
     });
 
     req.hasPurchasedCourse = !!purchase;
     next();
   } catch (error) {
-    console.error('Purchase check error:', error);
-    res.status(500).json({ message: 'Server error during verification' });
+    console.error("Purchase check error:", error);
+    res.status(500).json({ message: "Server error during verification" });
   }
 };
 
@@ -135,14 +146,18 @@ export const ensurePurchased = async (req, res, next) => {
     const userId = req.user?._id;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    if (req.user.role === "admin" || req.user.role === "teacher") {
+      req.hasPurchasedCourse = true;
+      return next();
     }
 
     const content = await Content.findOne({
       slug,
       status: "published",
-    })
-    console.log(content);
+    });
 
     const purchase = await PurchasedCourse.findOne({
       user: userId,
@@ -150,15 +165,15 @@ export const ensurePurchased = async (req, res, next) => {
       isActive: true,
       $or: [
         { accessExpiresAt: { $exists: false } },
-        { accessExpiresAt: { $gte: new Date() } }
-      ]
+        { accessExpiresAt: { $gte: new Date() } },
+      ],
     });
 
     req.hasPurchasedCourse = !!purchase;
     next();
   } catch (error) {
-    console.error('Purchase check error:', error);
-    res.status(500).json({ message: 'Server error during verification' });
+    console.error("Purchase check error:", error);
+    res.status(500).json({ message: "Server error during verification" });
   }
 };
 
@@ -168,7 +183,12 @@ export const ensureCourseQuery = async (req, res, next) => {
     const userId = req.user?._id;
 
     if (!userId) {
-      return res.status(401).json({ message: 'Authentication required' });
+      return res.status(401).json({ message: "Authentication required" });
+    }
+
+    if (req.user.role === "admin" || req.user.role === "teacher") {
+      req.hasPurchasedCourse = true;
+      return next();
     }
 
     const purchase = await PurchasedCourse.findOne({
@@ -177,14 +197,14 @@ export const ensureCourseQuery = async (req, res, next) => {
       isActive: true,
       $or: [
         { accessExpiresAt: { $exists: false } },
-        { accessExpiresAt: { $gte: new Date() } }
-      ]
+        { accessExpiresAt: { $gte: new Date() } },
+      ],
     });
 
     req.hasPurchasedCourse = !!purchase;
     next();
   } catch (error) {
-    console.error('Purchase check error:', error);
-    res.status(500).json({ message: 'Server error during verification' });
+    console.error("Purchase check error:", error);
+    res.status(500).json({ message: "Server error during verification" });
   }
 };

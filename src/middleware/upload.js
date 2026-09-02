@@ -2,6 +2,34 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 
+const uploadDirectory = path.join(process.cwd(), "uploads", "study-materials");
+
+if (!fs.existsSync(uploadDirectory)) {
+  fs.mkdirSync(uploadDirectory, {
+    recursive: true,
+  });
+}
+
+const materialStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    cb(null, uploadDirectory);
+  },
+  filename: (_req, file, cb) => {
+    const extension = path.extname(file.originalname);
+    const filename = `${file.originalname.split(".")[0]}-${Math.round(
+      Math.random() * 1e9,
+    )}${extension}`;
+    cb(null, filename);
+  },
+});
+
+export const materialUpload = multer({
+  storage: materialStorage,
+  limits: {
+    fileSize: 50 * 1024 * 1024,
+  },
+});
+
 const ensureDir = (dirPath) => {
   if (!fs.existsSync(dirPath)) {
     fs.mkdirSync(dirPath, { recursive: true });
@@ -57,7 +85,7 @@ const iletsAnswerStorage = multer.diskStorage({
 const fileFilter = (req, file, cb) => {
   const allowedTypes = /jpeg|jpg|png|webp|svg|gif/;
   const extname = allowedTypes.test(
-    path.extname(file.originalname).toLowerCase()
+    path.extname(file.originalname).toLowerCase(),
   );
   const mimetype = allowedTypes.test(file.mimetype);
 
@@ -76,7 +104,11 @@ const audioFilter = (req, file, cb) => {
   }
 };
 
-export const uploadAudio = multer({ storage: storageforAudio, limits: { fileSize: 10 * 1024 * 1024 }, fileFilter: audioFilter });
+export const uploadAudio = multer({
+  storage: storageforAudio,
+  limits: { fileSize: 10 * 1024 * 1024 },
+  fileFilter: audioFilter,
+});
 
 export const uploadPteAnswerAudio = multer({
   storage: pteAnswerStorage,
@@ -86,7 +118,7 @@ export const uploadPteAnswerAudio = multer({
 
 export const uploadIeltsAnswerAudio = multer({
   storage: iletsAnswerStorage,
-  limits: { fileSize: 20 * 1024 * 1024 }
+  limits: { fileSize: 20 * 1024 * 1024 },
 });
 
 export const deleteFile = async (filePath) => {
@@ -105,7 +137,6 @@ export const deleteFile = async (filePath) => {
     throw error;
   }
 };
-
 
 const upload = multer({
   storage,

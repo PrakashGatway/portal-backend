@@ -1232,33 +1232,6 @@ export const getContentBySlug = async (req, res) => {
       });
     }
 
-    // Paid content - user must be logged in
-    if (!req.user?._id) {
-      return res.status(401).json({
-        success: false,
-        message: "Please login to access this content.",
-      });
-    }
-
-    const purchase = await PurchasedCourse.findOne({
-      user: req.user._id,
-      itemType: "Course",
-      itemId: content.course._id,
-      isActive: true,
-      $or: [
-        { accessExpiresAt: null },
-        { accessExpiresAt: { $exists: false } },
-        { accessExpiresAt: { $gt: new Date() } },
-      ],
-    }).lean();
-
-    if (!purchase) {
-      return res.status(403).json({
-        success: false,
-        message: "Please purchase this course to access this material.",
-      });
-    }
-
     return res.status(200).json({
       success: true,
       data: content,
