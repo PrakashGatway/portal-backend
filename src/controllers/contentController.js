@@ -357,7 +357,7 @@ const getContentByType = asyncHandler(async (req, res, next) => {
 });
 
 const getContent = asyncHandler(async (req, res, next) => {
-  const { courseId, id, slug } = req.params;
+  const { courseId, id, slug, isModule } = req.params;
   const userId = req.user?._id;
   const hasPurchased = req.hasPurchasedCourse || false;
 
@@ -486,6 +486,27 @@ const getContent = asyncHandler(async (req, res, next) => {
 
   const content = contentResult[0];
 
+  const [relatedSessions, relatedMaterials] = isModule ? await Promise.all([
+    Content.find({
+      course: content.course,
+      module: content.moduleInfo._id,
+      status: { $ne: "draft" },
+      // scheduledStart: { $gte: new Date() },
+      __t: "Sessions",
+      _id: { $ne: content._id },
+    })
+      .select(
+        "title description slug __t order status isFree duration thumbnailPic scheduledStart scheduledEnd",
+      )
+      .populate("instructor", "name email profilePic skills profile.bio"),
+    Content.find({
+      course: content.course,
+      module: content.moduleInfo._id,
+      status: { $ne: "draft" },
+      __t: "StudyMaterials",
+    }).select("title description slug __t order status isFree materialType"),
+  ]) : [[], []];
+
   if (content.isFree === true) {
     return res.status(200).json({ success: true, data: content });
   }
@@ -505,6 +526,8 @@ const getContent = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: content,
+    relatedSessions: relatedSessions,
+    relatedMaterials: relatedMaterials
   });
 });
 
@@ -816,7 +839,7 @@ export const getCalendarClasses = async (req, res) => {
             name: item.instructor.name,
             email: item.instructor.email,
           }
-        : null
+        : null,
     }));
 
     return res.status(200).json({

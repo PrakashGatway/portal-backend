@@ -61,8 +61,6 @@ const contentSchema = new mongoose.Schema(
 contentSchema.index({ course: 1 });
 contentSchema.index({ instructor: 1 });
 contentSchema.index({ status: 1 });
-contentSchema.index({ publishedAt: -1 });
-contentSchema.index({ title: "text", description: "text" });
 
 contentSchema.virtual("contentType").get(function () {
   return this.__t || "Content";

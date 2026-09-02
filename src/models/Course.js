@@ -56,12 +56,10 @@ const courseSchema = new mongoose.Schema({
   },
   schedule: {
     startDate: {
-      type: Date,
-      required: [true, 'Please add batch start date']
+      type: Date
     },
     endDate: {
-      type: Date,
-      required: [true, 'Please add batch end date']
+      type: Date
     },
     enrollmentDeadline: Date,
     timezone: {
@@ -108,7 +106,7 @@ const courseSchema = new mongoose.Schema({
       start: String, // HH:MM format
       end: String    // HH:MM format
     },
-    duration: Number // in minutes
+    duration: Number // in hours
   },
   features: [String],
   requirements: [String],
@@ -124,11 +122,11 @@ const courseSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
-  extraFields: {
-    type: Map,
-    of: mongoose.Schema.Types.Mixed,
-    default: () => new Map()
-  }
+  // extraFields: {
+  //   type: Map,
+  //   of: mongoose.Schema.Types.Mixed,
+  //   default: () => new Map()
+  // }
 }, {
   timestamps: true
 });
