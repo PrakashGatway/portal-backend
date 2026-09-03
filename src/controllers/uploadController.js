@@ -15,7 +15,7 @@ const ALLOWED_TYPES = {
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     ],
-    extensions: [".doc", ".docx",".ppt", ".pptx"],
+    extensions: [".doc", ".docx", ".ppt", ".pptx"],
   },
 
   image: {
@@ -134,7 +134,7 @@ export const uploadBlogs = async (req, res) => {
       ],
     });
 
-    await fs.unlink(tempFilePath);
+    fs.unlinkSync(tempFilePath);
     tempFilePath = null;
 
     return res.status(200).json({
@@ -148,7 +148,7 @@ export const uploadBlogs = async (req, res) => {
   } catch (error) {
     if (tempFilePath) {
       try {
-        await fs.unlink(tempFilePath);
+        fs.unlinkSync(tempFilePath);
       } catch (unlinkError) {
         console.error("Failed to delete temporary file:", unlinkError);
       }

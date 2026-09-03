@@ -357,7 +357,8 @@ const getContentByType = asyncHandler(async (req, res, next) => {
 });
 
 const getContent = asyncHandler(async (req, res, next) => {
-  const { courseId, id, slug, isModule } = req.params;
+  const { courseId, id, slug } = req.params;
+  const { isModule } = req.query;
   const userId = req.user?._id;
   const hasPurchased = req.hasPurchasedCourse || false;
 
@@ -486,29 +487,40 @@ const getContent = asyncHandler(async (req, res, next) => {
 
   const content = contentResult[0];
 
-  const [relatedSessions, relatedMaterials] = isModule ? await Promise.all([
-    Content.find({
-      course: content.course,
-      module: content.moduleInfo._id,
-      status: { $ne: "draft" },
-      // scheduledStart: { $gte: new Date() },
-      __t: "Sessions",
-      _id: { $ne: content._id },
-    })
-      .select(
-        "title description slug __t order status isFree duration thumbnailPic scheduledStart scheduledEnd",
-      )
-      .populate("instructor", "name email profilePic skills profile.bio"),
-    Content.find({
-      course: content.course,
-      module: content.moduleInfo._id,
-      status: { $ne: "draft" },
-      __t: "StudyMaterials",
-    }).select("title description slug __t order status isFree materialType"),
-  ]) : [[], []];
+  const [relatedSessions, relatedMaterials] = isModule
+    ? await Promise.all([
+        Content.find({
+          course: content.course,
+          module: content.moduleInfo._id,
+          status: { $ne: "draft" },
+          // scheduledStart: { $gte: new Date() },
+          __t: "Sessions",
+          _id: { $ne: content._id },
+        })
+          .select(
+            "title description slug __t order status isFree duration thumbnailPic scheduledStart scheduledEnd",
+          )
+          .populate("instructor", "name email profilePic skills profile.bio"),
+        Content.find({
+          course: content.course,
+          module: content.moduleInfo._id,
+          status: { $ne: "draft" },
+          __t: "StudyMaterials",
+        }).select(
+          "title description slug __t order status isFree materialType",
+        ),
+      ])
+    : [[], []];
 
   if (content.isFree === true) {
-    return res.status(200).json({ success: true, data: content });
+    return res
+      .status(200)
+      .json({
+        success: true,
+        data: content,
+        relatedSessions: relatedSessions,
+        relatedMaterials: relatedMaterials,
+      });
   }
 
   if (!userId) {
@@ -527,7 +539,7 @@ const getContent = asyncHandler(async (req, res, next) => {
     success: true,
     data: content,
     relatedSessions: relatedSessions,
-    relatedMaterials: relatedMaterials
+    relatedMaterials: relatedMaterials,
   });
 });
 
