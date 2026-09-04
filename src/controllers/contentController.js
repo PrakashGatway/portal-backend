@@ -443,6 +443,9 @@ const getContent = asyncHandler(async (req, res, next) => {
           _id: 1,
           name: 1,
           email: 1,
+          profilePic: 1,
+          skills: 1,
+          "profile.bio": 1
         },
         moduleInfo: {
           _id: 1,
@@ -487,34 +490,37 @@ const getContent = asyncHandler(async (req, res, next) => {
 
   const content = contentResult[0];
 
- 
-
-  const [relatedSessions, relatedMaterials] = isModule ? await Promise.all([
-    Content.find({
-      course: content.course,
-      module: content.moduleInfo._id,
-      status: { $ne: "draft" },
-      // scheduledStart: { $gte: new Date() },
-      __t: "Sessions",
-      _id: { $ne: content._id },
-    })
-      .select(
-        "title description slug __t instructor order status isFree duration thumbnailPic scheduledStart scheduledEnd",
-      )
-      .populate("instructor", "name email profilePic skills profile.bio"),
-    Content.find({
-      course: content.course,
-      module: content.moduleInfo._id,
-      status: { $ne: "draft" },
-      __t: "StudyMaterials",
-    }).select("title description slug __t order status isFree materialType"),
-  ]) : [[], []];
+  const [relatedSessions, relatedMaterials] = isModule
+    ? await Promise.all([
+        Content.find({
+          course: content.course,
+          module: content.moduleInfo._id,
+          status: { $ne: "draft" },
+          // scheduledStart: { $gte: new Date() },
+          __t: "Sessions",
+          _id: { $ne: content._id },
+        })
+          .select(
+            "title description slug __t instructor order status isFree duration thumbnailPic scheduledStart scheduledEnd",
+          )
+          .populate("instructor", "name email profilePic skills profile.bio"),
+        Content.find({
+          course: content.course,
+          module: content.moduleInfo._id,
+          status: { $ne: "draft" },
+          __t: "StudyMaterials",
+        }).select(
+          "title description slug __t order status isFree materialType",
+        ),
+      ])
+    : [[], []];
 
   if (content.isFree === true) {
     return res.status(200).json({
-      success: true, data: content,
+      success: true,
+      data: content,
       relatedSessions: relatedSessions,
-      relatedMaterials: relatedMaterials
+      relatedMaterials: relatedMaterials,
     });
   }
 
@@ -842,10 +848,10 @@ export const getCalendarClasses = async (req, res) => {
 
       instructor: item.instructor
         ? {
-          _id: item.instructor._id,
-          name: item.instructor.name,
-          email: item.instructor.email,
-        }
+            _id: item.instructor._id,
+            name: item.instructor.name,
+            email: item.instructor.email,
+          }
         : null,
     }));
 
