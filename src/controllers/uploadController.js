@@ -1,8 +1,8 @@
-import fs from "node:fs";
-import path from "node:path";
+import { deleteFile } from "../middleware/upload.js";
+import fs from "fs/promises";
+import path from "path";
 import User from "../models/User.js";
 import cloudinary from "../utils/cloudnary.js";
-import { deleteFile } from "../middleware/upload.js";
 
 const ALLOWED_TYPES = {
   pdf: {
@@ -62,6 +62,8 @@ export const uploadSingleImage = (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+
 
 export const uploadMultipleImages = (req, res) => {
   try {

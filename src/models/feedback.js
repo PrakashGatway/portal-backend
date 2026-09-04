@@ -5,27 +5,22 @@ const feedbackSchema = new mongoose.Schema(
     user: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
-      required: true,
     },
-
-    video: {
+     content: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Video",
+      refPath: "contentref",
+    },
+
+    contentref: {
+      type: String,
       required: true,
+      enum: ["LiveClasses", "RecordedClasses", "StudyMaterials"],
     },
-
-    module: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Module",
-    },
-
     type: {
       type: String,
       enum: ["report_issue", "rate_video"],
       required: true,
     },
-
-    // Common
     message: {
       type: String,
       trim: true,
@@ -73,8 +68,6 @@ const feedbackSchema = new mongoose.Schema(
     screenshot: {
       type: String,
     },
-
-    // Rate Video
     rating: {
       type: Number,
       min: 1,

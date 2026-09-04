@@ -33,7 +33,6 @@ export const getAllTickets = async (req, res) => {
 
         const tickets = await SupportTicket.find(filter)
             .populate('userId', 'name email')
-            .populate('assignedTo', 'name email')
             .sort({ createdAt: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit);
@@ -60,7 +59,6 @@ export const getTicketById = async (req, res) => {
     try {
         const ticket = await SupportTicket.findById(req.params.id)
             .populate('userId', 'name email')
-            .populate('assignedTo', 'name email')
             .populate('replies.createdBy', 'name email');
 
         if (!ticket) {
@@ -71,8 +69,8 @@ export const getTicketById = async (req, res) => {
         }
 
         // Check if user can access this ticket
-        if (req.user.role !== 'admin' && req.user.role !== 'support' &&
-            ticket.userId.toString() !== req.user._id.toString()) {
+        if (req.user.role !== 'admin' &&
+            ticket.userId._id.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
                 message: 'Access denied'

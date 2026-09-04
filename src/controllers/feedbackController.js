@@ -3,13 +3,10 @@ import Feedback from "../models/feedback.js";
 export const createFeedback = async (req, res) => {
   try {
     const {
-      user,
-      video,
+      content,
       module,
       type,
       message,
-
-      // Report Issue
       issueType,
       description,
       severity,
@@ -17,20 +14,13 @@ export const createFeedback = async (req, res) => {
       errorTime,
       isPresentThroughout,
       screenshot,
-
-      // Rate Video
+      contentref,
       rating,
     } = req.body;
 
-    // Basic validation
-    if (!user) {
-      return res.status(400).json({
-        success: false,
-        message: "User is required",
-      });
-    }
 
-    if (!video) {
+
+    if (!content) {
       return res.status(400).json({
         success: false,
         message: "Video is required",
@@ -87,14 +77,15 @@ export const createFeedback = async (req, res) => {
     // =========================
 
     const feedbackData = {
-      user,
-      video,
+      user : req.user._id,
+      content,
       module,
       type,
       message,
+      contentref
     };
 
-    // Add report issue fields
+  
     if (type === "report_issue") {
       feedbackData.issueType = issueType;
       feedbackData.description = description;
@@ -111,11 +102,13 @@ export const createFeedback = async (req, res) => {
         Boolean(isPresentThroughout);
 
       feedbackData.screenshot = screenshot || null;
+      feedbackData.contentref = contentref
     }
 
-    // Add rating fields
+   
     if (type === "rate_video") {
       feedbackData.rating = Number(rating);
+      feedbackData.description = description;
     }
 
     const feedback = await Feedback.create(feedbackData);
@@ -144,40 +137,55 @@ export const createFeedback = async (req, res) => {
 
 export const getFeedback = async (req, res) => {
   try {
-    const { type, video, user } = req.query;
+    const { search, contentref, type, severity, page = 1, limit = 10,rating } = req.query;
 
     const filter = {};
 
-    if (type) {
-      filter.type = type;
+    // Search across message, description, issueType ONLY
+    if (search) {
+      filter.$or = [
+        { message: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } },
+        { issueType: { $regex: search, $options: "i" } },
+        
+      ];
     }
 
-    if (video) {
-      filter.video = video;
-    }
+    if (contentref) filter.contentref = contentref;
+    if (type) filter.type = type;
+    if (severity) filter.severity = severity;
+    if (rating) filter.rating = rating
 
-    if (user) {
-      filter.user = user;
-    }
+    const pageNumber = Math.max(Number(page), 1);
+    const limitNumber = Math.min(Math.max(Number(limit), 1), 100);
+    const skip = (pageNumber - 1) * limitNumber;
+
+    const total = await Feedback.countDocuments(filter);
 
     const feedback = await Feedback.find(filter)
       .populate("user", "name email")
-      .populate("video")
-      .populate("module")
-      .sort({ createdAt: -1 });
+      .populate("content", "title description thumbnailPic slug")
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limitNumber);
+
+    const totalPages = Math.ceil(total / limitNumber);
 
     return res.status(200).json({
       success: true,
       count: feedback.length,
+      pagination: {
+        total,
+        page: pageNumber,
+        limit: limitNumber,
+        totalPages,
+        hasNextPage: pageNumber < totalPages,
+        hasPrevPage: pageNumber > 1,
+      },
       data: feedback,
     });
   } catch (error) {
     console.error("Get Feedback Error:", error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Something went wrong",
-      error: error.message,
-    });
+    return res.status(500).json({ success: false, message: "Something went wrong", error: error.message });
   }
 };
