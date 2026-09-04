@@ -539,6 +539,7 @@ const getContent = asyncHandler(async (req, res, next) => {
   res.status(200).json({
     success: true,
     data: content,
+    hasPurchased:hasPurchased,
     relatedSessions: relatedSessions,
     relatedMaterials: relatedMaterials,
   });
