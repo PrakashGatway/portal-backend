@@ -203,7 +203,6 @@ export const getMyNotifications = async (req, res) => {
       Notification.find(query)
         .populate("sender", "name email profileImage")
         .populate("Category")
-        .populate("Courses")
         .populate("data.courseId", "name title")
         .sort({ createdAt: -1 })
         .skip(skip)
