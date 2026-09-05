@@ -53,12 +53,18 @@ import { runManualCheck, setupWalletCronJob } from "./cronJob/cronJobs.js";
 import { Question } from "./models/GGSschema/questionSchema.js";
 import { Leadlogs } from "./models/leadLogs.js";
 import { Lead } from "./models/Leads.js";
-import { startLeadCron } from "./cronJob/insertOneByOne.js";
+import {
+  startLeadCron,
+  QuestionsArrayInsert,
+} from "./cronJob/insertOneByOne.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 import { protect } from "./middleware/auth.js";
 import getTeacherDashboard, {
   getAdminDashboard,
 } from "./routes/analyticsRoutes.js";
+import mongoose from "mongoose";
+import Questions from "./models/ielts/Questions.js";
+import { runNotificationCron } from "./cronJob/SessionNotification.js";
 
 // startLeadCron("one","68ff57a3a22ea2bcbd574d33")
 // startLeadCron("sid","68ff57a3a22ea2bcbd574d33")
@@ -67,6 +73,7 @@ import getTeacherDashboard, {
 
 dotenv.config();
 connectDB();
+// runNotificationCron()
 
 const app = express();
 const server = createServer(app);
@@ -236,5 +243,76 @@ const API_KEY = "cHJha2FzaGphbmdpcjQyOUBnbWFpbC5jb20:rSpaFaKcjrurOvxr6v-UH";
 //   }
 // }
 // checkStatus("tlk_ztnmVb4rSWkdRX8ehXrAG")
+
+const importQuestions = async (questions) => {
+  try {
+    if (!Array.isArray(questions) || questions.length === 0) {
+      throw new Error("Questions array is empty or invalid");
+    }
+
+    const formattedQuestions = questions.map((question) => ({
+      exam: new mongoose.Types.ObjectId("6924328024d744b891c17172"),
+      section:
+        question.questionType == "sat_reading_writing"
+          ? new mongoose.Types.ObjectId("6924320324d744b891c17049")
+          : new mongoose.Types.ObjectId("6924323e24d744b891c1704c"),
+      questionType: question.questionType,
+      difficulty: question.difficulty || "Medium",
+      stimulus: question.stimulus || "",
+      questionText: question.questionText || "",
+      options: question.correctAnswerText?.trim()
+        ? []
+        : Array.isArray(question.options)
+          ? question.options.map((option, index) => ({
+              label: String.fromCharCode(65 + index), // A, B, C, D
+              text: option.text || "",
+              isCorrect: Boolean(option.isCorrect),
+            }))
+          : [],
+      correctAnswerText: question.correctAnswerText || "",
+      marks: Number(question.marks || 0),
+      negativeMarks: Number(question.negativeMarks || 0),
+      explanation: question.explanation || "",
+      source: question.source || "",
+      tags: Array.isArray(question.tags) ? question.tags : [],
+    }));
+
+    for (let index = 0; index < formattedQuestions.length; index++) {
+      const formattedquestion = formattedQuestions[index];
+
+      try {
+        const insertedQuestion = await Question.create(formattedquestion);
+
+        console.log({
+          success: true,
+          questions: insertedQuestion,
+        });
+      } catch (error) {
+        console.log(error);
+      }
+    }
+
+    // try {
+    //   const insertedQuestions = await Question.insertMany(formattedQuestions, {
+    //     ordered: false,
+    //   });
+
+    //   console.log({
+    //     success: true,
+    //     insertedCount: insertedQuestions.length,
+    //     questions: insertedQuestions,
+    //   });
+    // } catch (error) {
+    //   console.log(error);
+    // }
+    return { status: "success" };
+  } catch (error) {
+    console.error("Import questions error:", error);
+
+    throw error;
+  }
+};
+
+// importQuestions([...QuestionsArrayInsert].reverse());
 
 export default app;
