@@ -104,15 +104,15 @@ const createSessionReminders = async (session) => {
       if (scheduledFor <= now) {
         continue;
       }
-    //   console.log(
-    //     sessionStart.toLocaleDateString(),
-    //     sessionStart.toLocaleTimeString(),
-    //   );
+      //   console.log(
+      //     sessionStart.toLocaleDateString(),
+      //     sessionStart.toLocaleTimeString(),
+      //   );
 
-    //   console.log(
-    //     scheduledFor.toLocaleDateString(),
-    //     scheduledFor.toLocaleTimeString(),
-    //   );
+      //   console.log(
+      //     scheduledFor.toLocaleDateString(),
+      //     scheduledFor.toLocaleTimeString(),
+      //   );
 
       const notificationKey =
         `session:${session._id}` + `:reminder:${reminder.key}`;
@@ -166,8 +166,29 @@ const sendEmailNotification = async ({ notify, session }) => {
     sendMeetingUrlMail({
       to: user?.email,
       student_name: user?.name,
-      session_start_time: session?.scheduledStart,
-      session_end_time: session?.scheduledEnd,
+      session_start_time: session?.scheduledStart
+        ? new Date(session.scheduledStart).toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Kolkata",
+          })
+        : "",
+
+      session_end_time: session?.scheduledEnd
+        ? new Date(session.scheduledEnd).toLocaleString("en-IN", {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+            timeZone: "Asia/Kolkata",
+          })
+        : "",
       instructor_name: session?.instructor?.name,
       meetingUrl: session?.meetingId,
       title: session?.title,
