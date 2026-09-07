@@ -5,6 +5,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  token: {
+    type : String,
+    default : ""
+  },
   email: {
     type: String,
     unique: true,

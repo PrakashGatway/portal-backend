@@ -26,26 +26,88 @@ const VALID_PRIORITIES = [
   "urgent",
 ];
 
+
+
 export const saveToken = async (req, res) => {
   try {
     const { token, id } = req.body;
 
     if (!token || !id) {
-      return res.status(400).json({ message: "token and id are required" });
+      return res.status(400).json({
+        success: false,
+        message: "token and id are required",
+      });
     }
 
-    await fcmToken.findOneAndUpdate(
-      { token, user: id },
-      { token, user: id },
-      { upsert: true }
-    );
+    // Validate MongoDB user ID
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
 
-    return res.status(200).json({ message: "Token saved" });
+    // Find user and save FCM token
+    const user = await User.findByIdAndUpdate(
+      id,
+      {
+        $set: {
+          token: token,
+        },
+      },
+      {
+        new: true,
+        runValidators: true,
+      }
+    ).select("_id name email role token");
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "FCM token saved successfully",
+      data: {
+        userId: user._id,
+        token: user.token,
+      },
+    });
   } catch (error) {
-    console.error("Error saving token:", error);
-    return res.status(500).json({ message: "Something went wrong" });
+    console.error("Error saving FCM token:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Something went wrong",
+      error: error.message,
+    });
   }
 };
+
+  
+// export const saveToken = async (req, res) => {
+//   try {
+//     const { token, id } = req.body;
+
+//     if (!token || !id) {
+//       return res.status(400).json({ message: "token and id are required" });
+//     }
+
+//     await fcmToken.findOneAndUpdate(
+//       { token, user: id },
+//       { token, user: id },
+//       { upsert: true }
+//     );
+
+//     return res.status(200).json({ message: "Token saved" });
+//   } catch (error) {
+//     console.error("Error saving token:", error);
+//     return res.status(500).json({ message: "Something went wrong" });
+//   }
+// };
 
 
 export const createNotification = async (req, res) => {
@@ -554,52 +616,68 @@ export const getNotifications = async (req, res) => {
 };
 
 
-
-export const getUnreadNotificationCount = async (
-  req,
-  res
-) => {
+export const getUnreadNotificationCount = async (req, res) => {
   try {
     const userId = req.user._id;
+    const now = new Date();
 
+    // Personal unread notifications
+    const personalUnread = await NotificationRec.countDocuments({
+      user: userId,
+      isRead: false,
 
-    const personalUnread =
-      await NotificationRec.countDocuments({
-        user: userId,
-        isRead: false,
-        expiresAt: {
-          $or: [
-            { $exists: false },
-            { $gt: new Date() },
-          ],
+      // Notification should either:
+      // 1. Have no expiry date
+      // 2. Have an expiry date in the future
+      $or: [
+        { expiresAt: { $exists: false } },
+        { expiresAt: null },
+        { expiresAt: { $gt: now } },
+      ],
+    });
+
+    // Get all active global notifications
+    const globalNotifications = await Notification.find({
+      isGlobal: true,
+      isActive: true,
+
+      // Only non-expired global notifications
+      $or: [
+        { expiresAt: { $exists: false } },
+        { expiresAt: null },
+        { expiresAt: { $gt: now } },
+      ],
+    })
+      .select("_id")
+      .lean();
+
+    const globalIds = globalNotifications.map(
+      (item) => item._id
+    );
+
+    // If there are no global notifications,
+    // avoid unnecessary database query
+    if (globalIds.length === 0) {
+      return res.status(200).json({
+        success: true,
+        data: {
+          personalUnread,
+          globalUnread: 0,
+          totalUnread: personalUnread,
         },
       });
+    }
 
-
-    const globalNotifications =
-      await Notification.find({
-        isGlobal: true,
-        isActive: true,
-      })
-        .select("_id")
-        .lean();
-
-    const globalIds =
-      globalNotifications.map(
-        (item) => item._id
-      );
-
-
-    const readGlobal =
-      await NotificationRec.find({
-        user: userId,
-        notification: {
-          $in: globalIds,
-        },
-        isRead: true,
-      })
-        .select("notification")
-        .lean();
+    // Find global notifications already read by this user
+    const readGlobal = await NotificationRec.find({
+      user: userId,
+      notification: {
+        $in: globalIds,
+      },
+      isRead: true,
+    })
+      .select("notification")
+      .lean();
 
     const readGlobalIds = new Set(
       readGlobal.map((item) =>
@@ -607,11 +685,10 @@ export const getUnreadNotificationCount = async (
       )
     );
 
-    const unreadGlobal =
-      globalIds.filter(
-        (id) =>
-          !readGlobalIds.has(String(id))
-      ).length;
+    // Count global notifications not read by this user
+    const unreadGlobal = globalIds.filter(
+      (id) => !readGlobalIds.has(String(id))
+    ).length;
 
     return res.status(200).json({
       success: true,
@@ -636,7 +713,6 @@ export const getUnreadNotificationCount = async (
     });
   }
 };
-
 
 
 export const markNotificationAsRead = async (
