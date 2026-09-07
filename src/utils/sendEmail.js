@@ -1,40 +1,10 @@
 import dotenv from 'dotenv';
-import nodemailer from 'nodemailer';
+import { transporter } from '../services/sendMeetingMail.js';
 
 dotenv.config();
 
-const createTransporter = () => {
-  return nodemailer.createTransport({
-    service: process.env.EMAIL_SERVICE,
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: "dfmw xgno nfqb dazz"
-    }
-  });
-};
-
-// const createTransporter = () => {
-//   return nodemailer.createTransport({
-//     host: 'smtp.gmail.com',  
-//     port: 465,                  
-//     secure: true,               // true for 465, false for 587
-//     auth: {
-//       user: process.env.EMAIL_USER,   
-//       pass: "wyxn ttai iqvg rfnt",    
-//     },
-//     connectionTimeout: 10000,    // 10s
-//     greetingTimeout: 10000,
-//     socketTimeout: 10000,
-//     tls: {
-//       rejectUnauthorized: true,
-//     },
-//   });
-// };
-
-console.log(process.env.EMAIL_USER)
 
 export const sendEmail = async (options) => {
-  const transporter = createTransporter();
   
   const mailOptions = {
     from: `"Gateway abroad" <${process.env.EMAIL_USER}>`,

@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { sendMeetingMail } from "./EmailTempletes.js";
 
-const transporter = nodemailer.createTransport({
+export const transporter = nodemailer.createTransport({
   host: "smtp.hostinger.com",
   port: 465,
   secure: true,
@@ -131,8 +131,7 @@ ${process.env.MAIL_FROM_NAME || "Support Team"}
 
     const info = await transporter.sendMail(mailOptions);
 
-
-    console.log(info.messageId)
+    console.log(info.messageId);
 
     return {
       success: true,
