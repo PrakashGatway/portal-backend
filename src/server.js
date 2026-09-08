@@ -14,7 +14,7 @@ import axios from "axios";
 import connectDB from "./config/database.js";
 // import secondDB from './config/webDb.js';
 import { errorHandler, notFound } from "./middleware/errorMiddleware.js";
-import { leadSocketAuth, socketAuth } from "./middleware/socketMiddleware.js";
+import { socketAuth } from "./middleware/socketMiddleware.js";
 
 import chatController from "./controllers/chatController.js";
 
@@ -51,8 +51,6 @@ import { runManualCheck, setupWalletCronJob } from "./cronJob/cronJobs.js";
 // import "./cronJob/pteCronJob.js";
 
 import { Question } from "./models/GGSschema/questionSchema.js";
-import { Leadlogs } from "./models/leadLogs.js";
-import { Lead } from "./models/Leads.js";
 import {
   startLeadCron,
   QuestionsArrayInsert,
@@ -64,17 +62,30 @@ import getTeacherDashboard, {
 } from "./routes/analyticsRoutes.js";
 import mongoose from "mongoose";
 import Questions from "./models/ielts/Questions.js";
-import { runNotificationCron } from "./cronJob/SessionNotification.js";
+import { runNotificationCron, startNotificationCron } from "./cronJob/SessionNotification.js";
 import { sendMeetingUrlMail } from "./services/sendMeetingMail.js";
+import { sendPushToUsers } from "./services/pushNotitification.js";
 
 // startLeadCron("one","68ff57a3a22ea2bcbd574d33")
 // startLeadCron("sid","68ff57a3a22ea2bcbd574d33")
 
 // setupWalletCronJob();
+// await sendMeetingUrlMail({
+//   to: "a86764928@gmail.com",
+//   student_name: "Prakash Jangid",
+//   session_start_time: new Date(
+//     "2026-09-05T20:00:00+05:30"
+//   ),
+//   session_end_time: new Date(
+//     "2026-09-05T21:30:00+05:30"
+//   ),
+//   meetingUrl: "https://meet.google.com/abc-defg-hij",
+//   title: "SAT Math - Algebra Live Session",
+// });
 
 dotenv.config();
 connectDB();
-// runNotificationCron()
+startNotificationCron()
 
 const app = express();
 const server = createServer(app);
@@ -117,15 +128,6 @@ const io = new Server(server, {
 });
 
 global.io = io;
-// const leadIO = io.of("/lead-notifications");
-
-// leadIO.use(leadSocketAuth);
-
-// leadIO.on("connection", (socket) => {
-//   socket.join(socket.user._id.toString());
-//   socket.on("disconnect", () => {
-//   });
-// });
 
 io.use(socketAuth);
 
@@ -151,13 +153,6 @@ app.use(compression());
 // app.use(morgan('dev'));
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ extended: true, limit: "50mb" }));
-
-// const limiter = rateLimit({
-//   windowMs: 15 * 60 * 1000,
-//   max: 100,
-//   message: 'Too many requests from this IP, please try again later.'
-// });
-// app.use('/api/', limiter);
 
 app.use((req, res, next) => {
   req.io = io;

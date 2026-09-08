@@ -8,13 +8,13 @@ function normalizeData(data = {}) {
     Object.entries(data).map(([key, value]) => [
       String(key),
       value === null || value === undefined ? "" : String(value),
-    ])
+    ]),
   );
 }
 
 export async function sendPushToUsers(
   userIds,
-  { title, body, data = {} } = {}
+  { title, body, data = {} } = {},
 ) {
   const results = new Map();
 
@@ -22,23 +22,14 @@ export async function sendPushToUsers(
     return results;
   }
 
-  const uniqueUserIds = [
-    ...new Set(userIds.filter(Boolean).map(String)),
-  ];
+  const uniqueUserIds = [...new Set(userIds.filter(Boolean).map(String))];
 
   uniqueUserIds.forEach((id) => {
     results.set(id, { status: "no_token" });
   });
 
-  for (
-    let i = 0;
-    i < uniqueUserIds.length;
-    i += FCM_BATCH_LIMIT
-  ) {
-    const chunkIds = uniqueUserIds.slice(
-      i,
-      i + FCM_BATCH_LIMIT
-    );
+  for (let i = 0; i < uniqueUserIds.length; i += FCM_BATCH_LIMIT) {
+    const chunkIds = uniqueUserIds.slice(i, i + FCM_BATCH_LIMIT);
 
     try {
       const users = await User.find({
@@ -117,8 +108,7 @@ export async function sendPushToUsers(
           return;
         }
 
-        const errorCode =
-          result.error?.code || "unknown";
+        const errorCode = result.error?.code || "unknown";
 
         if (results.get(userId)?.status !== "sent") {
           results.set(userId, {
@@ -131,13 +121,10 @@ export async function sendPushToUsers(
         console.error(
           `FCM failed for ${userId}:`,
           errorCode,
-          result.error?.message
+          result.error?.message,
         );
 
-        if (
-          errorCode ===
-          "messaging/registration-token-not-registered"
-        ) {
+        if (errorCode === "messaging/registration-token-not-registered") {
           expiredTokens.push(token);
         }
       });
@@ -153,15 +140,11 @@ export async function sendPushToUsers(
             $unset: {
               token: "",
             },
-          }
+          },
         );
       }
     } catch (error) {
-      console.error(
-        "FCM batch error:",
-        error.code,
-        error.message
-      );
+      console.error("FCM batch error:", error.code, error.message);
 
       chunkIds.forEach((userId) => {
         const id = String(userId);
@@ -180,10 +163,7 @@ export async function sendPushToUsers(
   return results;
 }
 
-export async function sendPushToTopic(
-  topic,
-  { title, body, data = {} } = {}
-) {
+export async function sendPushToTopic(topic, { title, body, data = {} } = {}) {
   if (!topic) {
     return {
       status: "failed",
@@ -221,11 +201,7 @@ export async function sendPushToTopic(
       messageId,
     };
   } catch (error) {
-    console.error(
-      "FCM topic error:",
-      error.code,
-      error.message
-    );
+    console.error("FCM topic error:", error.code, error.message);
 
     return {
       status: "failed",

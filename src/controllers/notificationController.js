@@ -6,9 +6,7 @@ import {
   sendPushToTopic,
 } from "../services/pushNotitification.js";
 
-
 import { fcmToken } from "../models/fcmToken.js";
-
 
 const VALID_TYPES = [
   "course",
@@ -19,14 +17,7 @@ const VALID_TYPES = [
   "system",
 ];
 
-const VALID_PRIORITIES = [
-  "low",
-  "medium",
-  "high",
-  "urgent",
-];
-
-
+const VALID_PRIORITIES = ["low", "medium", "high", "urgent"];
 
 export const saveToken = async (req, res) => {
   try {
@@ -58,7 +49,7 @@ export const saveToken = async (req, res) => {
       {
         new: true,
         runValidators: true,
-      }
+      },
     ).select("_id name email role token");
 
     if (!user) {
@@ -87,7 +78,6 @@ export const saveToken = async (req, res) => {
   }
 };
 
-  
 // export const saveToken = async (req, res) => {
 //   try {
 //     const { token, id } = req.body;
@@ -108,7 +98,6 @@ export const saveToken = async (req, res) => {
 //     return res.status(500).json({ message: "Something went wrong" });
 //   }
 // };
-
 
 export const createNotification = async (req, res) => {
   try {
@@ -138,8 +127,6 @@ export const createNotification = async (req, res) => {
 
     const sender = req.user?._id;
 
-    
-
     if (!title?.trim()) {
       return res.status(400).json({
         success: false,
@@ -158,7 +145,7 @@ export const createNotification = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: `Invalid notification type. Allowed: ${VALID_TYPES.join(
-          ", "
+          ", ",
         )}`,
       });
     }
@@ -170,8 +157,6 @@ export const createNotification = async (req, res) => {
       });
     }
 
-    
-
     let userIds = [];
 
     if (recipient) {
@@ -179,16 +164,10 @@ export const createNotification = async (req, res) => {
     }
 
     if (Array.isArray(recipients)) {
-      userIds.push(...recipients);  
+      userIds.push(...recipients);
     }
 
-    userIds = [
-      ...new Set(
-        userIds
-          .filter(Boolean)
-          .map((id) => String(id))
-      ),
-    ];
+    userIds = [...new Set(userIds.filter(Boolean).map((id) => String(id)))];
 
     /* Validate ObjectIds */
 
@@ -201,8 +180,6 @@ export const createNotification = async (req, res) => {
       }
     }
 
-    
-
     if (!isGlobal && userIds.length === 0) {
       return res.status(400).json({
         success: false,
@@ -210,8 +187,6 @@ export const createNotification = async (req, res) => {
           "recipient or recipients is required for personal notification.",
       });
     }
-
-    
 
     const notification = await Notification.create({
       isGlobal: Boolean(isGlobal),
@@ -248,10 +223,8 @@ export const createNotification = async (req, res) => {
       metaInfo,
     });
 
-    
-
     if (!isGlobal) {
-      console.log('all user ids',userIds);
+      console.log("all user ids", userIds);
 
       const recipientDocs = userIds.map((userId) => ({
         notification: notification._id,
@@ -264,8 +237,6 @@ export const createNotification = async (req, res) => {
         ordered: false,
       });
     }
-
-    
 
     let pushResult = null;
 
@@ -280,14 +251,11 @@ export const createNotification = async (req, res) => {
       };
 
       if (isGlobal) {
-        pushResult = await sendPushToTopic(
-          "global_notifications",
-          {
-            title,
-            body: message,
-            data: pushData,
-          }
-        );
+        pushResult = await sendPushToTopic("global_notifications", {
+          title,
+          body: message,
+          data: pushData,
+        });
       } else {
         pushResult = await sendPushToUsers(userIds, {
           title,
@@ -309,15 +277,12 @@ export const createNotification = async (req, res) => {
             },
             {
               $set: {
-                "meta.push":
-                  result.status === "sent"
-                    ? "sent"
-                    : result.status,
+                "meta.push": result.status === "sent" ? "sent" : result.status,
               },
             },
             {
               new: true,
-            }
+            },
           );
         }
       }
@@ -335,7 +300,6 @@ export const createNotification = async (req, res) => {
         pushResult,
       },
     });
-
   } catch (error) {
     console.error("createNotification error:", error);
 
@@ -347,41 +311,26 @@ export const createNotification = async (req, res) => {
   }
 };
 
-
-
-
 export const getMyNotifications = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const {
-      page = 1,
-      limit = 20,
-      type,
-      isRead,
-      isActive = "true",
-    } = req.query;
+    const { page = 1, limit = 20, type, isRead, isActive = "true" } = req.query;
 
     const pageNumber = Math.max(Number(page), 1);
-    const limitNumber = Math.min(
-      Math.max(Number(limit), 1),
-      100
-    );
+    const limitNumber = Math.min(Math.max(Number(limit), 1), 100);
 
     /* ---------------- USER RECIPIENT RECORDS ---------------- */
 
     const recipientRecords = await NotificationRec.find({
       user: userId,
     })
-      .select(
-        "notification isRead readAt expiresAt meta"
-      )
+      .select("notification isRead readAt expiresAt meta")
       .lean();
 
-    const personalNotificationIds =
-      recipientRecords.map(
-        (rec) => rec.notification
-      );
+    const personalNotificationIds = recipientRecords.map(
+      (rec) => rec.notification,
+    );
 
     const recipientMap = new Map();
 
@@ -422,50 +371,39 @@ export const getMyNotifications = async (req, res) => {
 
     /* ---------------- GET NOTIFICATIONS ---------------- */
 
-    const notifications =
-      await Notification.find(query)
-        .populate("sender", "name email")
-        .populate("Category", "name")
-        .populate("data.courseId")
-        .populate("data.contentId")
-        .populate("data.testId")
-        .sort({ createdAt: -1 })
-        .lean();
+    const notifications = await Notification.find(query)
+      .populate("sender", "name email")
+      .populate("Category", "name")
+      .populate("data.courseId")
+      .populate("data.contentId")
+      .populate("data.testId")
+      .sort({ createdAt: -1 })
+      .lean();
 
     /* ---------------- FORMAT ---------------- */
 
-    let data = notifications.map(
-      (notification) => {
-        const rec = recipientMap.get(
-          String(notification._id)
-        );
+    let data = notifications.map((notification) => {
+      const rec = recipientMap.get(String(notification._id));
 
-        return {
-          ...notification,
+      return {
+        ...notification,
 
-          isRead: rec?.isRead || false,
+        isRead: rec?.isRead || false,
 
-          readAt: rec?.readAt || null,
+        readAt: rec?.readAt || null,
 
-          meta: rec?.meta || {
-            email: "",
-            push: "",
-            sms: "",
-          },
+        meta: rec?.meta || {
+          email: "",
+          push: "",
+          sms: "",
+        },
 
-          notificationScope:
-            notification.isGlobal
-              ? "global"
-              : "personal",
-        };
-      }
-    );
-    
+        notificationScope: notification.isGlobal ? "global" : "personal",
+      };
+    });
 
     data = data.filter((notification) => {
-      const rec = recipientMap.get(
-        String(notification._id)
-      );
+      const rec = recipientMap.get(String(notification._id));
 
       if (!rec?.expiresAt) {
         return true;
@@ -473,33 +411,22 @@ export const getMyNotifications = async (req, res) => {
 
       return new Date(rec.expiresAt) > new Date();
     });
-    
 
     if (isRead !== undefined) {
       const readValue = isRead === "true";
 
-      data = data.filter(
-        (notification) =>
-          notification.isRead === readValue
-      );
+      data = data.filter((notification) => notification.isRead === readValue);
     }
-
-    
 
     const total = data.length;
 
-    const skip =
-      (pageNumber - 1) * limitNumber;
+    const skip = (pageNumber - 1) * limitNumber;
 
-    data = data.slice(
-      skip,
-      skip + limitNumber
-    );
+    data = data.slice(skip, skip + limitNumber);
 
     return res.status(200).json({
       success: true,
-      message:
-        "Notifications fetched successfully.",
+      message: "Notifications fetched successfully.",
 
       data,
 
@@ -507,28 +434,19 @@ export const getMyNotifications = async (req, res) => {
         total,
         page: pageNumber,
         limit: limitNumber,
-        totalPages: Math.ceil(
-          total / limitNumber
-        ),
+        totalPages: Math.ceil(total / limitNumber),
       },
     });
   } catch (error) {
-    console.error(
-      "getMyNotifications error:",
-      error
-    );
+    console.error("getMyNotifications error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch notifications.",
+      message: "Failed to fetch notifications.",
       error: error.message,
     });
   }
 };
-
-
-
 
 export const getNotifications = async (req, res) => {
   try {
@@ -542,10 +460,7 @@ export const getNotifications = async (req, res) => {
     } = req.query;
 
     const pageNumber = Math.max(Number(page), 1);
-    const limitNumber = Math.min(
-      Math.max(Number(limit), 1),
-      100
-    );
+    const limitNumber = Math.min(Math.max(Number(limit), 1), 100);
 
     const query = {};
 
@@ -565,29 +480,26 @@ export const getNotifications = async (req, res) => {
       query.notificationKey = notificationKey;
     }
 
-    const skip =
-      (pageNumber - 1) * limitNumber;
+    const skip = (pageNumber - 1) * limitNumber;
 
-    const [notifications, total] =
-      await Promise.all([
-        Notification.find(query)
-          .populate("sender", "name email")
-          .populate("Category", "name")
-          .populate("data.courseId")
-          .populate("data.contentId")
-          .populate("data.testId")
-          .sort({ createdAt: -1 })
-          .skip(skip)
-          .limit(limitNumber)
-          .lean(),
+    const [notifications, total] = await Promise.all([
+      Notification.find(query)
+        .populate("sender", "name email")
+        .populate("Category", "name")
+        .populate("data.courseId")
+        .populate("data.contentId")
+        .populate("data.testId")
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNumber)
+        .lean(),
 
-        Notification.countDocuments(query),
-      ]);
+      Notification.countDocuments(query),
+    ]);
 
     return res.status(200).json({
       success: true,
-      message:
-        "Notifications fetched successfully.",
+      message: "Notifications fetched successfully.",
 
       data: notifications,
 
@@ -595,26 +507,19 @@ export const getNotifications = async (req, res) => {
         total,
         page: pageNumber,
         limit: limitNumber,
-        totalPages: Math.ceil(
-          total / limitNumber
-        ),
+        totalPages: Math.ceil(total / limitNumber),
       },
     });
   } catch (error) {
-    console.error(
-      "getNotifications error:",
-      error
-    );
+    console.error("getNotifications error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to fetch notifications.",
+      message: "Failed to fetch notifications.",
       error: error.message,
     });
   }
 };
-
 
 export const getUnreadNotificationCount = async (req, res) => {
   try {
@@ -651,9 +556,7 @@ export const getUnreadNotificationCount = async (req, res) => {
       .select("_id")
       .lean();
 
-    const globalIds = globalNotifications.map(
-      (item) => item._id
-    );
+    const globalIds = globalNotifications.map((item) => item._id);
 
     // If there are no global notifications,
     // avoid unnecessary database query
@@ -680,14 +583,12 @@ export const getUnreadNotificationCount = async (req, res) => {
       .lean();
 
     const readGlobalIds = new Set(
-      readGlobal.map((item) =>
-        String(item.notification)
-      )
+      readGlobal.map((item) => String(item.notification)),
     );
 
     // Count global notifications not read by this user
     const unreadGlobal = globalIds.filter(
-      (id) => !readGlobalIds.has(String(id))
+      (id) => !readGlobalIds.has(String(id)),
     ).length;
 
     return res.status(200).json({
@@ -695,58 +596,44 @@ export const getUnreadNotificationCount = async (req, res) => {
       data: {
         personalUnread,
         globalUnread: unreadGlobal,
-        totalUnread:
-          personalUnread + unreadGlobal,
+        totalUnread: personalUnread + unreadGlobal,
       },
     });
   } catch (error) {
-    console.error(
-      "getUnreadNotificationCount error:",
-      error
-    );
+    console.error("getUnreadNotificationCount error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to get unread notification count.",
+      message: "Failed to get unread notification count.",
       error: error.message,
     });
   }
 };
 
-
-export const markNotificationAsRead = async (
-  req,
-  res
-) => {
+export const markNotificationAsRead = async (req, res) => {
   try {
     const userId = req.user._id;
     const { notificationId } = req.params;
 
-    if (
-      !mongoose.Types.ObjectId.isValid(
-        notificationId
-      )
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid notification ID.",
       });
     }
 
-    const notification =
-      await Notification.findOne({
-        _id: notificationId,
-        isActive: true,
-        $or: [
-          {
-            isGlobal: true,
-          },
-          {
-            isGlobal: false,
-          },
-        ],
-      });
+    const notification = await Notification.findOne({
+      _id: notificationId,
+      isActive: true,
+      $or: [
+        {
+          isGlobal: true,
+        },
+        {
+          isGlobal: false,
+        },
+      ],
+    });
 
     if (!notification) {
       return res.status(404).json({
@@ -758,98 +645,73 @@ export const markNotificationAsRead = async (
     /* For personal notification verify ownership */
 
     if (!notification.isGlobal) {
-      const recipient =
-        await NotificationRec.findOne({
-          notification: notificationId,
-          user: userId,
-        });
+      const recipient = await NotificationRec.findOne({
+        notification: notificationId,
+        user: userId,
+      });
 
       if (!recipient) {
         return res.status(403).json({
           success: false,
-          message:
-            "You are not a recipient of this notification.",
+          message: "You are not a recipient of this notification.",
         });
       }
     }
 
-    const record =
-      await NotificationRec.findOneAndUpdate(
-        {
-          notification: notificationId,
-          user: userId,
+    const record = await NotificationRec.findOneAndUpdate(
+      {
+        notification: notificationId,
+        user: userId,
+      },
+      {
+        $set: {
+          isRead: true,
+          readAt: new Date(),
         },
-        {
-          $set: {
-            isRead: true,
-            readAt: new Date(),
-          },
-        },
-        {
-          upsert: true,
-          new: true,
-          setDefaultsOnInsert: true,
-        }
-      );
+      },
+      {
+        upsert: true,
+        new: true,
+        setDefaultsOnInsert: true,
+      },
+    );
 
     return res.status(200).json({
       success: true,
-      message:
-        "Notification marked as read.",
+      message: "Notification marked as read.",
       data: record,
     });
   } catch (error) {
-    console.error(
-      "markNotificationAsRead error:",
-      error
-    );
+    console.error("markNotificationAsRead error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to mark notification as read.",
+      message: "Failed to mark notification as read.",
       error: error.message,
     });
   }
 };
 
-
-
-export const markAllNotificationsAsRead = async (
-  req,
-  res
-) => {
+export const markAllNotificationsAsRead = async (req, res) => {
   try {
     const userId = req.user._id;
 
     /* Personal notifications */
 
-    const personalNotifications =
-      await NotificationRec.find({
-        user: userId,
-      }).select("notification");
+    const personalNotifications = await NotificationRec.find({
+      user: userId,
+    }).select("notification");
 
-    const personalIds =
-      personalNotifications.map(
-        (item) => item.notification
-      );
+    const personalIds = personalNotifications.map((item) => item.notification);
 
+    const globalNotifications = await Notification.find({
+      isGlobal: true,
+      isActive: true,
+    }).select("_id");
 
-    const globalNotifications =
-      await Notification.find({
-        isGlobal: true,
-        isActive: true,
-      }).select("_id");
+    const globalIds = globalNotifications.map((item) => item._id);
 
-    const globalIds =
-      globalNotifications.map(
-        (item) => item._id
-      );
-
-    const allIds = [
-      ...personalIds,
-      ...globalIds,
-    ];
+    const allIds = [...personalIds, ...globalIds];
 
     if (!allIds.length) {
       return res.status(200).json({
@@ -873,54 +735,37 @@ export const markAllNotificationsAsRead = async (
           },
           upsert: true,
         },
-      }))
+      })),
     );
 
     return res.status(200).json({
       success: true,
-      message:
-        "All notifications marked as read.",
+      message: "All notifications marked as read.",
     });
   } catch (error) {
-    console.error(
-      "markAllNotificationsAsRead error:",
-      error
-    );
+    console.error("markAllNotificationsAsRead error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to mark all notifications as read.",
+      message: "Failed to mark all notifications as read.",
       error: error.message,
     });
   }
 };
 
-
-
-export const deleteNotification = async (
-  req,
-  res
-) => {
+export const deleteNotification = async (req, res) => {
   try {
     const userId = req.user._id;
     const { notificationId } = req.params;
 
-    if (
-      !mongoose.Types.ObjectId.isValid(
-        notificationId
-      )
-    ) {
+    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
       return res.status(400).json({
         success: false,
         message: "Invalid notification ID.",
       });
     }
 
-    const notification =
-      await Notification.findById(
-        notificationId
-      );
+    const notification = await Notification.findById(notificationId);
 
     if (!notification) {
       return res.status(404).json({
@@ -932,17 +777,15 @@ export const deleteNotification = async (
     /* Personal notification */
 
     if (!notification.isGlobal) {
-      const recipient =
-        await NotificationRec.findOne({
-          notification: notificationId,
-          user: userId,
-        });
+      const recipient = await NotificationRec.findOne({
+        notification: notificationId,
+        user: userId,
+      });
 
       if (!recipient) {
         return res.status(403).json({
           success: false,
-          message:
-            "You cannot delete this notification.",
+          message: "You cannot delete this notification.",
         });
       }
     }
@@ -959,30 +802,23 @@ export const deleteNotification = async (
       },
       {
         upsert: true,
-      }
+      },
     );
 
     return res.status(200).json({
       success: true,
-      message:
-        "Notification deleted for you.",
+      message: "Notification deleted for you.",
     });
   } catch (error) {
-    console.error(
-      "deleteNotification error:",
-      error
-    );
+    console.error("deleteNotification error:", error);
 
     return res.status(500).json({
       success: false,
-      message:
-        "Failed to delete notification.",
+      message: "Failed to delete notification.",
       error: error.message,
     });
   }
 };
-
-
 
 export const deleteNotificationForEveryone = async (req, res) => {
   try {
@@ -1025,7 +861,6 @@ export const deleteNotificationForEveryone = async (req, res) => {
   }
 };
 
-
 export const testSendPush = async (req, res) => {
   try {
     const { userIds, title, body, data } = req.body;
@@ -1052,4 +887,3 @@ export const testSendPush = async (req, res) => {
     });
   }
 };
-

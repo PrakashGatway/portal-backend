@@ -1,5 +1,8 @@
 import nodemailer from "nodemailer";
+import dotenv from 'dotenv';
 import { sendMeetingMail } from "./EmailTempletes.js";
+
+dotenv.config();
 
 export const transporter = nodemailer.createTransport({
   host: "smtp.hostinger.com",
@@ -16,7 +19,7 @@ const sendMeetingUrlMail = async ({
   student_name,
   session_start_time,
   session_end_time,
-  instructor_name,
+  instructor_name="Ooshas Trainer",
   meetingUrl,
   title,
 }) => {
@@ -102,7 +105,7 @@ const sendMeetingUrlMail = async ({
     const subject = `Session Reminder: ${title || "Upcoming Session"}`;
 
     const mailOptions = {
-      from: `"${process.env.MAIL_FROM_NAME || "Support Team"}" <${process.env.MAIL_USER}>`,
+      from: `"${process.env.MAIL_FROM_NAME || "Ooshas Prep"}" <${process.env.MAIL_USER}>`,
 
       to,
 

@@ -85,10 +85,9 @@ const createSessionReminders = async (session) => {
 
     const now = new Date();
 
-    // if (sessionStart <= now) {
-    //   console.log(session);
-    //   return;
-    // }
+    if (sessionStart <= now) {
+      return;
+    }
 
     // const recipients = await getSessionRecipients(session);
 
@@ -104,15 +103,6 @@ const createSessionReminders = async (session) => {
       if (scheduledFor <= now) {
         continue;
       }
-      //   console.log(
-      //     sessionStart.toLocaleDateString(),
-      //     sessionStart.toLocaleTimeString(),
-      //   );
-
-      //   console.log(
-      //     scheduledFor.toLocaleDateString(),
-      //     scheduledFor.toLocaleTimeString(),
-      //   );
 
       const notificationKey =
         `session:${session._id}` + `:reminder:${reminder.key}`;
@@ -129,7 +119,8 @@ const createSessionReminders = async (session) => {
         isGlobal: false,
         title: `Upcoming Session: ${session.title}`,
         message:
-          `Your session "${session.title}" ` + `starts in ${reminder.text}.`,
+          `Your session "${session.title}" ` +
+          `starts in ${reminder.text}. Please be ready to join on time.`,
         type: "reminder",
         priority: reminder.key === "5_minutes" ? "high" : "medium",
         data: {
@@ -189,7 +180,7 @@ const sendEmailNotification = async ({ notify, session }) => {
             timeZone: "Asia/Kolkata",
           })
         : "",
-      instructor_name: session?.instructor?.name,
+      instructor_name: session?.instructor?.name || "Ooshas Trainer",
       meetingUrl: session?.meetingId,
       title: session?.title,
     });
@@ -197,16 +188,6 @@ const sendEmailNotification = async ({ notify, session }) => {
     return true;
   } catch (error) {
     console.error("Email notification error:", error);
-
-    return false;
-  }
-};
-
-const sendPushNotification = async (notification) => {
-  try {
-    return true;
-  } catch (error) {
-    console.error("Push notification error:", error);
 
     return false;
   }
@@ -221,9 +202,6 @@ const processNotification = async (notification) => {
     const NotifyUsers = await getSessionRecipients(
       notification?.data?.contentId,
     );
-
-    console.log(NotifyUsers);
-    // return;
 
     for (const user of NotifyUsers) {
       const notify = await NotificationRec.create({
@@ -241,8 +219,48 @@ const processNotification = async (notification) => {
         });
         notify.meta.email = true;
       }
+
       if (!notify?.meta?.push) {
-        await sendPushNotification(notify);
+        const sessionPy = notification?.data?.contentId;
+
+        const sessionDate = new Date(
+          sessionPy.scheduledStart,
+        ).toLocaleDateString("en-IN", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          timeZone: "Asia/Kolkata",
+        });
+
+        const sessionStartTime = new Date(
+          sessionPy.scheduledStart,
+        ).toLocaleTimeString("en-IN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: true,
+          timeZone: "Asia/Kolkata",
+        });
+
+        const totalMinutes = Math.floor(sessionPy.duration / 60);
+
+        const hours = Math.floor(totalMinutes / 60);
+        const minutes = totalMinutes % 60;
+
+        const sessionDuration = hours
+          ? `${hours} hour${hours > 1 ? "s" : ""}${
+              minutes ? ` ${minutes} minute${minutes > 1 ? "s" : ""}` : ""
+            }`
+          : `${minutes} minute${minutes > 1 ? "s" : ""}`;
+
+        await sendPushToUsers([user.toString()], {
+          title: `Upcoming Session 📅`,
+          body: `"${sessionPy.title || "Upcoming Session"}" is scheduled for ${sessionDate} at ${sessionStartTime}. Duration: ${sessionDuration}. Please be ready to join on time.`,
+          data: {
+            type: "session",
+            url: `/sessions/${sessionPy.slug}`,
+            actionText: "Join Session"
+          },
+        });
         notify.meta.push = true;
       }
       await notify.save();
@@ -272,7 +290,7 @@ const prepareSessionReminders = async () => {
   try {
     const now = new Date();
 
-    const future = new Date(now.getTime() + 127 * 60 * 60 * 1000);
+    const future = new Date(now.getTime() + 7 * 60 * 60 * 1000);
 
     const sessions = await Session.find({
       scheduledStart: {
@@ -303,23 +321,22 @@ const processDueNotifications = async () => {
 
     const notifications = await Notification.find({
       type: "reminder",
-      //   scheduledFor: {
-      //     $lte: now,
-      //   },
+      scheduledFor: {
+        $lte: now,
+      },
       isActive: true,
       proceedStatus: {
         $nin: [true],
       },
-    })
-      .limit(5)
+    }).limit(5)
       .populate("data.courseId", "title description")
       .populate({
         path: "data.contentId",
       });
 
-    // if (!notifications.length) {
-    //   return;
-    // }
+    if (!notifications.length) {
+      return;
+    }
 
     console.log(`Processing ${notifications.length} notifications`);
 

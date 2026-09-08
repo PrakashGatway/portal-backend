@@ -1,12 +1,20 @@
-import crypto from 'crypto';
-import User from '../models/User.js';
-import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../utils/generateToken.js';
-import { sendWelcomeEmail, sendPasswordResetEmail, sendEmail } from '../utils/sendEmail.js';
-import Otp from '../models/Otp.js';
+import crypto from "crypto";
+import User from "../models/User.js";
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  verifyRefreshToken,
+} from "../utils/generateToken.js";
+import {
+  sendPasswordResetEmail,
+  sendEmail,
+  otpEmailTemplate,
+  welcomeEmailTemplate,
+} from "../utils/sendEmail.js";
+import Otp from "../models/Otp.js";
 import { Wallet } from "../models/Wallet.js";
-import { startSession } from 'mongoose';
-import axios from 'axios';
-
+import { startSession } from "mongoose";
+import axios from "axios";
 
 function generateReferralCodeFromUserId(userId) {
   const idStr = userId.toString();
@@ -26,18 +34,18 @@ export const checkEmailExists = async (req, res) => {
     if (!email) {
       return res.status(400).json({
         success: false,
-        message: 'Email is required'
+        message: "Email is required",
       });
     }
     const user = await User.findOne({ email: email.toLowerCase().trim() });
     return res.status(200).json({
       success: true,
-      isExists: !!user
+      isExists: !!user,
     });
   } catch (error) {
     return res.status(500).json({
       success: false,
-      message: 'Server error while checking email'
+      message: "Server error while checking email",
     });
   }
 };
@@ -46,7 +54,9 @@ export const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) {
-      return res.status(400).json({ success: false, message: "Email is required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email is required" });
     }
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
 
@@ -54,28 +64,29 @@ export const sendOtp = async (req, res) => {
 
     await Otp.create({ email, otp });
 
-    try {
-      await axios.post("https://otp-backend-main.vercel.app/api/send-otp", {
-        "email": email,
-        "otp": otp
-      });
-    } catch (error) {
-      return res.status(200).json({ success: false, message: "Failed to send OTP" });
-    }
+    // try {
+    //   await axios.post("https://otp-backend-main.vercel.app/api/send-otp", {
+    //     "email": email,
+    //     "otp": otp
+    //   });
+    // } catch (error) {
+    //   return res.status(200).json({ success: false, message: "Failed to send OTP" });
+    // }
 
-    // await sendEmail({
-    //   email,
-    //   subject: "OTP for Login",
-    //   message: `Your OTP is ${otp}. It will expire in 5 minutes.`
-    // });
+    await sendEmail({
+      email,
+      subject: "Your Ooshas Prep Login OTP",
+      html: otpEmailTemplate(otp),
+    });
 
     return res.json({ success: true, message: "OTP sent successfully" });
   } catch (error) {
     console.error("Error sending OTP:", error);
-    return res.status(500).json({ success: false, message: "Failed to send OTP" });
+    return res
+      .status(500)
+      .json({ success: false, message: "Failed to send OTP" });
   }
 };
-
 
 export const verifyOtp = async (req, res) => {
   const session = await startSession();
@@ -85,14 +96,18 @@ export const verifyOtp = async (req, res) => {
     const { email, otp, referCode, name, phoneNumber } = req.body;
 
     if (!email || !otp) {
-      return res.status(400).json({ success: false, message: "Email and OTP are required" });
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and OTP are required" });
     }
 
     const record = await Otp.findOne({ email }).session(session);
     if (!record) {
       await session.abortTransaction();
       session.endSession();
-      return res.status(400).json({ success: false, message: "OTP expired or not found" });
+      return res
+        .status(400)
+        .json({ success: false, message: "OTP expired or not found" });
     }
 
     if (record.otp !== otp && otp !== "000000") {
@@ -111,27 +126,37 @@ export const verifyOtp = async (req, res) => {
       let referredBy = null;
       if (referCode) {
         const referrerWallet = await Wallet.findOne({ referralCode: referCode })
-          .populate('user')
+          .populate("user")
           .session(session);
         if (referrerWallet?.user) {
           referredBy = referrerWallet.user._id;
         }
       }
-      user = await User.create([{
-        email,
-        role: "user",
-        name: name || "New User",
-        phoneNumber: phoneNumber || "",
-        isVerified: true
-      }], { session });
+      user = await User.create(
+        [
+          {
+            email,
+            role: "user",
+            name: name || "New User",
+            phoneNumber: phoneNumber || "",
+            isVerified: true,
+          },
+        ],
+        { session },
+      );
 
       user = user[0];
 
-      const newWallet = await Wallet.create([{
-        user: user._id,
-        referredBy: referredBy || null,
-        referralCode: generateReferralCodeFromUserId(user._id)
-      }], { session });
+      const newWallet = await Wallet.create(
+        [
+          {
+            user: user._id,
+            referredBy: referredBy || null,
+            referralCode: generateReferralCodeFromUserId(user._id),
+          },
+        ],
+        { session },
+      );
 
       if (referredBy) {
         await Wallet.findOneAndUpdate(
@@ -141,13 +166,18 @@ export const verifyOtp = async (req, res) => {
               balance: 50,
               totalEarned: 50,
               referralEarnings: 50,
-              totalReferrals: 1
-            }
+              totalReferrals: 1,
+            },
           },
-          { new: true, session }
+          { new: true, session },
         );
       }
-      // await sendWelcomeEmail(user);
+      await sendEmail({
+        email: user.email,
+        subject: "Welcome to Ooshas Prep 🎉",
+        html: welcomeEmailTemplate(user),
+      });
+
       accessToken = generateAccessToken(user._id);
     }
 
@@ -157,7 +187,7 @@ export const verifyOtp = async (req, res) => {
       secure: true,
       sameSite: "None",
       domain: "ooshasprep.com",
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie("auth_token", accessToken, {
@@ -165,7 +195,7 @@ export const verifyOtp = async (req, res) => {
       secure: true,
       sameSite: "None",
       domain: "gatewayabroadeducations.com",
-      maxAge: 7 * 24 * 60 * 60 * 1000
+      maxAge: 7 * 24 * 60 * 60 * 1000,
     });
     // res.cookie("auth_token", accessToken, {
     //   httpOnly: true,
@@ -181,9 +211,8 @@ export const verifyOtp = async (req, res) => {
     res.json({
       success: true,
       message: "OTP verified successfully",
-      token: accessToken
+      token: accessToken,
     });
-
   } catch (error) {
     console.error("Error verifying OTP:", error);
 
@@ -200,7 +229,7 @@ export const refreshToken = async (req, res) => {
     if (!refreshToken) {
       return res.status(401).json({
         success: false,
-        message: 'Refresh token required'
+        message: "Refresh token required",
       });
     }
 
@@ -210,7 +239,7 @@ export const refreshToken = async (req, res) => {
     if (!user || !user.refreshTokens.includes(refreshToken)) {
       return res.status(403).json({
         success: false,
-        message: 'Invalid refresh token'
+        message: "Invalid refresh token",
       });
     }
 
@@ -219,7 +248,9 @@ export const refreshToken = async (req, res) => {
     const newRefreshToken = generateRefreshToken(user._id);
 
     // Replace old refresh token with new one
-    user.refreshTokens = user.refreshTokens.filter(token => token !== refreshToken);
+    user.refreshTokens = user.refreshTokens.filter(
+      (token) => token !== refreshToken,
+    );
     user.refreshTokens.push(newRefreshToken);
     await user.save();
 
@@ -227,13 +258,13 @@ export const refreshToken = async (req, res) => {
       success: true,
       data: {
         accessToken: newAccessToken,
-        refreshToken: newRefreshToken
-      }
+        refreshToken: newRefreshToken,
+      },
     });
   } catch (error) {
     res.status(403).json({
       success: false,
-      message: 'Invalid refresh token'
+      message: "Invalid refresh token",
     });
   }
 };
@@ -252,13 +283,13 @@ export const logout = async (req, res) => {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        domain: "gatewayabroadeducations.com" // same as when you set it
+        domain: "gatewayabroadeducations.com", // same as when you set it
       });
       res.clearCookie("auth_token", {
         httpOnly: true,
         secure: true,
         sameSite: "None",
-        domain: "ooshasprep.com" // same as when you set it
+        domain: "ooshasprep.com", // same as when you set it
       });
     }
 
@@ -274,12 +305,12 @@ export const logout = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Logout successful'
+      message: "Logout successful",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -292,11 +323,14 @@ export const forgotPassword = async (req, res) => {
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
-    const resetToken = crypto.randomBytes(32).toString('hex');
-    user.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    user.resetPasswordToken = crypto
+      .createHash("sha256")
+      .update(resetToken)
+      .digest("hex");
     user.resetPasswordExpires = Date.now() + 10 * 60 * 1000; // 10 minutes
 
     await user.save();
@@ -305,12 +339,12 @@ export const forgotPassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Password reset email sent'
+      message: "Password reset email sent",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -320,17 +354,17 @@ export const resetPassword = async (req, res) => {
     const { token } = req.params;
     const { password } = req.body;
 
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
 
     const user = await User.findOne({
       resetPasswordToken: hashedToken,
-      resetPasswordExpires: { $gt: Date.now() }
+      resetPasswordExpires: { $gt: Date.now() },
     });
 
     if (!user) {
       return res.status(400).json({
         success: false,
-        message: 'Invalid or expired token'
+        message: "Invalid or expired token",
       });
     }
     user.password = password;
@@ -342,12 +376,12 @@ export const resetPassword = async (req, res) => {
 
     res.json({
       success: true,
-      message: 'Password reset successful'
+      message: "Password reset successful",
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -355,18 +389,18 @@ export const resetPassword = async (req, res) => {
 export const getMe = async (req, res) => {
   try {
     const userPromise = User.findById(req.user.id)
-      .populate('category', 'name icon')
-      .populate('subCategory', 'name icon')
-      .select('-refreshTokens');
+      .populate("category", "name icon")
+      .populate("subCategory", "name icon")
+      .select("-refreshTokens");
 
-    const walletPromise = Wallet.findOne({ user: req.user.id }).select('-__v');
+    const walletPromise = Wallet.findOne({ user: req.user.id }).select("-__v");
 
     const [user, wallet] = await Promise.all([userPromise, walletPromise]);
 
     if (!user) {
       return res.status(404).json({
         success: false,
-        message: 'User not found'
+        message: "User not found",
       });
     }
     if (!wallet) {
@@ -375,13 +409,13 @@ export const getMe = async (req, res) => {
     res.json({
       success: true,
       data: user,
-      wallet
+      wallet,
     });
   } catch (error) {
-    console.error('Error in getMe:', error);
+    console.error("Error in getMe:", error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message,
     });
   }
 };
@@ -394,21 +428,21 @@ export const updateUserProfile = async (req, res) => {
       phoneNumber,
       address,
       profile,
-      education,     // Teacher-specific
-      experience,    // Teacher-specific
-      skills,        // Teacher-specific
-      socialLinks    // Teacher-specific
+      education, // Teacher-specific
+      experience, // Teacher-specific
+      skills, // Teacher-specific
+      socialLinks, // Teacher-specific
     } = req.body;
 
     const updateFields = {
       ...(name && { name }),
       ...(phoneNumber && { phoneNumber }),
       ...(address && { address }),
-      ...(profile && { profile })
+      ...(profile && { profile }),
     };
 
     const user = await User.findById(userId);
-    if (user && user.role === 'teacher') {
+    if (user && user.role === "teacher") {
       if (education !== undefined) updateFields.education = education;
       if (experience !== undefined) updateFields.experience = experience;
       if (skills !== undefined) updateFields.skills = skills;
@@ -418,19 +452,19 @@ export const updateUserProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { $set: updateFields },
-      { new: true, runValidators: true }
+      { new: true, runValidators: true },
     ).select("-password -refreshTokens");
 
     res.json({
       success: true,
       message: "Profile updated successfully",
-      data: updatedUser
+      data: updatedUser,
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       message: "Server error",
-      error: error.message
+      error: error.message,
     });
   }
 };
@@ -443,7 +477,7 @@ export const updateUserCategory = async (req, res) => {
     if (!category) {
       return res.status(400).json({
         success: false,
-        message: "At least one field (category) is required"
+        message: "At least one field (category) is required",
       });
     }
     const updatedUser = await User.findByIdAndUpdate(
@@ -451,20 +485,20 @@ export const updateUserCategory = async (req, res) => {
       {
         $set: {
           ...(category !== undefined && { category }),
-          ...(subCategory !== undefined && { subCategory })
-        }
+          ...(subCategory !== undefined && { subCategory }),
+        },
       },
       {
         new: true,
         runValidators: true,
-        context: 'query'
-      }
-    )
+        context: "query",
+      },
+    );
 
     if (!updatedUser) {
       return res.status(404).json({
         success: false,
-        message: "User not found"
+        message: "User not found",
       });
     }
 
@@ -472,7 +506,6 @@ export const updateUserCategory = async (req, res) => {
       success: true,
       message: "Category updated successfully",
     });
-
   } catch (error) {
     res.status(500).json({
       success: false,
