@@ -71,7 +71,7 @@ import { sendPushToUsers } from "./services/pushNotitification.js";
 
 // setupWalletCronJob();
 // await sendMeetingUrlMail({
-//   to: "a86764928@gmail.com",
+//   to: "abroadgateway370@gmail.com",
 //   student_name: "Prakash Jangid",
 //   session_start_time: new Date(
 //     "2026-09-05T20:00:00+05:30"
@@ -85,7 +85,7 @@ import { sendPushToUsers } from "./services/pushNotitification.js";
 
 dotenv.config();
 connectDB();
-startNotificationCron()
+// startNotificationCron()
 
 const app = express();
 const server = createServer(app);

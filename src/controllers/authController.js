@@ -7,7 +7,6 @@ import {
 } from "../utils/generateToken.js";
 import {
   sendPasswordResetEmail,
-  sendEmail,
   otpEmailTemplate,
   welcomeEmailTemplate,
 } from "../utils/sendEmail.js";
@@ -15,6 +14,7 @@ import Otp from "../models/Otp.js";
 import { Wallet } from "../models/Wallet.js";
 import { startSession } from "mongoose";
 import axios from "axios";
+import { sendEmail, sendMeetingUrlMail } from "../services/sendMeetingMail.js";
 
 function generateReferralCodeFromUserId(userId) {
   const idStr = userId.toString();
@@ -50,6 +50,7 @@ export const checkEmailExists = async (req, res) => {
   }
 };
 
+
 export const sendOtp = async (req, res) => {
   try {
     const { email } = req.body;
@@ -64,20 +65,20 @@ export const sendOtp = async (req, res) => {
 
     await Otp.create({ email, otp });
 
-    // try {
-    //   await axios.post("https://otp-backend-main.vercel.app/api/send-otp", {
-    //     "email": email,
-    //     "otp": otp
-    //   });
-    // } catch (error) {
-    //   return res.status(200).json({ success: false, message: "Failed to send OTP" });
-    // }
+    try {
+      await axios.post("https://otp-backend-main.vercel.app/api/send-otp", {
+        "email": email,
+        "otp": otp
+      });
+    } catch (error) {
+      return res.status(200).json({ success: false, message: "Failed to send OTP" });
+    }
 
-    await sendEmail({
-      email,
-      subject: "Your Ooshas Prep Login OTP",
-      html: otpEmailTemplate(otp),
-    });
+    // await sendEmail({
+    //   to: email,
+    //   subject: "Your Ooshas Prep Login OTP",
+    //   html: otpEmailTemplate(otp),
+    // });
 
     return res.json({ success: true, message: "OTP sent successfully" });
   } catch (error) {
@@ -172,11 +173,11 @@ export const verifyOtp = async (req, res) => {
           { new: true, session },
         );
       }
-      await sendEmail({
-        email: user.email,
-        subject: "Welcome to Ooshas Prep 🎉",
-        html: welcomeEmailTemplate(user),
-      });
+      // await sendEmail({
+      //   email: user.email,
+      //   subject: "Welcome to Ooshas Prep 🎉",
+      //   html: welcomeEmailTemplate(user),
+      // });
 
       accessToken = generateAccessToken(user._id);
     }
@@ -335,7 +336,7 @@ export const forgotPassword = async (req, res) => {
 
     await user.save();
 
-    await sendPasswordResetEmail(user, resetToken);
+    // await sendPasswordResetEmail(user, resetToken);
 
     res.json({
       success: true,

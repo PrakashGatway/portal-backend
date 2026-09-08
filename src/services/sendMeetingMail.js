@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import dotenv from 'dotenv';
+import dotenv from "dotenv";
 import { sendMeetingMail } from "./EmailTempletes.js";
 
 dotenv.config();
@@ -14,12 +14,43 @@ export const transporter = nodemailer.createTransport({
   },
 });
 
+export const sendEmail = async ({ to, subject, html }) => {
+  try {
+    if (!to) {
+      throw new Error("Recipient email is required");
+    }
+    const mailOptions = {
+      from: `"${process.env.MAIL_FROM_NAME || "Ooshas Prep"}" <${process.env.MAIL_USER}>`,
+      to,
+      subject,
+      text: `Hi`.trim(),
+      html,
+    };
+
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log(info.messageId);
+
+    return {
+      success: true,
+      messageId: info.messageId,
+    };
+  } catch (error) {
+    console.error("Meeting mail error:", error);
+
+    return {
+      success: false,
+      message: error.message || "Failed to send meeting invitation email",
+    };
+  }
+};
+
 const sendMeetingUrlMail = async ({
   to,
   student_name,
   session_start_time,
   session_end_time,
-  instructor_name="Ooshas Trainer",
+  instructor_name = "Ooshas Trainer",
   meetingUrl,
   title,
 }) => {
