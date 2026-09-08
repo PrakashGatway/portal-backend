@@ -63,8 +63,6 @@ export const uploadSingleImage = (req, res) => {
   }
 };
 
-
-
 export const uploadMultipleImages = (req, res) => {
   try {
     if (!req.files || req.files.length === 0) {
@@ -158,6 +156,7 @@ export const uploadBlogs = async (req, res) => {
 
     return res.status(500).json({
       success: false,
+      error: error,
       message: "Failed to upload image",
     });
   }
