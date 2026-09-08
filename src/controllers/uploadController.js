@@ -1,5 +1,5 @@
 import { deleteFile } from "../middleware/upload.js";
-import fs from "fs/promises";
+import fs from "fs";
 import path from "path";
 import User from "../models/User.js";
 import cloudinary from "../utils/cloudnary.js";
