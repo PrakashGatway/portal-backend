@@ -1,16 +1,18 @@
+
+
+
 import cron from "node-cron";
 import mongoose from "mongoose";
-import nodemailer from "nodemailer";
 
 import { Session } from "../models/Content.js";
-
 import { Notification, NotificationRec } from "../models/Notification.js";
-
 import User from "../models/User.js";
 import CoursePurchase from "../models/PurchasedCourse.js";
 import { sendMeetingUrlMail } from "../services/sendMeetingMail.js";
-import { sendPushToUsers } from "../services/pushNotitification.js";
-
+import {
+  sendPushToUsers,
+  sendPushToTopic,
+} from "../services/pushNotitification.js";
 
 const SESSION_REMINDERS = [
   {
@@ -18,13 +20,11 @@ const SESSION_REMINDERS = [
     milliseconds: 6 * 60 * 60 * 1000,
     text: "6 hours",
   },
-
   {
     key: "30_minutes",
     milliseconds: 30 * 60 * 1000,
     text: "30 minutes",
   },
-
   {
     key: "5_minutes",
     milliseconds: 5 * 60 * 1000,
@@ -38,10 +38,12 @@ const getCourseStudents = async (courseId) => {
       itemId: courseId,
       isActive: true,
     }).select("user");
-    return purchases.map((purchase) => purchase.user).filter(Boolean);
+
+    return purchases
+      .map((purchase) => purchase.user)
+      .filter(Boolean);
   } catch (error) {
     console.error("Error getting course students:", error);
-
     return [];
   }
 };
@@ -49,11 +51,16 @@ const getCourseStudents = async (courseId) => {
 const getSessionRecipients = async (session) => {
   const studentIds = await getCourseStudents(session.course);
 
-  const recipients = [...studentIds, session.instructor].filter(Boolean);
+  const recipients = [
+    ...studentIds,
+    session.instructor,
+  ].filter(Boolean);
 
-  const uniqueIds = [...new Set(recipients.map((id) => id.toString()))];
-
-  return uniqueIds;
+  return [
+    ...new Set(
+      recipients.map((id) => id.toString()),
+    ),
+  ];
 };
 
 const createSessionReminders = async (session) => {
@@ -63,28 +70,25 @@ const createSessionReminders = async (session) => {
     }
 
     if (!session?.course) {
-      console.log(`Session ${session._id} does not have course`);
+      console.log(
+        `Session ${session._id} does not have course`,
+      );
       return;
     }
 
     if (!session?.instructor) {
-      console.log(`Session ${session._id} does not have instructor`);
+      console.log(
+        `Session ${session._id} does not have instructor`,
+      );
       return;
     }
 
     const sessionStart = new Date(session.scheduledStart);
-
     const now = new Date();
 
     if (sessionStart <= now) {
       return;
     }
-
-    // const recipients = await getSessionRecipients(session);
-
-    // if (!recipients.length) {
-    //   return;
-    // }
 
     for (const reminder of SESSION_REMINDERS) {
       const scheduledFor = new Date(
@@ -96,10 +100,10 @@ const createSessionReminders = async (session) => {
       }
 
       const notificationKey =
-        `session:${session._id}` + `:reminder:${reminder.key}`;
+        `session:${session._id}:reminder:${reminder.key}`;
 
       const existing = await Notification.findOne({
-        notificationKey: notificationKey,
+        notificationKey,
       });
 
       if (existing) {
@@ -110,10 +114,13 @@ const createSessionReminders = async (session) => {
         isGlobal: false,
         title: `Upcoming Session: ${session.title}`,
         message:
-          `Your session "${session.title}" ` +
-          `starts in ${reminder.text}. Please be ready to join on time.`,
+          `Your session "${session.title}" starts in ` +
+          `${reminder.text}. Please be ready to join on time.`,
         type: "reminder",
-        priority: reminder.key === "5_minutes" ? "high" : "medium",
+        priority:
+          reminder.key === "5_minutes"
+            ? "high"
+            : "medium",
         data: {
           courseId: session.course,
           contentId: session._id,
@@ -125,15 +132,26 @@ const createSessionReminders = async (session) => {
           thumbnail: session.thumbnailPic,
         },
         scheduledFor,
+        proceedStatus: false,
+        isActive: true,
       });
     }
-    console.log(`Notification Created for session ${session._id}`);
+
+    console.log(
+      `Notification created for session ${session._id}`,
+    );
   } catch (error) {
-    console.error("Create session reminders error:", error);
+    console.error(
+      "Create session reminders error:",
+      error,
+    );
   }
 };
 
-const sendEmailNotification = async ({ notify, session }) => {
+const sendEmailNotification = async ({
+  notify,
+  session,
+}) => {
   try {
     const user = notify.user;
 
@@ -141,15 +159,20 @@ const sendEmailNotification = async ({ notify, session }) => {
       return false;
     }
 
-    if (user.notifications && user.notifications.email === false) {
+    if (
+      user.notifications &&
+      user.notifications.email === false
+    ) {
       return false;
     }
 
-    sendMeetingUrlMail({
-      to: user?.email,
-      student_name: user?.name,
+    await sendMeetingUrlMail({
+      to: user.email,
+      student_name: user.name,
       session_start_time: session?.scheduledStart
-        ? new Date(session.scheduledStart).toLocaleString("en-IN", {
+        ? new Date(
+            session.scheduledStart,
+          ).toLocaleString("en-IN", {
             day: "2-digit",
             month: "short",
             year: "numeric",
@@ -159,9 +182,10 @@ const sendEmailNotification = async ({ notify, session }) => {
             timeZone: "Asia/Kolkata",
           })
         : "",
-
       session_end_time: session?.scheduledEnd
-        ? new Date(session.scheduledEnd).toLocaleString("en-IN", {
+        ? new Date(
+            session.scheduledEnd,
+          ).toLocaleString("en-IN", {
             day: "2-digit",
             month: "short",
             year: "numeric",
@@ -171,14 +195,19 @@ const sendEmailNotification = async ({ notify, session }) => {
             timeZone: "Asia/Kolkata",
           })
         : "",
-      instructor_name: session?.instructor?.name || "Ooshas Trainer",
+      instructor_name:
+        session?.instructor?.name ||
+        "Ooshas Trainer",
       meetingUrl: session?.meetingId,
       title: session?.title,
     });
 
     return true;
   } catch (error) {
-    console.error("Email notification error:", error);
+    console.error(
+      "Email notification error:",
+      error,
+    );
 
     return false;
   }
@@ -186,75 +215,174 @@ const sendEmailNotification = async ({ notify, session }) => {
 
 const processNotification = async (notification) => {
   try {
-    if (!notification.data.contentId?._id) {
-      return;
+    const session = notification?.data?.contentId;
+
+    if (!session?._id) {
+      console.log(
+        `Session not found for notification ${notification._id}`,
+      );
+      return false;
     }
+
     const now = new Date();
-    const NotifyUsers = await getSessionRecipients(
-      notification?.data?.contentId,
+
+    const notifyUsers = await getSessionRecipients(
+      session,
     );
 
-    for (const user of NotifyUsers) {
-      const notify = await NotificationRec.create({
-        notification: notification._id,
-        user: new mongoose.Types.ObjectId(user),
-        expiresAt: new Date(now.getTime() + 48 * 60 * 60 * 1000),
-      });
+    if (!notifyUsers.length) {
+      console.log(
+        `No recipients found for session ${session._id}`,
+      );
 
-      await notify.populate([{ path: "user" }, { path: "notification" }]);
-
-      if (!notify?.meta?.email) {
-        await sendEmailNotification({
-          notify: notify,
-          session: notification?.data?.contentId,
-        });
-        notify.meta.email = true;
-      }
-
-      if (!notify?.meta?.push) {
-        const sessionPy = notification?.data?.contentId;
-
-        const sessionDate = new Date(
-          sessionPy.scheduledStart,
-        ).toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "long",
-          year: "numeric",
-          timeZone: "Asia/Kolkata",
-        });
-
-        const sessionStartTime = new Date(
-          sessionPy.scheduledStart,
-        ).toLocaleTimeString("en-IN", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: true,
-          timeZone: "Asia/Kolkata",
-        });
-
-        const totalMinutes = Math.floor(sessionPy.duration / 60);
-
-        const hours = Math.floor(totalMinutes / 60);
-        const minutes = totalMinutes % 60;
-
-        const sessionDuration = hours
-          ? `${hours} hour${hours > 1 ? "s" : ""}${
-              minutes ? ` ${minutes} minute${minutes > 1 ? "s" : ""}` : ""
-            }`
-          : `${minutes} minute${minutes > 1 ? "s" : ""}`;
-
-        await sendPushToUsers([user.toString()], {
-          title: `Upcoming Session 📅`,
-          body: `"${sessionPy.title || "Upcoming Session"}" is scheduled for ${sessionDate} at ${sessionStartTime}. Duration: ${sessionDuration}. Please be ready to join on time.`,
-          data: {
-            type: "session",
-            url: `/sessions/${sessionPy.slug}`,
-            actionText: "Join Session"
+      await Notification.findByIdAndUpdate(
+        notification._id,
+        {
+          $set: {
+            proceedStatus: true,
           },
-        });
-        notify.meta.push = true;
+        },
+      );
+
+      return false;
+    }
+
+    for (const userId of notifyUsers) {
+      try {
+        let notify =
+          await NotificationRec.findOne({
+            notification: notification._id,
+            user: new mongoose.Types.ObjectId(
+              userId,
+            ),
+          });
+
+        if (!notify) {
+          notify = await NotificationRec.create({
+            notification: notification._id,
+            user: new mongoose.Types.ObjectId(
+              userId,
+            ),
+            expiresAt: new Date(
+              now.getTime() +
+                48 * 60 * 60 * 1000,
+            ),
+          });
+        }
+
+        await notify.populate([
+          {
+            path: "user",
+          },
+          {
+            path: "notification",
+          },
+        ]);
+
+        if (
+          !notify.meta?.email &&
+          notify.user
+        ) {
+          const emailSent =
+            await sendEmailNotification({
+              notify,
+              session,
+            });
+
+          if (emailSent) {
+            notify.meta = notify.meta || {};
+            notify.meta.email = true;
+          }
+        }
+
+        if (!notify.meta?.push) {
+          const sessionDate =
+            new Date(
+              session.scheduledStart,
+            ).toLocaleDateString("en-IN", {
+              day: "2-digit",
+              month: "long",
+              year: "numeric",
+              timeZone: "Asia/Kolkata",
+            });
+
+          const sessionStartTime =
+            new Date(
+              session.scheduledStart,
+            ).toLocaleTimeString("en-IN", {
+              hour: "2-digit",
+              minute: "2-digit",
+              hour12: true,
+              timeZone: "Asia/Kolkata",
+            });
+
+          const totalMinutes = Math.floor(
+            (session.duration || 0) / 60,
+          );
+
+          const hours =
+            Math.floor(totalMinutes / 60);
+
+          const minutes =
+            totalMinutes % 60;
+
+          const sessionDuration = hours
+            ? `${hours} hour${
+                hours > 1 ? "s" : ""
+              }${
+                minutes
+                  ? ` ${minutes} minute${
+                      minutes > 1 ? "s" : ""
+                    }`
+                  : ""
+              }`
+            : `${minutes} minute${
+                minutes > 1 ? "s" : ""
+              }`;
+
+          const pushResult =
+            await sendPushToUsers(
+              [String(userId)],
+              {
+                title:
+                  "Upcoming Session 📅",
+                body:
+                  `"${session.title || "Upcoming Session"}" ` +
+                  `is scheduled for ${sessionDate} ` +
+                  `at ${sessionStartTime}. ` +
+                  `Duration: ${sessionDuration}. ` +
+                  `Please be ready to join on time.`,
+                data: {
+                  type: "session",
+                  notificationId:
+                    String(notification._id),
+                  url: `/sessions/${session.slug}`,
+                  actionText: "Join Session",
+                },
+              },
+            );
+
+          const result =
+            pushResult instanceof Map
+              ? pushResult.get(String(userId))
+              : null;
+
+          if (
+            result?.status === "sent"
+          ) {
+            notify.meta =
+              notify.meta || {};
+            notify.meta.push = "sent";
+          }
+        }
+
+        await notify.save();
+      } catch (userError) {
+        console.error(
+          `Failed processing user ${userId} for notification ${notification._id}:`,
+          userError,
+        );
       }
-      await notify.save();
     }
 
     await Notification.findByIdAndUpdate(
@@ -271,7 +399,237 @@ const processNotification = async (notification) => {
 
     return true;
   } catch (error) {
-    console.error(`Processing notification ${notification._id} failed:`, error);
+    console.error(
+      `Processing notification ${notification._id} failed:`,
+      error,
+    );
+
+    return false;
+  }
+};
+
+const processScheduledGenericNotification = async (
+  notification,
+) => {
+  try {
+    if (!notification) {
+      return false;
+    }
+
+    let userIds = [];
+
+    if (
+      Array.isArray(notification.recipients) &&
+      notification.recipients.length
+    ) {
+      userIds = notification.recipients.map(
+        (id) => String(id),
+      );
+    }
+
+    if (!userIds.length) {
+      const users = await User.find({
+        token: {
+          $exists: true,
+          $nin: [null, ""],
+        },
+      }).select("_id");
+
+      userIds = users.map((user) =>
+        String(user._id),
+      );
+    }
+
+    userIds = [
+      ...new Set(userIds),
+    ];
+
+    console.log(
+      `[Scheduled Notification] ${notification._id}`,
+    );
+
+    console.log(
+      `[Scheduled Notification] isGlobal:`,
+      notification.isGlobal,
+    );
+
+    console.log(
+      `[Scheduled Notification] Users:`,
+      userIds,
+    );
+
+    if (!userIds.length) {
+      console.log(
+        `No users found for notification ${notification._id}`,
+      );
+
+      await Notification.findByIdAndUpdate(
+        notification._id,
+        {
+          $set: {
+            proceedStatus: true,
+          },
+        },
+      );
+
+      return false;
+    }
+
+    const recipientDocs =
+      userIds.map((userId) => ({
+        notification: notification._id,
+        user: new mongoose.Types.ObjectId(
+          userId,
+        ),
+        isRead: false,
+        readAt: null,
+      }));
+
+    try {
+      await NotificationRec.insertMany(
+        recipientDocs,
+        {
+          ordered: false,
+        },
+      );
+
+      console.log(
+        `NotificationRec created for ${userIds.length} users`,
+      );
+    } catch (error) {
+      if (
+        error?.code === 11000 ||
+        error?.writeErrors
+      ) {
+        console.log(
+          `Some NotificationRec records already exist for ${notification._id}`,
+        );
+      } else {
+        console.error(
+          `NotificationRec insert error for ${notification._id}:`,
+          error,
+        );
+      }
+    }
+
+
+
+    if (notification) {
+      const pushData = {
+        notificationId:
+          String(notification._id),
+        notificationKey:
+          notification.notificationKey || "",
+        type:
+          notification.type || "",
+        priority:
+          notification.priority || "medium",
+        url:
+          notification?.data?.url || "",
+        actionText:
+          notification?.data?.actionText || "",
+      };
+
+      let pushResult = null;
+
+      // if (notification.isGlobal) {
+        pushResult =
+          await sendPushToTopic(
+            "global_notifications",
+            {
+              title:
+                notification.title,
+              body:
+                notification.message,
+              data: pushData,
+            },
+          );
+      // // } else {
+      //   pushResult =
+      //     await sendPushToUsers(
+      //       userIds,
+      //       {
+      //         title:
+      //           notification.title,
+      //         body:
+      //           notification.message,
+      //         data: pushData,
+      //       },
+      //     );
+      // }
+
+      console.log(
+        `[FCM Result]`,
+        pushResult,
+      );
+
+      if (
+        pushResult instanceof Map
+      ) {
+        for (const userId of userIds) {
+          const result =
+            pushResult.get(
+              String(userId),
+            );
+
+          if (!result) {
+            continue;
+          }
+
+          let pushStatus =
+            result.status;
+
+          if (
+            result.status === "sent"
+          ) {
+            pushStatus = "sent";
+          }
+
+          await NotificationRec.findOneAndUpdate(
+            {
+              notification:
+                notification._id,
+              user:
+                new mongoose.Types.ObjectId(
+                  userId,
+                ),
+            },
+            {
+              $set: {
+                "meta.push":
+                  pushStatus,
+              },
+            },
+            {
+              new: true,
+            },
+          );
+        }
+      }
+    }
+
+    await Notification.findByIdAndUpdate(
+      notification._id,
+      {
+        $set: {
+          proceedStatus: true,
+        },
+      },
+      {
+        new: true,
+      },
+    );
+
+    console.log(
+      `Scheduled notification ${notification._id} dispatched successfully.`,
+    );
+
+    return true;
+  } catch (error) {
+    console.error(
+      `Processing scheduled notification ${notification?._id} failed:`,
+      error,
+    );
 
     return false;
   }
@@ -281,16 +639,22 @@ const prepareSessionReminders = async () => {
   try {
     const now = new Date();
 
-    const future = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+    const future = new Date(
+      now.getTime() +
+        7 * 60 * 60 * 1000,
+    );
 
     const sessions = await Session.find({
       scheduledStart: {
         $gt: now,
         $lte: future,
       },
-
       status: {
-        $in: ["scheduled", "published", "live"],
+        $in: [
+          "scheduled",
+          "published",
+          "live",
+        ],
       },
     }).lean();
 
@@ -299,10 +663,15 @@ const prepareSessionReminders = async () => {
     }
 
     for (const session of sessions) {
-      await createSessionReminders(session);
+      await createSessionReminders(
+        session,
+      );
     }
   } catch (error) {
-    console.error("Prepare session reminders error:", error);
+    console.error(
+      "Prepare session reminders error:",
+      error,
+    );
   }
 };
 
@@ -310,43 +679,118 @@ const processDueNotifications = async () => {
   try {
     const now = new Date();
 
-    const notifications = await Notification.find({
-      type: "reminder",
-      scheduledFor: {
-        $lte: now,
-      },
-      isActive: true,
-      proceedStatus: {
-        $nin: [true],
-      },
-    }).limit(5)
-      .populate("data.courseId", "title description")
-      .populate({
-        path: "data.contentId",
-      });
+    const notifications =
+      await Notification.find({
+        type: "reminder",
+        notificationKey: {
+          $regex: /^session:/,
+        },
+        scheduledFor: {
+          $lte: now,
+        },
+        isActive: true,
+        proceedStatus: {
+          $ne: true,
+        },
+      })
+        .limit(5)
+        .populate(
+          "data.courseId",
+          "title description",
+        )
+        .populate({
+          path: "data.contentId",
+        })
+        .populate({
+          path: "data.contentId.instructor",
+        });
 
     if (!notifications.length) {
       return;
     }
 
-    console.log(`Processing ${notifications.length} notifications`);
+    console.log(
+      `Processing ${notifications.length} session reminder notifications`,
+    );
 
     for (const notification of notifications) {
-      await processNotification(notification);
+      await processNotification(
+        notification,
+      );
     }
   } catch (error) {
-    console.error("Process due notifications error:", error);
+    console.error(
+      "Process due notifications error:",
+      error,
+    );
   }
 };
 
+const processDueScheduledNotifications =
+  async () => {
+    try {
+      const now = new Date();
+
+      const notifications =
+        await Notification.find({
+          scheduledFor: {
+            $lte: now,
+            $ne: null,
+          },
+          isActive: true,
+          proceedStatus: {
+            $ne: true,
+          },
+          notificationKey: {
+            $not: /^session:/,
+          },
+        }).limit(20);
+
+      console.log(
+        `[Scheduled Notifications] Current time: ${now.toISOString()}`,
+      );
+
+      console.log(
+        `[Scheduled Notifications] Found: ${notifications.length}`,
+      );
+
+      if (!notifications.length) {
+        return;
+      }
+
+      for (const notification of notifications) {
+        console.log(
+          `[Scheduled Notifications] Processing: ${notification._id}`,
+        );
+
+        await processScheduledGenericNotification(
+          notification,
+        );
+      }
+    } catch (error) {
+      console.error(
+        "Process due scheduled notifications error:",
+        error,
+      );
+    }
+  };
+
 const runNotificationCron = async () => {
-  console.log(`[Notification Cron] ${new Date().toISOString()}`);
+  console.log(
+    `[Notification Cron] ${new Date().toISOString()}`,
+  );
 
   try {
     await prepareSessionReminders();
+
     await processDueNotifications();
+
+    await processDueScheduledNotifications();
   } catch (error) {
-    console.error("[Notification Cron] Error:", error);
+    console.error(
+      "[Notification Cron] Error:",
+      error,
+    );
   }
 };
 
@@ -357,11 +801,406 @@ export const startNotificationCron = () => {
       await runNotificationCron();
     },
     {
-      timezone: process.env.TZ || "Asia/Kolkata",
+      timezone:
+        process.env.TZ ||
+        "Asia/Kolkata",
     },
   );
 
-  console.log("✅ Notification cron started");
+  console.log(
+    "✅ Notification cron started",
+  );
 };
 
-export { runNotificationCron, createSessionReminders, processDueNotifications };
+export {
+  runNotificationCron,
+  createSessionReminders,
+  processDueNotifications,
+  processDueScheduledNotifications,
+};
+
+
+
+
+
+
+
+
+
+
+// import cron from "node-cron";
+// import mongoose from "mongoose";
+// import nodemailer from "nodemailer";
+
+// import { Session } from "../models/Content.js";
+
+// import { Notification, NotificationRec } from "../models/Notification.js";
+
+// import User from "../models/User.js";
+// import CoursePurchase from "../models/PurchasedCourse.js";
+// import { sendMeetingUrlMail } from "../services/sendMeetingMail.js";
+
+// const transporter = nodemailer.createTransport({
+//   host: process.env.MAIL_HOST || "smtp.hostinger.com",
+//   port: Number(process.env.MAIL_PORT) || 465,
+//   secure: true,
+
+//   auth: {
+//     user: process.env.MAIL_USER,
+//     pass: process.env.MAIL_PASSWORD,
+//   },
+// });
+
+// const SESSION_REMINDERS = [
+//   {
+//     key: "6_hours",
+//     milliseconds: 6 * 60 * 60 * 1000,
+//     text: "6 hours",
+//   },
+
+//   {
+//     key: "30_minutes",
+//     milliseconds: 30 * 60 * 1000,
+//     text: "30 minutes",
+//   },
+
+//   {
+//     key: "5_minutes",
+//     milliseconds: 5 * 60 * 1000,
+//     text: "5 minutes",
+//   },
+// ];
+
+// const getCourseStudents = async (courseId) => {
+//   try {
+//     const purchases = await CoursePurchase.find({
+//       itemId: courseId,
+//       isActive: true,
+//     }).select("user");
+//     return purchases.map((purchase) => purchase.user).filter(Boolean);
+//   } catch (error) {
+//     console.error("Error getting course students:", error);
+
+//     return [];
+//   }
+// };
+
+// const getSessionRecipients = async (session) => {
+//   const studentIds = await getCourseStudents(session.course);
+
+//   const recipients = [...studentIds, session.instructor].filter(Boolean);
+
+//   const uniqueIds = [...new Set(recipients.map((id) => id.toString()))];
+
+//   return uniqueIds;
+// };
+
+// const createSessionReminders = async (session) => {
+//   try {
+//     if (!session?.scheduledStart) {
+//       return;
+//     }
+
+//     if (!session?.course) {
+//       console.log(`Session ${session._id} does not have course`);
+//       return;
+//     }
+
+//     if (!session?.instructor) {
+//       console.log(`Session ${session._id} does not have instructor`);
+//       return;
+//     }
+
+//     const sessionStart = new Date(session.scheduledStart);
+
+//     const now = new Date();
+
+//     if (sessionStart <= now) {
+//       return;
+//     }
+
+//     // const recipients = await getSessionRecipients(session);
+
+//     // if (!recipients.length) {
+//     //   return;
+//     // }
+
+//     for (const reminder of SESSION_REMINDERS) {
+//       const scheduledFor = new Date(
+//         sessionStart.getTime() - reminder.milliseconds,
+//       );
+
+//       if (scheduledFor <= now) {
+//         continue;
+//       }
+
+//       const notificationKey =
+//         `session:${session._id}` + `:reminder:${reminder.key}`;
+
+//       const existing = await Notification.findOne({
+//         notificationKey: notificationKey,
+//       });
+
+//       if (existing) {
+//         continue;
+//       }
+
+//       await Notification.create({
+//         isGlobal: false,
+//         title: `Upcoming Session: ${session.title}`,
+//         message:
+//           `Your session "${session.title}" ` +
+//           `starts in ${reminder.text}. Please be ready to join on time.`,
+//         type: "reminder",
+//         priority: reminder.key === "5_minutes" ? "high" : "medium",
+//         data: {
+//           courseId: session.course,
+//           contentId: session._id,
+//           url: `/sessions/${session.slug}`,
+//           actionText: "Join Session",
+//         },
+//         notificationKey,
+//         metaInfo: {
+//           thumbnail: session.thumbnailPic,
+//         },
+//         scheduledFor,
+//       });
+//     }
+//     console.log(`Notification Created for session ${session._id}`);
+//   } catch (error) {
+//     console.error("Create session reminders error:", error);
+//   }
+// };
+
+// const sendEmailNotification = async ({ notify, session }) => {
+//   try {
+//     const user = notify.user;
+
+//     if (!user?.email) {
+//       return false;
+//     }
+
+//     if (user.notifications && user.notifications.email === false) {
+//       return false;
+//     }
+
+//     sendMeetingUrlMail({
+//       to: user?.email,
+//       student_name: user?.name,
+//       session_start_time: session?.scheduledStart
+//         ? new Date(session.scheduledStart).toLocaleString("en-IN", {
+//             day: "2-digit",
+//             month: "short",
+//             year: "numeric",
+//             hour: "2-digit",
+//             minute: "2-digit",
+//             hour12: true,
+//             timeZone: "Asia/Kolkata",
+//           })
+//         : "",
+
+//       session_end_time: session?.scheduledEnd
+//         ? new Date(session.scheduledEnd).toLocaleString("en-IN", {
+//             day: "2-digit",
+//             month: "short",
+//             year: "numeric",
+//             hour: "2-digit",
+//             minute: "2-digit",
+//             hour12: true,
+//             timeZone: "Asia/Kolkata",
+//           })
+//         : "",
+//       instructor_name: session?.instructor?.name || "Ooshas Trainer",
+//       meetingUrl: session?.meetingId,
+//       title: session?.title,
+//     });
+
+//     return true;
+//   } catch (error) {
+//     console.error("Email notification error:", error);
+
+//     return false;
+//   }
+// };
+
+// const processNotification = async (notification) => {
+//   try {
+//     if (!notification.data.contentId?._id) {
+//       return;
+//     }
+//     const now = new Date();
+//     const NotifyUsers = await getSessionRecipients(
+//       notification?.data?.contentId,
+//     );
+
+//     for (const user of NotifyUsers) {
+//       const notify = await NotificationRec.create({
+//         notification: notification._id,
+//         user: new mongoose.Types.ObjectId(user),
+//         expiresAt: new Date(now.getTime() + 48 * 60 * 60 * 1000),
+//       });
+
+//       await notify.populate([{ path: "user" }, { path: "notification" }]);
+
+//       if (!notify?.meta?.email) {
+//         await sendEmailNotification({
+//           notify: notify,
+//           session: notification?.data?.contentId,
+//         });
+//         notify.meta.email = true;
+//       }
+
+//       if (!notify?.meta?.push) {
+//         const sessionPy = notification?.data?.contentId;
+
+//         const sessionDate = new Date(
+//           sessionPy.scheduledStart,
+//         ).toLocaleDateString("en-IN", {
+//           day: "2-digit",
+//           month: "long",
+//           year: "numeric",
+//           timeZone: "Asia/Kolkata",
+//         });
+
+//         const sessionStartTime = new Date(
+//           sessionPy.scheduledStart,
+//         ).toLocaleTimeString("en-IN", {
+//           hour: "2-digit",
+//           minute: "2-digit",
+//           hour12: true,
+//           timeZone: "Asia/Kolkata",
+//         });
+
+//         const totalMinutes = Math.floor(sessionPy.duration / 60);
+
+//         const hours = Math.floor(totalMinutes / 60);
+//         const minutes = totalMinutes % 60;
+
+//         const sessionDuration = hours
+//           ? `${hours} hour${hours > 1 ? "s" : ""}${
+//               minutes ? ` ${minutes} minute${minutes > 1 ? "s" : ""}` : ""
+//             }`
+//           : `${minutes} minute${minutes > 1 ? "s" : ""}`;
+
+//         await sendPushToUsers([user.toString()], {
+//           title: `Upcoming Session 📅`,
+//           body: `"${sessionPy.title || "Upcoming Session"}" is scheduled for ${sessionDate} at ${sessionStartTime}. Duration: ${sessionDuration}. Please be ready to join on time.`,
+//           data: {
+//             type: "session",
+//             url: `/sessions/${sessionPy.slug}`,
+//             actionText: "Join Session"
+//           },
+//         });
+//         notify.meta.push = true;
+//       }
+//       await notify.save();
+//     }
+
+//     await Notification.findByIdAndUpdate(
+//       notification._id,
+//       {
+//         $set: {
+//           proceedStatus: true,
+//         },
+//       },
+//       {
+//         new: true,
+//       },
+//     );
+
+//     return true;
+//   } catch (error) {
+//     console.error(`Processing notification ${notification._id} failed:`, error);
+
+//     return false;
+//   }
+// };
+
+// const prepareSessionReminders = async () => {
+//   try {
+//     const now = new Date();
+
+//     const future = new Date(now.getTime() + 7 * 60 * 60 * 1000);
+
+//     const sessions = await Session.find({
+//       scheduledStart: {
+//         $gt: now,
+//         $lte: future,
+//       },
+
+//       status: {
+//         $in: ["scheduled", "published", "live"],
+//       },
+//     }).lean();
+
+//     if (!sessions.length) {
+//       return;
+//     }
+
+//     for (const session of sessions) {
+//       await createSessionReminders(session);
+//     }
+//   } catch (error) {
+//     console.error("Prepare session reminders error:", error);
+//   }
+// };
+
+// const processDueNotifications = async () => {
+//   try {
+//     const now = new Date();
+
+//     const notifications = await Notification.find({
+//       type: "reminder",
+//       scheduledFor: {
+//         $lte: now,
+//       },
+//       isActive: true,
+//       proceedStatus: {
+//         $nin: [true],
+//       },
+//     }).limit(5)
+//       .populate("data.courseId", "title description")
+//       .populate({
+//         path: "data.contentId",
+//       });
+
+//     if (!notifications.length) {
+//       return;
+//     }
+
+//     console.log(`Processing ${notifications.length} notifications`);
+
+//     for (const notification of notifications) {
+//       await processNotification(notification);
+//     }
+//   } catch (error) {
+//     console.error("Process due notifications error:", error);
+//   }
+// };
+
+// const runNotificationCron = async () => {
+//   console.log(`[Notification Cron] ${new Date().toISOString()}`);
+
+//   try {
+//     await prepareSessionReminders();
+//     await processDueNotifications();
+//   } catch (error) {
+//     console.error("[Notification Cron] Error:", error);
+//   }
+// };
+
+// export const startNotificationCron = () => {
+//   cron.schedule(
+//     "* * * * *",
+//     async () => {
+//       await runNotificationCron();
+//     },
+//     {
+//       timezone: process.env.TZ || "Asia/Kolkata",
+//     },
+//   );
+
+//   console.log("✅ Notification cron started");
+// };
+
+// export { runNotificationCron, createSessionReminders, processDueNotifications };

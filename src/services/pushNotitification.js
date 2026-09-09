@@ -164,16 +164,26 @@ export async function sendPushToUsers(
 }
 
 export async function sendPushToTopic(topic, { title, body, data = {} } = {}) {
-  if (!topic) {
-    return {
-      status: "failed",
-      error: "Topic is required",
-    };
-  }
-
   try {
-    const messageId = await messaging.send({
-      topic,
+    const users = await User.find({
+      token: { $exists: true, $ne: "", $ne: null },
+    })
+      .select("token")
+      .lean();
+
+    const tokens = users
+      .map((user) => String(user.token || "").trim())
+      .filter(Boolean);
+
+    if (!tokens.length) {
+      return {
+        status: "failed",
+        error: "No users with valid tokens found",
+      };
+    }
+
+    const messages = tokens.map((token) => ({
+      token,
 
       notification: {
         title: String(title || ""),
@@ -194,11 +204,15 @@ export async function sendPushToTopic(topic, { title, body, data = {} } = {}) {
           Urgency: "high",
         },
       },
-    });
+    }));
+
+    const response = await messaging.sendEach(messages);
 
     return {
       status: "sent",
-      messageId,
+      successCount: response.successCount,
+      failureCount: response.failureCount,
+      responses: response.responses,
     };
   } catch (error) {
     console.error("FCM topic error:", error.code, error.message);

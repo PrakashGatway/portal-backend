@@ -78,26 +78,6 @@ export const saveToken = async (req, res) => {
   }
 };
 
-// export const saveToken = async (req, res) => {
-//   try {
-//     const { token, id } = req.body;
-
-//     if (!token || !id) {
-//       return res.status(400).json({ message: "token and id are required" });
-//     }
-
-//     await fcmToken.findOneAndUpdate(
-//       { token, user: id },
-//       { token, user: id },
-//       { upsert: true }
-//     );
-
-//     return res.status(200).json({ message: "Token saved" });
-//   } catch (error) {
-//     console.error("Error saving token:", error);
-//     return res.status(500).json({ message: "Something went wrong" });
-//   }
-// };
 
 export const createNotification = async (req, res) => {
   try {
@@ -188,6 +168,12 @@ export const createNotification = async (req, res) => {
       });
     }
 
+    // Determine whether this is a scheduled (future) notification.
+    // If scheduledFor has a value, we only persist the notification now.
+    // Receipts and push notifications will be handled later (e.g. by a
+    // scheduler/cron job) when the scheduled time actually arrives.
+    const isScheduled = Boolean(scheduledFor);
+
     const notification = await Notification.create({
       isGlobal: Boolean(isGlobal),
 
@@ -222,6 +208,20 @@ export const createNotification = async (req, res) => {
 
       metaInfo,
     });
+
+    // If this notification is scheduled for later, stop here.
+    // Don't create recipient docs and don't send push/FCM yet.
+    if (isScheduled) {
+      return res.status(201).json({
+        success: true,
+        message: "Notification scheduled successfully.",
+        data: {
+          notification,
+          recipients: userIds,
+          pushResult: null,
+        },
+      });
+    }
 
     if (!isGlobal) {
       console.log("all user ids", userIds);
@@ -262,8 +262,6 @@ export const createNotification = async (req, res) => {
           body: message,
           data: pushData,
         });
-
-        /* Save push result in NotificationRec */
 
         for (const userId of userIds) {
           const result = pushResult.get(String(userId));
@@ -310,6 +308,218 @@ export const createNotification = async (req, res) => {
     });
   }
 };
+
+
+// export const createNotification = async (req, res) => {
+//   try {
+//     const {
+//       recipient,
+//       recipients = [],
+//       isGlobal = false,
+
+//       notificationKey,
+//       title,
+//       message,
+//       from,
+//       to,
+//       Category,
+
+//       type,
+//       priority = "medium",
+//       isActive = true,
+
+//       data = {},
+//       proceedStatus = false,
+//       scheduledFor = null,
+//       metaInfo = {},
+
+//       sendPush = false,
+//     } = req.body;
+
+//     const sender = req.user?._id;
+
+//     if (!title?.trim()) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Title is required.",
+//       });
+//     }
+
+//     if (!message?.trim()) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Message is required.",
+//       });
+//     }
+
+//     if (!type || !VALID_TYPES.includes(type)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Invalid notification type. Allowed: ${VALID_TYPES.join(
+//           ", ",
+//         )}`,
+//       });
+//     }
+
+//     if (!VALID_PRIORITIES.includes(priority)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid priority.",
+//       });
+//     }
+
+//     let userIds = [];
+
+//     if (recipient) {
+//       userIds.push(recipient);
+//     }
+
+//     if (Array.isArray(recipients)) {
+//       userIds.push(...recipients);
+//     }
+
+//     userIds = [...new Set(userIds.filter(Boolean).map((id) => String(id)))];
+
+//     /* Validate ObjectIds */
+
+//     for (const id of userIds) {
+//       if (!mongoose.Types.ObjectId.isValid(id)) {
+//         return res.status(400).json({
+//           success: false,
+//           message: `Invalid user ID: ${id}`,
+//         });
+//       }
+//     }
+
+//     if (!isGlobal && userIds.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           "recipient or recipients is required for personal notification.",
+//       });
+//     }
+
+//     const notification = await Notification.create({
+//       isGlobal: Boolean(isGlobal),
+
+//       notificationKey: notificationKey || undefined,
+
+//       sender,
+
+//       title: title.trim(),
+//       message: message.trim(),
+
+//       from: from || undefined,
+//       to: to || undefined,
+
+//       Category: Category || undefined,
+
+//       type,
+//       priority,
+
+//       isActive: Boolean(isActive),
+
+//       data: {
+//         courseId: data.courseId || undefined,
+//         contentId: data.contentId || undefined,
+//         testId: data.testId || undefined,
+//         url: data.url || undefined,
+//         actionText: data.actionText || undefined,
+//       },
+
+//       proceedStatus: Boolean(proceedStatus),
+
+//       scheduledFor: scheduledFor || null,
+
+//       metaInfo,
+//     });
+
+//     if (!isGlobal) {
+//       console.log("all user ids", userIds);
+
+//       const recipientDocs = userIds.map((userId) => ({
+//         notification: notification._id,
+//         user: userId,
+//         isRead: false,
+//         readAt: null,
+//       }));
+
+//       await NotificationRec.insertMany(recipientDocs, {
+//         ordered: false,
+//       });
+//     }
+
+//     let pushResult = null;
+
+//     if (sendPush) {
+//       const pushData = {
+//         notificationId: String(notification._id),
+//         notificationKey: notificationKey || "",
+//         type,
+//         priority,
+//         url: data.url || "",
+//         actionText: data.actionText || "",
+//       };
+
+//       if (isGlobal) {
+//         pushResult = await sendPushToTopic("global_notifications", {
+//           title,
+//           body: message,
+//           data: pushData,
+//         });
+//       } else {
+//         pushResult = await sendPushToUsers(userIds, {
+//           title,
+//           body: message,
+//           data: pushData,
+//         });
+
+
+//         for (const userId of userIds) {
+//           const result = pushResult.get(String(userId));
+
+//           if (!result) continue;
+
+//           await NotificationRec.findOneAndUpdate(
+//             {
+//               notification: notification._id,
+//               user: userId,
+//             },
+//             {
+//               $set: {
+//                 "meta.push": result.status === "sent" ? "sent" : result.status,
+//               },
+//             },
+//             {
+//               new: true,
+//             },
+//           );
+//         }
+//       }
+//     }
+
+//     return res.status(201).json({
+//       success: true,
+//       message: isGlobal
+//         ? "Global notification created successfully."
+//         : "Notification created successfully.",
+
+//       data: {
+//         notification,
+//         recipients: userIds,
+//         pushResult,
+//       },
+//     });
+//   } catch (error) {
+//     console.error("createNotification error:", error);
+
+//     return res.status(500).json({
+//       success: false,
+//       message: "Failed to create notification.",
+//       error: error.message,
+//     });
+//   }
+// };
 
 export const getMyNotifications = async (req, res) => {
   try {
